@@ -159,7 +159,7 @@ func (e *epochStartBootstrap) prepareEpochFromStorage() (Parameters, error) {
 	}
 	e.prevEpochStartMeta = prevEpochStartMeta
 
-	e.shardCoordinator, err = sharding.NewMultiShardCoordinator(e.baseData.numberOfShards, e.baseData.shardId)
+	e.shardCoordinator, err = sharding.NewMultiShardCoordinator(e.baseData.numberOfShards, e.baseData.shardId, e.coreComponentsHolder.AddressPubKeyConverter()) //! MODIFIED CODE
 	if err != nil {
 		return Parameters{}, err
 	}

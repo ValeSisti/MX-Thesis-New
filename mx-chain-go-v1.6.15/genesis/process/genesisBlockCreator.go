@@ -519,6 +519,9 @@ func (gbc *genesisBlockCreator) getNewArgForShard(shardID uint32) (ArgsGenesisBl
 	newArgument.ShardCoordinator, err = sharding.NewMultiShardCoordinator(
 		newArgument.ShardCoordinator.NumberOfShards(),
 		shardID,
+		//! -------------------- NEW CODE --------------------
+		newArgument.Core.AddressPubKeyConverter(),
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 	if err != nil {
 		return ArgsGenesisBlockCreator{}, fmt.Errorf("'%w' while generating an temporary shard coordinator for shard %d",

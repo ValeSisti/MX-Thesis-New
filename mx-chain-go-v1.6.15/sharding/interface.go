@@ -1,6 +1,13 @@
 package sharding
 
-import "github.com/multiversx/mx-chain-go/sharding/nodesCoordinator"
+import (
+	"github.com/multiversx/mx-chain-go/sharding/nodesCoordinator"	
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-core-go/core"
+	"github.com/multiversx/mx-chain-go/state"
+	//! ---------------- END OF NEW CODE -----------------	
+)
+
 
 // Coordinator defines what a shard state coordinator should hold
 type Coordinator interface {
@@ -10,6 +17,27 @@ type Coordinator interface {
 	SameShard(firstAddress, secondAddress []byte) bool
 	CommunicationIdentifier(destShardID uint32) string
 	IsInterfaceNil() bool
+	//! ------------------- NEW CODE ---------------------
+	AddressPubKeyConverter() core.PubkeyConverter
+	UpdateCurrentEpoch(currentEpoch uint32)
+	UpdateAccountsMappingEntryFromAddressString(accountAddress string, newShardId uint32, epoch uint32) AccountsMapping
+	UpdateAccountsMappingEntryFromPubKeyBytes(addressBytes []byte, newShardId uint32, epoch uint32) AccountsMapping
+	//GetShardInfoFromAddressString(accountAddress string) ShardInfo //TODO: capire se mi servono. Se si, "implementarle" dentro oneShardCoordinator.go
+	//GetShardInfoFromAddressBytes(pubKeyBytes []byte) ShardInfo
+	GetCurrentShardFromAddressString(accountAddress string) uint32
+	GetCurrentShardFromAddressBytes(pubKeyBytes []byte) uint32
+	GetOldShardFromAddressString(accountAddress string) uint32
+	GetOldShardFromAddressBytes(pubKeyBytes []byte) uint32
+	GetEpochOfUpdateFromAddressString(accountAddress string) uint32
+	GetEpochOfUpdateFromAddressBytes(pubKeyBytes []byte) uint32
+	AccountsMapping() AccountsMapping
+	AccountsShardInfo() map[string]ShardInfo
+	CurrentEpoch() uint32
+	AccountsAdapter() state.AccountsAdapter
+	WasPreviouslyMineAddrBytes(pubKeyBytes []byte) bool
+	WasPreviouslyMineAddrString(accountAddress string) bool
+	IsAddressStringInAccountsMapping(accountAddress string) bool
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // EpochHandler defines what a component which handles current epoch should be able to do

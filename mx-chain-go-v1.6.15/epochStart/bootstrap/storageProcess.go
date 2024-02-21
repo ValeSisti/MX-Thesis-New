@@ -97,7 +97,7 @@ func (sesb *storageEpochStartBootstrap) Bootstrap() (Parameters, error) {
 	}()
 
 	var err error
-	sesb.shardCoordinator, err = sharding.NewMultiShardCoordinator(sesb.genesisShardCoordinator.NumberOfShards(), core.MetachainShardId)
+	sesb.shardCoordinator, err = sharding.NewMultiShardCoordinator(sesb.genesisShardCoordinator.NumberOfShards(), core.MetachainShardId, sesb.coreComponentsHolder.AddressPubKeyConverter()) //! MODIFIED CODE
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -225,7 +225,7 @@ func (sesb *storageEpochStartBootstrap) createStorageRequesters() error {
 		return err
 	}
 
-	shardCoordinator, err := sharding.NewMultiShardCoordinator(sesb.genesisShardCoordinator.NumberOfShards(), sesb.genesisShardCoordinator.SelfId())
+	shardCoordinator, err := sharding.NewMultiShardCoordinator(sesb.genesisShardCoordinator.NumberOfShards(), sesb.genesisShardCoordinator.SelfId(), sesb.coreComponentsHolder.AddressPubKeyConverter()) //! MODIFIED CODE
 	if err != nil {
 		return err
 	}
@@ -321,7 +321,7 @@ func (sesb *storageEpochStartBootstrap) requestAndProcessFromStorage() (Paramete
 	log.Debug("start in epoch bootstrap: processNodesConfig")
 
 	sesb.saveSelfShardId()
-	sesb.shardCoordinator, err = sharding.NewMultiShardCoordinator(sesb.baseData.numberOfShards, sesb.baseData.shardId)
+	sesb.shardCoordinator, err = sharding.NewMultiShardCoordinator(sesb.baseData.numberOfShards, sesb.baseData.shardId, sesb.coreComponentsHolder.AddressPubKeyConverter()) //! MODIFIED CODE
 	if err != nil {
 		return Parameters{}, fmt.Errorf("%w numberOfShards=%v shardId=%v", err, sesb.baseData.numberOfShards, sesb.baseData.shardId)
 	}

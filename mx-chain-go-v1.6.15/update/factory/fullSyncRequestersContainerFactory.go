@@ -147,7 +147,7 @@ func (rcf *requestersContainerFactory) checkIfRequesterExists(topic string) bool
 func (rcf *requestersContainerFactory) createTrieNodesRequester(baseTopic string, targetShardID uint32) (dataRetriever.Requester, error) {
 	// for each requester we create a pseudo-intra shard topic as to make at least of half of the requests target the proper peers
 	// this pseudo-intra shard topic is the consensus_targetShardID
-	targetShardCoordinator, err := sharding.NewMultiShardCoordinator(rcf.shardCoordinator.NumberOfShards(), targetShardID)
+	targetShardCoordinator, err := sharding.NewMultiShardCoordinator(rcf.shardCoordinator.NumberOfShards(), targetShardID, rcf.shardCoordinator.AddressPubKeyConverter())
 	if err != nil {
 		return nil, err
 	}

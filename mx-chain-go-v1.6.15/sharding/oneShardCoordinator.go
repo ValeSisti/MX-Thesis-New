@@ -2,6 +2,9 @@ package sharding
 
 import (
 	"github.com/multiversx/mx-chain-core-go/core"
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-go/state"
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 var _ Coordinator = (*OneShardCoordinator)(nil)
@@ -39,3 +42,82 @@ func (osc *OneShardCoordinator) CommunicationIdentifier(destShardID uint32) stri
 func (osc *OneShardCoordinator) IsInterfaceNil() bool {
 	return osc == nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (osc *OneShardCoordinator) AddressPubKeyConverter() core.PubkeyConverter {
+	return nil
+}
+
+func (osc *OneShardCoordinator) UpdateCurrentEpoch(currentEpoch uint32) {}
+
+
+func (osc *OneShardCoordinator) UpdateAccountsMappingEntryFromAddressString(accountAddress string, newShardId uint32, epoch uint32) AccountsMapping {
+	return AccountsMapping{}
+}
+
+func (osc *OneShardCoordinator) UpdateAccountsMappingEntryFromPubKeyBytes(pubKeyBytes []byte, newShardId uint32, epoch uint32) AccountsMapping {
+	return AccountsMapping{}
+}
+
+func (msc *OneShardCoordinator) GetCurrentShardFromAddressString(accountAddress string) uint32 {
+	return 999
+}
+
+func (msc *OneShardCoordinator) GetCurrentShardFromAddressBytes(pubKeyBytes []byte) uint32 {
+	return 999
+}
+
+func (msc *OneShardCoordinator) GetOldShardFromAddressString(accountAddress string) uint32 {
+	return 999
+}
+
+func (msc *OneShardCoordinator) GetOldShardFromAddressBytes(pubKeyBytes []byte) uint32 {
+	return 999
+}
+
+func (msc *OneShardCoordinator) GetEpochOfUpdateFromAddressString(accountAddress string) uint32 {
+	return 999
+}
+
+func (msc *OneShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes []byte) uint32 {
+	return 999
+}
+
+
+/*func (osc *OneShardCoordinator) GetShardInfoFromAddressString(accountAddress string) ShardInfo {
+	return ShardInfo{}
+}
+
+func (osc *OneShardCoordinator) GetShardInfoFromAddressBytes(pubKeyBytes []byte) ShardInfo{
+	return ShardInfo{}
+}*/
+
+
+func (osc *OneShardCoordinator) AccountsMapping() AccountsMapping {
+	return AccountsMapping{}
+}
+
+func (osc *OneShardCoordinator) AccountsShardInfo() map[string]ShardInfo {
+	return nil
+}
+
+func (osc *OneShardCoordinator) CurrentEpoch() uint32 {
+	return 0
+}
+
+func (osc *OneShardCoordinator) AccountsAdapter() state.AccountsAdapter {
+	return nil
+}
+
+func (osc *OneShardCoordinator) WasPreviouslyMineAddrBytes(pubKeyBytes []byte) bool {
+	return false
+}
+
+func (osc *OneShardCoordinator) WasPreviouslyMineAddrString(accountAddress string) bool {
+	return false
+}
+
+func (msc *OneShardCoordinator) IsAddressStringInAccountsMapping(accountAddress string) bool {
+	return false
+}
+//! ---------------- END OF NEW CODE -----------------	

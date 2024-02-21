@@ -307,7 +307,7 @@ func (ficf *fullSyncInterceptorsContainerFactory) checkIfInterceptorExists(ident
 
 func (ficf *fullSyncInterceptorsContainerFactory) generateShardHeaderInterceptors() error {
 	numShards := ficf.shardCoordinator.NumberOfShards()
-	tmpSC, err := sharding.NewMultiShardCoordinator(numShards, core.MetachainShardId)
+	tmpSC, err := sharding.NewMultiShardCoordinator(numShards, core.MetachainShardId, ficf.argInterceptorFactory.CoreComponents.AddressPubKeyConverter()) //! MODIFIED CODE
 	if err != nil {
 		return err
 	}
@@ -792,7 +792,7 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneTrieNodesInterceptor(
 func (ficf *fullSyncInterceptorsContainerFactory) generateRewardTxInterceptors() error {
 	numShards := ficf.shardCoordinator.NumberOfShards()
 
-	tmpSC, err := sharding.NewMultiShardCoordinator(numShards, core.MetachainShardId)
+	tmpSC, err := sharding.NewMultiShardCoordinator(numShards, core.MetachainShardId, ficf.argInterceptorFactory.CoreComponents.AddressPubKeyConverter()) //! MODIFIED CODE
 	if err != nil {
 		return err
 	}

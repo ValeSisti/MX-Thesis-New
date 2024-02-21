@@ -136,6 +136,9 @@ func (bcf *bootstrapComponentsFactory) Create() (*bootstrapComponents, error) {
 		bcf.cryptoComponents.PublicKey(),
 		bcf.prefConfig.Preferences,
 		log,
+		//! ------------------- NEW CODE ---------------------
+		bcf.coreComponents.AddressPubKeyConverter(),
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 	if err != nil {
 		return nil, err
@@ -244,7 +247,11 @@ func (bcf *bootstrapComponentsFactory) Create() (*bootstrapComponents, error) {
 
 	shardCoordinator, err := sharding.NewMultiShardCoordinator(
 		bootstrapParameters.NumOfShards,
-		bootstrapParameters.SelfShardId)
+		bootstrapParameters.SelfShardId,
+		//! ---------------------- NEW CODE -------------------------
+		bcf.coreComponents.AddressPubKeyConverter(),
+		//! ------------------- END OF NEW CODE ---------------------
+	)
 	if err != nil {
 		return nil, err
 	}

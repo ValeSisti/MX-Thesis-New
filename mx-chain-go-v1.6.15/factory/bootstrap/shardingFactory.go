@@ -29,6 +29,9 @@ func CreateShardCoordinator(
 	pubKey crypto.PublicKey,
 	prefsConfig config.PreferencesConfig,
 	log logger.Logger,
+	//! ------------------- NEW CODE ---------------------
+	addressPubKeyConverter core.PubkeyConverter,
+	//! ---------------- END OF NEW CODE -----------------	
 ) (sharding.Coordinator, core.NodeType, error) {
 	if check.IfNil(nodesConfig) {
 		return nil, "", errErd.ErrNilGenesisNodesSetupHandler
@@ -72,7 +75,7 @@ func CreateShardCoordinator(
 	}
 	log.Info("shard info", "started in shard", shardName)
 
-	shardCoordinator, err := sharding.NewMultiShardCoordinator(nodesConfig.NumberOfShards(), selfShardId)
+	shardCoordinator, err := sharding.NewMultiShardCoordinator(nodesConfig.NumberOfShards(), selfShardId, addressPubKeyConverter) //! MODIFIED CODE
 	if err != nil {
 		return nil, "", err
 	}
