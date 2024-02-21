@@ -2,7 +2,15 @@ package maps
 
 import (
 	"sync"
+	//! -------------------- NEW CODE --------------------
+	logger "github.com/multiversx/mx-chain-logger-go"
+	//! ---------------- END OF NEW CODE -----------------
 )
+
+//! -------------------- NEW CODE --------------------
+var log = logger.GetOrCreate("bucketSortedMap")
+//! ---------------- END OF NEW CODE -----------------
+
 
 // BucketSortedMap is
 type BucketSortedMap struct {
@@ -192,6 +200,13 @@ func (sortedMap *BucketSortedMap) GetSnapshotDescending() []BucketSortedMapItem 
 	return sortedMap.getSortedSnapshot(sortedMap.fillSnapshotDescending)
 }
 
+//! -------------------- NEW CODE --------------------
+// GetSnapshotDescending gets a snapshot of the items
+func (sortedMap *BucketSortedMap) GetSnapshotDescending2(migratingAccounts map[string]bool) []BucketSortedMapItem {
+	return sortedMap.getSortedSnapshot2(sortedMap.fillSnapshotDescending3, migratingAccounts) //!MODIFIED CODE
+}
+//! ---------------- END OF NEW CODE -----------------
+
 // This applies a read lock on all chunks, so that they aren't mutated during snapshot
 func (sortedMap *BucketSortedMap) getSortedSnapshot(fillSnapshot func(scoreChunks []*MapChunk, snapshot []BucketSortedMapItem)) []BucketSortedMapItem {
 	counter := uint32(0)
@@ -211,6 +226,32 @@ func (sortedMap *BucketSortedMap) getSortedSnapshot(fillSnapshot func(scoreChunk
 
 	return snapshot
 }
+
+//! -------------------- NEW CODE --------------------
+// This applies a read lock on all chunks, so that they aren't mutated during snapshot
+//func (sortedMap *BucketSortedMap) getSortedSnapshot2(fillSnapshot func(scoreChunks []*MapChunk, snapshot []BucketSortedMapItem, migratingAccounts map[string]bool), migratingAccounts map[string]bool) []BucketSortedMapItem {
+	func (sortedMap *BucketSortedMap) getSortedSnapshot2(fillSnapshot func(scoreChunks []*MapChunk, snapshot []BucketSortedMapItem, migratingAccounts map[string]bool) []BucketSortedMapItem, migratingAccounts map[string]bool) []BucketSortedMapItem {	
+		counter := uint32(0)
+		scoreChunks := sortedMap.getScoreChunks()
+	
+		for _, chunk := range scoreChunks {
+			chunk.mutex.RLock()
+			counter += uint32(len(chunk.items))
+		}
+	
+		snapshot := make([]BucketSortedMapItem, counter) //! MODIFIED CODE
+		//fillSnapshot(scoreChunks, snapshot, migratingAccounts) //! MODIFIED CODE
+		snapshot = fillSnapshot(scoreChunks, snapshot, migratingAccounts) //! MODIFIED CODE
+	
+		for _, chunk := range scoreChunks {
+			chunk.mutex.RUnlock()
+		}
+	
+		log.Debug("***len(snapshot) inside getSortedSnapshot2***", "len(snapshot)", len(snapshot))
+	
+		return snapshot
+	}
+	//! ---------------- END OF NEW CODE -----------------
 
 // This function should only be called under already read-locked score chunks
 func (sortedMap *BucketSortedMap) fillSnapshotAscending(scoreChunks []*MapChunk, snapshot []BucketSortedMapItem) {
@@ -234,6 +275,60 @@ func (sortedMap *BucketSortedMap) fillSnapshotDescending(scoreChunks []*MapChunk
 		}
 	}
 }
+
+//! -------------------- NEW CODE --------------------
+// This function should only be called under already read-locked score chunks
+func (sortedMap *BucketSortedMap) fillSnapshotDescending2(scoreChunks []*MapChunk, snapshot []BucketSortedMapItem, migratingAccounts map[string]bool) { //! MODIFIED CODE
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***fillSnapshotDescending called***")
+	//! ---------------- END OF NEW CODE -----------------	
+	//i := 0
+	for chunkIndex := len(scoreChunks) - 1; chunkIndex >= 0; chunkIndex-- {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***for inside fillSnapshotDescending***")
+		//! ---------------- END OF NEW CODE -----------------	
+		chunk := scoreChunks[chunkIndex]
+		for _, item := range chunk.items {
+			_, isAccountPresentInMigratingAccounts := migratingAccounts[item.GetKey()]
+			if !isAccountPresentInMigratingAccounts{
+				//! -------------------- NEW CODE --------------------
+				log.Debug("***Account is NOT present inside migratingAccounts, NOT skipping his transactions!***", "account", item.GetKey())
+				//! ---------------- END OF NEW CODE -----------------	
+				/*snapshot[i] = item
+				i++*/
+				snapshot = append(snapshot, item)
+			}else{
+				log.Debug("***Account is present inside migratingAccounts, skipping his transactions!***", "account", item.GetKey())
+			}
+		}
+	}
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***len(snapshot) inside fillSnapshotDescending***", "len(snapshot)", len(snapshot))
+	//! ---------------- END OF NEW CODE -----------------		
+}
+
+
+// This function should only be called under already read-locked score chunks
+func (sortedMap *BucketSortedMap) fillSnapshotDescending3(scoreChunks []*MapChunk, snapshot []BucketSortedMapItem, migratingAccounts map[string]bool) []BucketSortedMapItem {
+    i := uint32(0)
+    for chunkIndex := len(scoreChunks) - 1; chunkIndex >= 0; chunkIndex-- {
+        chunk := scoreChunks[chunkIndex]
+        for _, item := range chunk.items {
+            _, isAccountPresentInMigratingAccounts := migratingAccounts[item.GetKey()]
+            if !isAccountPresentInMigratingAccounts {
+                snapshot[i] = item
+                i++
+            }
+        }
+    }
+    return snapshot[:i]  // Return the trimmed snapshot
+}
+
+//? NOTA: CON fillSnapshotDescending2 NON va bene!!!!
+//? con fillSnapshotDescending INVECE SI!!!
+
+//! ---------------- END OF NEW CODE -----------------
+
 
 // IterCbSortedAscending iterates over the sorted elements in the map
 func (sortedMap *BucketSortedMap) IterCbSortedAscending(callback SortedMapIterCb) {

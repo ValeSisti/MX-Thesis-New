@@ -165,6 +165,20 @@ func (txMap *txListBySenderMap) getSnapshotDescending() []*txListForSender {
 	return listsSnapshot
 }
 
+//! -------------------- NEW CODE --------------------
+func (txMap *txListBySenderMap) getSnapshotDescending2(migratingAccounts map[string]bool) []*txListForSender {
+	itemsSnapshot := txMap.backingMap.GetSnapshotDescending2(migratingAccounts) //! MODIFIED CODE
+	listsSnapshot := make([]*txListForSender, len(itemsSnapshot))
+
+	for i, item := range itemsSnapshot {
+		listsSnapshot[i] = item.(*txListForSender)
+	}
+
+	return listsSnapshot
+}
+
+//! ---------------- END OF NEW CODE -----------------
+
 func (txMap *txListBySenderMap) clear() {
 	txMap.backingMap.Clear()
 	txMap.counter.Set(0)

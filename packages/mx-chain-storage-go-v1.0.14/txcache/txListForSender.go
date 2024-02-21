@@ -226,6 +226,9 @@ func (listForSender *txListForSender) selectBatchTo(isFirstBatch bool, destinati
 
 	// Reset the internal state used for copy operations
 	if isFirstBatch {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** isFirstBatch is true inside selectBatchTo ***")
+		//! ---------------- END OF NEW CODE -----------------
 		hasInitialGap := listForSender.verifyInitialGapOnSelectionStart()
 
 		listForSender.copyBatchIndex = listForSender.items.Front()
@@ -240,6 +243,10 @@ func (listForSender *txListForSender) selectBatchTo(isFirstBatch bool, destinati
 	availableSpace := len(destination)
 	detectedGap := listForSender.copyDetectedGap
 	previousNonce := listForSender.copyPreviousNonce
+
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** PRINTS INSIDE selectBatchTo ***", "previousNonce", previousNonce)
+	//! ---------------- END OF NEW CODE -----------------
 
 	// If a nonce gap is detected, no transaction is returned in this read.
 	// There is an exception though: if this is the first read operation for the sender in the current selection process and the sender is in the grace period,
@@ -270,6 +277,10 @@ func (listForSender *txListForSender) selectBatchTo(isFirstBatch bool, destinati
 			journal.hasMiddleGap = true
 			break
 		}
+
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** selected transaction inside selectBatchTo ***", "txHash", string(value.TxHash), "previousNonce", previousNonce)
+		//! ---------------- END OF NEW CODE -----------------	
 
 		destination[copied] = value
 		element = element.Next()

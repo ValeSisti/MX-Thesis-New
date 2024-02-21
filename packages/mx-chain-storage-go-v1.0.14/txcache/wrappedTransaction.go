@@ -70,3 +70,28 @@ func computeProcessingGasPriceAdjustment(
 
 	return uint64(float64(txFeeHelper.minGasPriceFactor()) * processFeeFactor / actualPriceFactor)
 }
+
+//! -------------------- NEW CODE --------------------
+func (wrappedTx *WrappedTransaction) isAccountMigrationTransaction() bool {
+	normalTransactionHandler, ok := wrappedTx.Tx.(data.NormalTransactionHandler)
+	return ok && len(normalTransactionHandler.GetSignerPubKey()) > 0 && !(len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+}
+
+
+func (wrappedTx *WrappedTransaction) isAccountAdjustmentTransaction() bool {
+	normalTransactionHandler, ok := wrappedTx.Tx.(data.NormalTransactionHandler)
+	return ok && len(normalTransactionHandler.GetSignerPubKey()) > 0 && (len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+}
+
+
+/*func (wrappedTx *WrappedTransaction) getNormalTransactionHandlerForAMT() data.NormalTransactionHandler {
+	normalTransactionHandler, ok := wrappedTx.Tx.(data.NormalTransactionHandler)
+	isAccountMigrationTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0
+	
+	if !isAccountMigrationTransaction {
+		return nil
+	}
+
+	return normalTransactionHandler
+}*/
+//! ---------------- END OF NEW CODE -----------------

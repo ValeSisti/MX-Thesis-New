@@ -2,12 +2,18 @@ package txcache
 
 import (
 	"sync"
+	//! -------------------- NEW CODE --------------------
+	"encoding/hex"
+	//! ---------------- END OF NEW CODE -----------------
 
 	"github.com/multiversx/mx-chain-core-go/core/atomic"
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-storage-go/common"
 	"github.com/multiversx/mx-chain-storage-go/monitoring"
 	"github.com/multiversx/mx-chain-storage-go/types"
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-storage-go/txcache/maps"
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 var _ types.Cacher = (*TxCache)(nil)
@@ -29,6 +35,12 @@ type TxCache struct {
 	sweepingMutex             sync.Mutex
 	sweepingListOfSenders     []*txListForSender
 	mutTxOperation            sync.Mutex
+	//! -------------------- NEW CODE --------------------
+	accountMigrationTxs		  *maps.ConcurrentMap
+	accountAdjustmentTxs	  *maps.ConcurrentMap
+	removedFromAccountMigrationTxs	map[string]bool
+	removedFromAccountAdjustmentTxs	map[string]bool
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 // NewTxCache creates a new transaction cache
@@ -56,6 +68,12 @@ func NewTxCache(config ConfigSourceMe, txGasHandler TxGasHandler) (*TxCache, err
 		txByHash:        newTxByHashMap(numChunks),
 		config:          config,
 		evictionJournal: evictionJournal{},
+		//! -------------------- NEW CODE --------------------
+		accountMigrationTxs:	maps.NewConcurrentMap(numChunks),
+		accountAdjustmentTxs:   maps.NewConcurrentMap(numChunks),
+		removedFromAccountMigrationTxs: make(map[string]bool),
+		removedFromAccountAdjustmentTxs: make(map[string]bool),
+		//! ---------------- END OF NEW CODE -----------------
 	}
 
 	txCache.initSweepable()
@@ -65,6 +83,10 @@ func NewTxCache(config ConfigSourceMe, txGasHandler TxGasHandler) (*TxCache, err
 // AddTx adds a transaction in the cache
 // Eviction happens if maximum capacity is reached
 func (cache *TxCache) AddTx(tx *WrappedTransaction) (ok bool, added bool) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** AddByHash called ***", "txHash", hex.EncodeToString(tx.TxHash))
+	//! ---------------- END OF NEW CODE -----------------		
+
 	if tx == nil || check.IfNil(tx.Tx) {
 		return false, false
 	}
@@ -73,9 +95,38 @@ func (cache *TxCache) AddTx(tx *WrappedTransaction) (ok bool, added bool) {
 		cache.doEviction()
 	}
 
+	//! -------------------- NEW CODE --------------------
+	if tx.isAccountAdjustmentTransaction(){
+		if (!cache.accountAdjustmentTxs.Has(string(tx.TxHash))){
+			_, wasRemovedBefore := cache.removedFromAccountAdjustmentTxs[string(tx.TxHash)]
+			log.Debug("*** AAT added inside accountAdjustmentTxs map ***", "wasRemovedBefore", wasRemovedBefore)
+			cache.accountAdjustmentTxs.Set(string(tx.TxHash), tx)
+			return true, true
+		}else{
+			log.Debug("*** AAT was already present inside accountAdjustmentTxs (inside the TxCache) ***", "txHash", string(tx.TxHash))
+			return true, false
+		}
+	
+	}else if tx.isAccountMigrationTransaction(){
+		//? Se è una AMT, la metto dentro accountMigrationTxs, altrimenti dentro la txListBySender (e dentro txByHash)
+		if (!cache.accountMigrationTxs.Has(string(tx.TxHash))){
+			_, wasRemovedBefore := cache.removedFromAccountMigrationTxs[string(tx.TxHash)]
+			log.Debug("*** AMT added inside accountMigrationTxs map ***", "wasRemovedBefore", wasRemovedBefore)
+			cache.accountMigrationTxs.Set(string(tx.TxHash), tx)
+			return true, true
+		}else{
+			log.Debug("*** AMT was already present inside accountMigrationTxs (inside the TxCache) ***", "txHash", string(tx.TxHash))
+			return true, false
+		}
+	}	
+	//! ---------------- END OF NEW CODE -----------------	
+
 	cache.mutTxOperation.Lock()
 	addedInByHash := cache.txByHash.addTx(tx)
 	addedInBySender, evicted := cache.txListBySender.addTx(tx)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***addTx inside AddTx***", "addedInByHash", addedInByHash, "addedInBySender", addedInBySender)
+	//! ---------------- END OF NEW CODE -----------------	
 	cache.mutTxOperation.Unlock()
 	if addedInByHash != addedInBySender {
 		// This can happen  when two go-routines concur to add the same transaction:
@@ -87,6 +138,9 @@ func (cache *TxCache) AddTx(tx *WrappedTransaction) (ok bool, added bool) {
 	}
 
 	if len(evicted) > 0 {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***len(evicted) > 0 inside AddTx, removing tx through RemoveTxsBulk")
+		//! ---------------- END OF NEW CODE -----------------	
 		cache.monitorEvictionWrtSenderLimit(tx.Tx.GetSndAddr(), evicted)
 		cache.txByHash.RemoveTxsBulk(evicted)
 	}
@@ -98,6 +152,23 @@ func (cache *TxCache) AddTx(tx *WrappedTransaction) (ok bool, added bool) {
 
 // GetByTxHash gets the transaction by hash
 func (cache *TxCache) GetByTxHash(txHash []byte) (*WrappedTransaction, bool) {
+	//! -------------------- NEW CODE --------------------
+
+	log.Debug("*** GetTxByHash called ***", "txHash", hex.EncodeToString(txHash))
+
+	if(cache.accountMigrationTxs.Has(string(txHash))){
+		txAsInterface, _ := cache.accountMigrationTxs.Get(string(txHash))
+		txAsWrappedTransaction := txAsInterface.(*WrappedTransaction)
+		return txAsWrappedTransaction, true
+	}
+
+	if(cache.accountAdjustmentTxs.Has(string(txHash))){
+		txAsInterface, _ := cache.accountAdjustmentTxs.Get(string(txHash))
+		txAsWrappedTransaction := txAsInterface.(*WrappedTransaction)
+		return txAsWrappedTransaction, true
+	}
+	//! ---------------- END OF NEW CODE -----------------
+
 	tx, ok := cache.txByHash.getTx(string(txHash))
 	return tx, ok
 }
@@ -118,37 +189,90 @@ func (cache *TxCache) doSelectTransactions(numRequested int, batchSizePerSender 
 	resultFillIndex := 0
 	resultIsFull := false
 
-	snapshotOfSenders := cache.getSendersEligibleForSelection()
 
-	for pass := 0; !resultIsFull; pass++ {
-		copiedInThisPass := 0
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***doSelectTransactions called***")
+	//? Per prima cosa, devo prendere tutte le Account Migration Transactions (hanno la priorità su tutto il resto)
+	// TODO: a proposito di questo, attenzione poi alla funzione preFilterTransactionWithMoveBalancePriority! MODIFICARE!!!!!  (in preFilterTransactionWithAMTANDMoveBalancePriority)
 
-		for _, txList := range snapshotOfSenders {
-			batchSizeWithScoreCoefficient := batchSizePerSender * int(txList.getLastComputedScore()+1)
-			// Reset happens on first pass only
-			isFirstBatch := pass == 0
-			journal := txList.selectBatchTo(isFirstBatch, result[resultFillIndex:], batchSizeWithScoreCoefficient, bandwidthPerSender)
-			cache.monitorBatchSelectionEnd(journal)
+	numAMTs := 0
+	numAATs := 0
 
-			if isFirstBatch {
-				cache.collectSweepable(txList)
+	// Populate result with all accountMigrationTxs
+    cache.accountMigrationTxs.IterCb(func(key string, value interface{}) {
+        if resultFillIndex >= numRequested {
+            return // Stop iterating because the result is full
+        }
+        tx, ok := value.(*WrappedTransaction)
+        if ok {
+            result[resultFillIndex] = tx
+            resultFillIndex++
+			numAMTs++
+        }
+    })
+
+	log.Debug("***Num AMTs present in Cache***", "numAMTs", numAMTs)
+
+	// Populate result with all accountAdjustmentTxs
+    cache.accountAdjustmentTxs.IterCb(func(key string, value interface{}) {
+        if resultFillIndex >= numRequested {
+            return // Stop iterating because the result is full
+        }
+        tx, ok := value.(*WrappedTransaction)
+        if ok {
+            result[resultFillIndex] = tx
+            resultFillIndex++
+			numAATs++
+        }
+    })
+
+	log.Debug("***Num AATs present in Cache***", "numAATs", numAATs)
+
+
+    // If result is already full after adding accountMigrationTxs, return
+    resultIsFull = resultFillIndex == numRequested
+	if !resultIsFull {
+		log.Debug("***result is not full: adding also normal transactions (besides AMTs, that had priority)***")
+	//! ---------------- END OF NEW CODE -----------------	
+		snapshotOfSenders := cache.getSendersEligibleForSelection()
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***snapshotOfSenders := cache.getSendersEligibleForSelection(migratingAccounts)***", "len(snapshotOfSenders)", len(snapshotOfSenders))
+		//! ---------------- END OF NEW CODE -----------------	
+
+		for pass := 0; !resultIsFull; pass++ {
+			copiedInThisPass := 0
+
+			for _, txList := range snapshotOfSenders {
+				batchSizeWithScoreCoefficient := batchSizePerSender * int(txList.getLastComputedScore()+1)
+				// Reset happens on first pass only
+				isFirstBatch := pass == 0
+				journal := txList.selectBatchTo(isFirstBatch, result[resultFillIndex:], batchSizeWithScoreCoefficient, bandwidthPerSender)
+				cache.monitorBatchSelectionEnd(journal)
+
+				if isFirstBatch {
+					cache.collectSweepable(txList)
+				}
+
+				resultFillIndex += journal.copied
+				copiedInThisPass += journal.copied
+				resultIsFull = resultFillIndex == numRequested
+				if resultIsFull {
+					break
+				}
 			}
 
-			resultFillIndex += journal.copied
-			copiedInThisPass += journal.copied
-			resultIsFull = resultFillIndex == numRequested
-			if resultIsFull {
+			nothingCopiedThisPass := copiedInThisPass == 0
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***nothingCopiedThisPass := copiedInThisPass == 0***", "nothingCopiedThisPass", nothingCopiedThisPass, "pass", pass)
+			//! ---------------- END OF NEW CODE -----------------	
+			// No more passes needed
+			if nothingCopiedThisPass {
 				break
 			}
 		}
-
-		nothingCopiedThisPass := copiedInThisPass == 0
-
-		// No more passes needed
-		if nothingCopiedThisPass {
-			break
-		}
-	}
+	//! -------------------- NEW CODE --------------------		
+    }	
+	//! ---------------- END OF NEW CODE -----------------		
 
 	result = result[:resultFillIndex]
 	cache.monitorSelectionEnd(result, stopWatch)
@@ -159,6 +283,14 @@ func (cache *TxCache) getSendersEligibleForSelection() []*txListForSender {
 	return cache.txListBySender.getSnapshotDescending()
 }
 
+//! -------------------- NEW CODE --------------------
+func (cache *TxCache) getSendersEligibleForSelection2(migratingAccounts map[string]bool) []*txListForSender { //! MODIFIED CODE
+	//return cache.txListBySender.getSnapshotDescending() //! MODIFIED CODE
+	return cache.txListBySender.getSnapshotDescending2(migratingAccounts) //! MODIFIED CODE
+}
+//! ---------------- END OF NEW CODE -----------------	
+
+
 func (cache *TxCache) doAfterSelection() {
 	cache.sweepSweepable()
 	cache.Diagnose(false)
@@ -166,8 +298,34 @@ func (cache *TxCache) doAfterSelection() {
 
 // RemoveTxByHash removes tx by hash
 func (cache *TxCache) RemoveTxByHash(txHash []byte) bool {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** RemoveTxByHash called ***", "txHash", hex.EncodeToString(txHash))
+	//! ---------------- END OF NEW CODE -----------------	
 	cache.mutTxOperation.Lock()
 	defer cache.mutTxOperation.Unlock()
+
+	//! -------------------- NEW CODE --------------------
+	if (cache.accountMigrationTxs.Has(string(txHash))){
+		_, removed := cache.accountMigrationTxs.Remove(string(txHash))
+		if(removed){
+			cache.removedFromAccountMigrationTxs[string(txHash)] = true
+			log.Debug("*** Succesfully removed from accountAdjustmentTxs map! ***", "txHash", hex.EncodeToString(txHash))
+		}
+
+		return true
+	}
+
+	if (cache.accountAdjustmentTxs.Has(string(txHash))){
+		_, removed := cache.accountAdjustmentTxs.Remove(string(txHash))
+		if(removed){
+			cache.removedFromAccountAdjustmentTxs[string(txHash)] = true
+			log.Debug("*** Succesfully removed from accountAdjustmentTxs map! ***", "txHash", hex.EncodeToString(txHash))
+		}
+
+		return true
+	}
+	//! ---------------- END OF NEW CODE -----------------	
+
 
 	tx, foundInByHash := cache.txByHash.removeTx(string(txHash))
 	if !foundInByHash {
