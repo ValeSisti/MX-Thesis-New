@@ -30,4 +30,10 @@ message Transaction {
 	uint32   Options           = 13 [(gogoproto.jsontag) = "options,omitempty"];
 	bytes    GuardianAddr      = 14 [(gogoproto.jsontag) = "guardian,omitempty"];
 	bytes    GuardianSignature = 15 [(gogoproto.jsontag) = "guardianSignature,omitempty"];
+	uint64   MigrationNonce    = 16 [(gogoproto.jsontag) = "migrationNonce,omitempty"];
+	uint32   SenderShard       = 17 [(gogoproto.jsontag) = "senderShard,omitempty"];
+	uint32   ReceiverShard     = 18 [(gogoproto.jsontag) = "receiverShard,omitempty"];
+	bytes    SignerPubKey      = 19 [(gogoproto.jsontag) = "signerPubKey,omitempty"];
+	bytes	 OriginalTxHash     = 20 [(gogoproto.jsontag) = "originalTxHash,omitempty"];
+	bytes 	 OriginalMiniBlockHash = 21 [(gogoproto.jsontag) = "originalMiniBlockHash,omitempty"];
 }
