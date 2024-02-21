@@ -166,6 +166,12 @@ type CryptoParamsHolder interface {
 	PrivateKey() crypto.PrivateKey
 	PublicKeyString() string
 	PublicKeyBytes() []byte
+	//! -------------------- NEW CODE --------------------
+	TxPrivateKey() crypto.PrivateKey
+	TxPublicKey() crypto.PublicKey
+	TxPublicKeyString() string
+	TxPublicKeyBytes() []byte
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // CryptoComponentsHolder holds the crypto components

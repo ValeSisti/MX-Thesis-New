@@ -124,6 +124,15 @@ func (mcc *managedCryptoComponents) CheckSubcomponents() error {
 		return errors.ErrNilManagedPeersHolder
 	}
 
+	//! -------------------- NEW CODE --------------------
+	if check.IfNil(mcc.cryptoComponents.txPublicKey) {
+        return errors.ErrNilTxPublicKey
+    }
+    if check.IfNil(mcc.cryptoComponents.txPrivateKey) {
+        return errors.ErrNilTxPrivateKey
+    }
+	//! ---------------- END OF NEW CODE -----------------		
+
 	return nil
 }
 
@@ -409,3 +418,56 @@ func (mcc *managedCryptoComponents) IsInterfaceNil() bool {
 func (mcc *managedCryptoComponents) String() string {
 	return factory.CryptoComponentsName
 }
+
+//! -------------------- NEW CODE --------------------
+
+// TxPrivateKey returns the configured transaction signing private key
+func (mcc *managedCryptoComponents) TxPrivateKey() crypto.PrivateKey {
+    mcc.mutCryptoComponents.RLock()
+    defer mcc.mutCryptoComponents.RUnlock()
+
+    if mcc.cryptoComponents == nil {
+        return nil
+    }
+
+    return mcc.cryptoParams.txPrivateKey
+}
+
+// TxPublicKey returns the configured transaction signing public key
+func (mcc *managedCryptoComponents) TxPublicKey() crypto.PublicKey {
+    mcc.mutCryptoComponents.RLock()
+    defer mcc.mutCryptoComponents.RUnlock()
+
+    if mcc.cryptoComponents == nil {
+        return nil
+    }
+
+    return mcc.cryptoParams.txPublicKey
+}
+
+// TxPublicKeyString returns the configured transaction signing public key as string
+func (mcc *managedCryptoComponents) TxPublicKeyString() string {
+    mcc.mutCryptoComponents.RLock()
+    defer mcc.mutCryptoComponents.RUnlock()
+
+    if mcc.cryptoComponents == nil {
+        return ""
+    }
+
+    return mcc.cryptoParams.txPublicKeyString
+}
+
+// TxPublicKeyBytes returns the configured transaction signing public key bytes
+func (mcc *managedCryptoComponents) TxPublicKeyBytes() []byte {
+    mcc.mutCryptoComponents.RLock()
+    defer mcc.mutCryptoComponents.RUnlock()
+
+    if mcc.cryptoComponents == nil {
+        return nil
+    }
+
+    return mcc.cryptoParams.txPublicKeyBytes
+}
+
+
+//! ---------------- END OF NEW CODE -----------------	

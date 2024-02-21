@@ -595,3 +595,11 @@ var ErrInvalidNodeOperationMode = errors.New("invalid node operation mode")
 
 // ErrNilSentSignatureTracker defines the error for setting a nil SentSignatureTracker
 var ErrNilSentSignatureTracker = errors.New("nil sent signature tracker")
+
+//! -------------------- NEW CODE --------------------
+// ErrNilPrivateKey signals that a nil private key was provided
+var ErrNilTxPublicKey = errors.New("nil tx public key (NEW CODE ERROR)")
+
+// ErrNilPrivateKey signals that a nil private key was provided
+var ErrNilTxPrivateKey = errors.New("nil tx private key (NEW CODE ERROR)")
+//! ---------------- END OF NEW CODE -----------------	

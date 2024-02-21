@@ -77,6 +77,13 @@ type cryptoParams struct {
 	publicKeyString    string
 	publicKeyBytes     []byte
 	handledPrivateKeys [][]byte
+	//! -------------------- NEW CODE --------------------
+	txPublicKey      crypto.PublicKey
+    txPrivateKey     crypto.PrivateKey
+    txPublicKeyString string
+    txPublicKeyBytes  []byte
+    //txPrivateKeyBytes  []byte
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 // p2pCryptoParams holds the p2p public/private key data
@@ -147,10 +154,13 @@ func (ccf *cryptoComponentsFactory) Create() (*cryptoComponents, error) {
 	}
 
 	blockSignKeyGen := signing.NewKeyGenerator(suite)
-	cp, err := ccf.createCryptoParams(blockSignKeyGen)
+	//! -------------------- NEW CODE --------------------	
+	//? commentato da me
+	/*cp, err := ccf.createCryptoParams(blockSignKeyGen)
 	if err != nil {
 		return nil, err
-	}
+	}*/
+	//! ---------------- END OF NEW CODE -----------------	
 
 	txSignKeyGen := signing.NewKeyGenerator(ed25519.NewEd25519())
 	txSingleSigner := &singlesig.Ed25519Signer{}
@@ -158,6 +168,14 @@ func (ccf *cryptoComponentsFactory) Create() (*cryptoComponents, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	//! -------------------- NEW CODE --------------------
+	cp, err := ccf.createCryptoParams2(blockSignKeyGen, txSignKeyGen)
+	if err != nil {
+		return nil, err
+	}
+	log.Debug("***Successfully generated keys for tx signing***")
+	//! ---------------- END OF NEW CODE -----------------		
 
 	interceptSingleSigner, err := ccf.createSingleSigner(ccf.importModeNoSigCheck)
 	if err != nil {
@@ -347,6 +365,72 @@ func (ccf *cryptoComponentsFactory) createCryptoParams(
 	return ccf.generateCryptoParams(keygen, handledKeysInfo, handledPrivateKeys)
 }
 
+func (ccf *cryptoComponentsFactory) createCryptoParams2(
+	keygen crypto.KeyGenerator, txKeygen crypto.KeyGenerator, //! MODIFIED CODE
+) (*cryptoParams, error) {
+
+	cp := &cryptoParams{}
+
+	handledPrivateKeys, err := ccf.processAllHandledKeys(keygen)
+	if err != nil {
+		return nil, err
+	}
+
+	handledKeysInfo := "running in single-key mode"
+	if len(handledPrivateKeys) > 0 {
+		handledKeysInfo = fmt.Sprintf("running in multi-key mode, managing %d keys", len(handledPrivateKeys))
+	}
+
+	if ccf.isInImportMode {
+		if len(handledPrivateKeys) > 0 {
+			return nil, fmt.Errorf("invalid node configuration: import-db mode and allValidatorsKeys.pem file provided")
+		}
+		cp, err = ccf.generateCryptoParams(keygen, "in import-db mode", make([][]byte, 0))
+	}
+	cp, err = ccf.readCryptoParams(keygen)
+	if err == nil {
+		cp.handledPrivateKeys = handledPrivateKeys
+
+		log.Info(fmt.Sprintf("the node loaded the validatorKey.pem file and is %s", handledKeysInfo))
+		
+		//! -------------------- NEW CODE --------------------
+		txParams, err := ccf.generateCryptoParams(txKeygen, "**generating keys for tx signing***", make([][]byte, 0))
+		if err != nil {
+			log.Debug("***Error: while generating keys for tx signing***")
+		}
+		// Copy txParams into cp
+		cp.txPrivateKey = txParams.privateKey
+		cp.txPublicKey = txParams.publicKey
+		cp.txPublicKeyString = txParams.publicKeyString
+		cp.txPublicKeyBytes = txParams.publicKeyBytes
+		//! ---------------- END OF NEW CODE -----------------
+	
+		return cp, nil
+	}
+
+	log.Debug("failure while reading the BLS key, will autogenerate one", "error", err)
+
+	cp, err = ccf.generateCryptoParams(keygen, handledKeysInfo, handledPrivateKeys)
+
+	//! -------------------- NEW CODE --------------------
+	txParams, _ := ccf.generateCryptoParams(txKeygen, "**generating keys for tx signing***", make([][]byte, 0))
+	if err != nil {
+		log.Debug("***Error: while generating keys for tx signing***")
+	}
+	// Copy txParams into cp
+	cp.txPrivateKey = txParams.privateKey
+	cp.txPublicKey = txParams.publicKey
+	cp.txPublicKeyString = txParams.publicKeyString
+	cp.txPublicKeyBytes = txParams.publicKeyBytes
+	//! ---------------- END OF NEW CODE -----------------
+
+	return cp, err
+}
+
+
+
+
+
 func (ccf *cryptoComponentsFactory) readCryptoParams(keygen crypto.KeyGenerator) (*cryptoParams, error) {
 	cp := &cryptoParams{}
 	sk, readPk, err := ccf.getSkPk()
@@ -402,6 +486,8 @@ func (ccf *cryptoComponentsFactory) generateCryptoParams(
 
 	return cp, nil
 }
+
+
 
 func (ccf *cryptoComponentsFactory) getSkPk() ([]byte, []byte, error) {
 	encodedSk, pkString, err := ccf.keyLoader.LoadKey(ccf.validatorKeyPemFileName, ccf.skIndex)
