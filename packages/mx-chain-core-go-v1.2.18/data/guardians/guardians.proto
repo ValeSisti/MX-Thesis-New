@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package protoBuiltInFunctions;
+
+option go_package = "guardians";
+option (gogoproto.stable_marshaler_all) = true;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+message Guardian {
+  bytes  Address         = 1;
+  uint32 ActivationEpoch = 2;
+  bytes  ServiceUID      = 3;
+}
+
+message Guardians {
+  repeated Guardian Slice = 1;
+}
