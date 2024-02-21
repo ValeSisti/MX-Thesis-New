@@ -265,6 +265,64 @@ func (nr *nodeRunner) doProfileOnShuffleOut() {
 	log.LogIfError(err)
 }
 
+
+//! -------------------- NEW CODE --------------------
+// Create a custom epoch handler
+type AccountMigrationHandler struct {
+	// Define any necessary fields for your handler
+	currentNode *Node
+}
+
+// IsInterfaceNil returns true if there is no value under the interface
+func (h *AccountMigrationHandler) IsInterfaceNil() bool {
+	return h == nil
+}
+
+// Implement the EpochConfirmed method for your handler
+func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64) {
+	log.Debug("***EPOCH CONFIRMED***", "epoch", epoch, "timestamp", timestamp)
+	h.currentNode.processComponents.ShardCoordinator().UpdateCurrentEpoch(epoch)
+
+	//! SCOMMENTARE
+	///*
+	accountAddressToBeMigrated := "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th" //alice's address
+	//sourceShardId := uint32(1)
+	destinationShardId := uint32(0)
+	//migrationNonce := uint64(0) //? perché il next expected nonce è il valore del nonce correntemente salvato nello stato dell'account (e all'inizio è pari a 0)
+	//*/
+
+	//TODO: TOGLIERE ASSOLUTAMENTE
+	//? Serve solo per testare se funziona il meccanismo di invio delle txs rimaste in coda dell'account che viene migrato. Scommentarlo se si vuole testare
+	/*if (epoch == uint32(1) && sourceShardId == h.currentNode.bootstrapComponents.ShardCoordinator().SelfId()){
+		
+		accountToBeMigratedAddrBytes, _ := h.currentNode.coreComponents.AddressPubKeyConverter().Decode(accountAddressToBeMigrated)
+
+		accountHandler, _ := h.currentNode.stateComponents.AccountsAdapter().GetExistingAccount(accountToBeMigratedAddrBytes)
+		userAccountHandler, _ := accountHandler.(state.UserAccountHandler)
+
+		shardedTxPool := h.currentNode.dataComponents.Datapool().Transactions().(dataRetriever.ShardedTxPool)
+		shardedTxPool.AddAccountToMigratingAccounts(string(userAccountHandler.AddressBytes()))
+		log.Debug("Migrating accounts", "shardedTxPool.GetMigratingAccounts()", shardedTxPool.GetMigratingAccounts())
+		//accountToBeMigratedAddrBytes, _ := h.currentNode.coreComponents.AddressPubKeyConverter().Decode(accountAddressToBeMigrated)
+	}*/
+	//TODO: END OF TOGLIERE ASSOLUTAMENTE
+	
+	//TODO: AGGIUNTO ADESSO, CONTROLLARE SE VA BENE -> filosofia: quando arriva un migration event, TUTTI i nodi devono sapere che adesso Alice deve far parte dello
+	//TODO: 													  shard 0, non solo il source e il destination shard (finora funzionava perché avevo solo due shard!)
+	
+	
+	//! SCOMMENTARE
+	///*
+	//TODO: spostare dentro CreateSingleAccountMigrationClean
+	if (epoch == uint32(1)){
+		currentAccountsMapping := h.currentNode.processComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destinationShardId, epoch)		
+		log.Debug("***Current Accounts Mapping***", "accountsMapping", currentAccountsMapping)
+	}
+	//TODO: SCOMMENTARE
+	//CreateSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
+	//*/
+}
+
 func (nr *nodeRunner) executeOneComponentCreationCycle(
 	chanStopNodeProcess chan endProcess.ArgEndProcess,
 ) (bool, error) {
@@ -522,6 +580,20 @@ func (nr *nodeRunner) executeOneComponentCreationCycle(
 	}
 
 	log.Info("application is now running")
+
+	//! -------------------- NEW CODE --------------------
+
+	myhandler := &AccountMigrationHandler{currentNode: currentNode}
+	managedCoreComponents.EpochNotifier().RegisterNotifyHandler(myhandler)
+
+	
+	//TODO: TOGLIERE (non mi serve più, ho spostato la logica del crossNotarizedHeadersHandler dentro historyRepository.go)
+	/*selfShardID := currentNode.processComponents.ShardCoordinator().SelfId()
+	crossNotarizedHeadersHandler := myCrossNotarizedHeadersHandler(selfShardID, currentNode)
+	managedProcessComponents.BlockTracker().RegisterCrossNotarizedHeadersHandler(crossNotarizedHeadersHandler)*/
+	//TODO: TOGLIERE
+
+	//! ---------------- END OF NEW CODE -----------------	
 
 	delayInSecBeforeAllowingVmQueries := configs.GeneralConfig.WebServerAntiflood.VmQueryDelayAfterStartInSec
 	if delayInSecBeforeAllowingVmQueries == 0 {

@@ -43,6 +43,9 @@ import (
 	"github.com/multiversx/mx-chain-go/vm/systemSmartContracts"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	vmcommon "github.com/multiversx/mx-chain-vm-common-go"
+	//! ------------------- NEW CODE ---------------------
+	"github.com/multiversx/mx-chain-crypto-go"
+	//! ---------------- END OF NEW CODE -----------------		
 )
 
 const (
@@ -1466,3 +1469,159 @@ func (n *Node) getKeyBytes(key string) ([]byte, error) {
 func (n *Node) IsInterfaceNil() bool {
 	return n == nil
 }
+
+
+//! ------------------- NEW CODE ---------------------
+
+func (n *Node) CreateCustomTransaction(senderHex string, receiverHex string, value *big.Int, transactionData string, privateKey crypto.PrivateKey, publicKey crypto.PublicKey, chainID string, minTxVersion uint32) (*transaction.Transaction, []byte, []byte, error) {
+    
+    // Decode addresses from hex format
+	receiverAddress, err := n.coreComponents.AddressPubKeyConverter().Decode(receiverHex)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not decode receiver address")
+	}
+
+	senderAddress, err := n.coreComponents.AddressPubKeyConverter().Decode(senderHex)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not decode sender address")
+	}
+
+	// Retrieve nonce
+	senderAccount, err := n.stateComponents.AccountsAdapterAPI().GetExistingAccount(senderAddress)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not fetch sender address from provided param")
+	}
+	//newNonce := senderAccount.GetNonce() + 1 //TODO: se uso il +1 ottengo l'errore "higher nonce in transaction", infatti GenerateTransaction usava GetNonce() e basta, senza il +1
+	newNonce := senderAccount.GetNonce()
+
+	//! NOTA: usando minTxGasPrice e minTxGasLimit mi da l'errore "insufficient gas price in tx" dentro commonTransactionValidation
+	var txGasPrice = uint64(1000000000)
+	var txGasLimit = uint64(70000000) //70000
+
+	publicKeyBytes, _ := publicKey.ToByteArray()
+
+	// Create the transaction object
+	tx := &transaction.Transaction{
+		Nonce:    newNonce,
+		Value:    value,
+		GasLimit: txGasLimit,  // Adjust as required
+		GasPrice: txGasPrice,  // Adjust as required
+		RcvAddr:  receiverAddress,
+		SndAddr:  senderAddress,
+		Data:     publicKeyBytes,
+		ChainID:  []byte(chainID),
+		Version:  minTxVersion,
+	}
+
+    // Generate signature data
+	txSigningData, err := tx.GetDataForSigning(n.coreComponents.AddressPubKeyConverter(), n.coreComponents.TxMarshalizer(), n.coreComponents.TxSignHasher())
+	if err != nil {
+		return nil, nil, nil, errors.New("could not marshal transaction for signing")
+	}
+
+	// Sign the transaction data
+	sig, err := n.cryptoComponents.TxSingleSigner().Sign(privateKey, txSigningData)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not sign the transaction")
+	}
+	tx.Signature = sig
+
+    // Optional: Compute the transaction hash if needed
+	txHash, err := core.CalculateHash(n.coreComponents.InternalMarshalizer(), n.coreComponents.Hasher(), tx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return tx, txHash, txSigningData, nil
+}
+
+
+func (n *Node) CreateAccountMigrationTransaction(
+	accountToBeMigratedHex string, 
+	transactionData string, 
+	privateKey crypto.PrivateKey, 
+	publicKey crypto.PublicKey, 
+	chainID string, minTxVersion uint32,
+	sourceShard uint32,
+	destinationShard uint32,
+	migrationNonce uint64,
+) (*transaction.Transaction, []byte, []byte, error) {
+    
+    // Decode addresses from hex format
+	accountToBeMigratedAddressBytes, err := n.coreComponents.AddressPubKeyConverter().Decode(accountToBeMigratedHex)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not decode receiver address")
+	}
+
+
+	// Retrieve nonce
+	accountToBeMigratedHandler, err := n.stateComponents.AccountsAdapterAPI().GetExistingAccount(accountToBeMigratedAddressBytes)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not fetch sender address from provided param")
+	}
+
+	userAccount, _ := n.castAccountToUserAccount(accountToBeMigratedHandler)
+	value := userAccount.GetBalance()
+
+	//newNonce := senderAccount.GetNonce() + 1 //TODO: se uso il +1 ottengo l'errore "higher nonce in transaction", infatti GenerateTransaction usava GetNonce() e basta, senza il 
+	//newMigrationNonce := userAccount.GetMigrationNonce()
+	currentNonce := userAccount.GetNonce()
+
+	//! NOTA: usando minTxGasPrice e minTxGasLimit mi da l'errore "insufficient gas price in tx" dentro commonTransactionValidation
+	var txGasPrice = uint64(1000000000)
+	var txGasLimit = uint64(70000000) //70000
+
+	//TODO: per non richiedere nessuna txFee alla tx, capire cosa passare come GasPrice e GasLimit!!!
+
+	publicKeyBytes, _ := publicKey.ToByteArray()
+
+	// Create the transaction object
+	tx := &transaction.Transaction{
+		Nonce: 			currentNonce,
+		MigrationNonce:	migrationNonce,
+		Value:    		value,
+		GasLimit: 		txGasLimit,  // Adjust as required
+		GasPrice: 		txGasPrice,  // Adjust as required
+		RcvAddr:  		accountToBeMigratedAddressBytes, // Address of the Transaction
+		SndAddr:  		accountToBeMigratedAddressBytes, // Address of the Transaction
+		Data:     		[]byte(transactionData),
+		ChainID:  		[]byte(chainID),
+		Version:  		minTxVersion,
+		SenderShard: 	sourceShard,
+		ReceiverShard: 	destinationShard,
+		//SignerPubKey: 	publicKeyBytes,
+	}
+
+	log.Debug("***PRINTING tx.SenderShard & txR.ReceiverShard inside CreateAccountMigrationTransaction", "tx.SenderShard", string(tx.SenderShard), "tx.ReceiverShard", string(tx.ReceiverShard))
+
+
+	//! NOTA: CALCOLO PRIMA L'HASH DELLA SIGNATURE
+	// Optional: Compute the transaction hash if needed
+	txHash, err := core.CalculateHash(n.coreComponents.InternalMarshalizer(), n.coreComponents.Hasher(), tx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	//! Soltanto DOPO aver calcolato l'hash, aggiungo la PubKey del signer, perché altrimenti,
+	//! essendo diversa per ogni signer, mi andrà a rendere tutti gli hash diversi
+	tx.SignerPubKey = publicKeyBytes
+
+    // Generate signature data
+	txSigningData, err := tx.GetDataForSigning(n.coreComponents.AddressPubKeyConverter(), n.coreComponents.TxMarshalizer(), n.coreComponents.TxSignHasher())
+	if err != nil {
+		return nil, nil, nil, errors.New("could not marshal transaction for signing")
+	}
+
+	// Sign the transaction data
+	sig, err := n.cryptoComponents.TxSingleSigner().Sign(privateKey, txSigningData)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not sign the transaction")
+	}
+	tx.Signature = sig
+
+
+
+	return tx, txHash, txSigningData, nil
+}
+
+//! ---------------- END OF NEW CODE -----------------	
