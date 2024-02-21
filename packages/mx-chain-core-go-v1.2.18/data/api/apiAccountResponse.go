@@ -12,4 +12,7 @@ type AccountResponse struct {
 	CodeMetadata    []byte `json:"codeMetadata"`
 	DeveloperReward string `json:"developerReward"`
 	OwnerAddress    string `json:"ownerAddress"`
+	//! -------------------- NEW CODE --------------------
+	ShardId 		uint32 `json:"shardId"`
+	//! ---------------- END OF NEW CODE -----------------
 }

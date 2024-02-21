@@ -5,7 +5,24 @@ import (
 	"math"
 
 	"github.com/multiversx/mx-chain-core-go/core"
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-core-go/core/pubkeyConverter"
+	//! ---------------- END OF NEW CODE -----------------
 )
+
+//! ------------------- NEW CODE ---------------------
+type ShardInfo struct {
+	oldShardId uint32
+	currentShardId uint32
+	updatedInEpoch uint32
+}
+
+type AccountsMapping struct {
+	currentEpoch uint32
+	accountsShardInfo map[string]ShardInfo //TODO: should I put *ShardInfo instead???
+}
+//! ---------------- END OF NEW CODE -----------------	
+
 
 // multiShardCoordinator struct defines the functionality for handling transaction dispatching to
 // the corresponding shards. The number of shards is currently passed as a constructor
@@ -15,10 +32,14 @@ type multiShardCoordinator struct {
 	maskLow        uint32
 	selfId         uint32
 	numberOfShards uint32
+	//! -------------------- NEW CODE --------------------
+	accountsMapping AccountsMapping
+	addressPubKeyConverter core.PubkeyConverter
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 // NewMultiShardCoordinator returns a new multiShardCoordinator and initializes the masks
-func NewMultiShardCoordinator(numberOfShards, selfId uint32) (*multiShardCoordinator, error) {
+func NewMultiShardCoordinator(numberOfShards, selfId uint32, addressLen int) (*multiShardCoordinator, error) { //! MODIFIED CODE
 	if numberOfShards < 1 {
 		return nil, ErrInvalidNumberOfShards
 	}
@@ -30,6 +51,13 @@ func NewMultiShardCoordinator(numberOfShards, selfId uint32) (*multiShardCoordin
 	sr.selfId = selfId
 	sr.numberOfShards = numberOfShards
 	sr.maskHigh, sr.maskLow = calculateMasks(numberOfShards)
+	//! -------------------- NEW CODE --------------------
+	sr.accountsMapping = AccountsMapping{
+        currentEpoch:      0,                    // Assign a value to currentEpoch
+        accountsShardInfo: make(map[string]ShardInfo), // Initialize accountsShardInfo map
+    }
+	sr.addressPubKeyConverter, _ = pubkeyConverter.NewBech32PubkeyConverter(addressLen, core.DefaultAddressPrefix)
+	//! ---------------- END OF NEW CODE -----------------
 
 	return sr, nil
 }
@@ -45,9 +73,14 @@ func calculateMasks(numOfShards uint32) (uint32, uint32) {
 
 // ComputeId calculates the shard for a given address container
 func (msc *multiShardCoordinator) ComputeId(address []byte) uint32 {
-	return msc.ComputeIdFromBytes(address)
+	//! ------------------- NEW CODE ---------------------
+	if (msc.IsAddressBytesInAccountsMapping(address)){
+		return msc.GetCurrentShardFromAddressBytes(address)
+	}else{
+		return msc.ComputeIdFromBytes(address)
+	}
+	//! ---------------- END OF NEW CODE -----------------
 }
-
 // ComputeShardID will compute shard id of the given address based on the number of shards parameter
 func ComputeShardID(address []byte, numberOfShards uint32) uint32 {
 	maskHigh, maskLow := calculateMasks(numberOfShards)
@@ -127,6 +160,151 @@ func (msc *multiShardCoordinator) SameShard(firstAddress, secondAddress []byte) 
 func (msc *multiShardCoordinator) CommunicationIdentifier(destShardID uint32) string {
 	return core.CommunicationIdentifierBetweenShards(msc.selfId, destShardID)
 }
+
+//! ------------------- NEW CODE ---------------------
+func (msc *multiShardCoordinator) AddressPubKeyConverter() core.PubkeyConverter {
+	return msc.addressPubKeyConverter
+}
+
+
+func (msc *multiShardCoordinator) UpdateCurrentEpoch(currentEpoch uint32) {
+	msc.accountsMapping.currentEpoch = currentEpoch
+}
+
+
+func (msc *multiShardCoordinator) UpdateAccountsMappingEntryFromAddressString(accountAddress string, newShardId uint32, epoch uint32) AccountsMapping {
+	if !msc.IsAddressStringInAccountsMapping(accountAddress){ //if it's the first time we add the account to accountsMapping because it wasn't already present
+		//intialize both oldShardId and currentShardId to the currentShardId
+		//notice that in general situations, i.e. when the account has been migrated multiple times, it will never happen that the oldShardId and the currentShardId will be the same anymore
+		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: newShardId, currentShardId: newShardId, updatedInEpoch: epoch}
+	}else{
+		oldCurrentShardId := msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
+		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: oldCurrentShardId, currentShardId: newShardId, updatedInEpoch: epoch}
+	}
+	return msc.accountsMapping
+}
+
+//TODO: vedere se è giusto
+func (msc *multiShardCoordinator) UpdateAccountsMappingEntryFromPubKeyBytes(pubKeyBytes []byte, newShardId uint32, epoch uint32) AccountsMapping {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	if !msc.IsAddressStringInAccountsMapping(accountAddress){ //if it's the first time we add the account to accountsMapping because it wasn't already present
+		//intialize both oldShardId and currentShardId to the currentShardId
+		//notice that in general situations, i.e. when the account has been migrated multiple times, it will never happen that the oldShardId and the currentShardId will be the same anymore
+		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: newShardId, currentShardId: newShardId, updatedInEpoch: epoch}
+	}else{
+		oldCurrentShardId := msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
+		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: oldCurrentShardId, currentShardId: newShardId, updatedInEpoch: epoch}
+	}
+	return msc.accountsMapping
+}
+
+
+func (msc *multiShardCoordinator) IsAddressBytesInAccountsMapping(pubKeyBytes []byte) bool {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	_, exists := msc.accountsMapping.accountsShardInfo[accountAddress]
+	return exists
+}
+
+func (msc *multiShardCoordinator) IsAddressStringInAccountsMapping(accountAddress string) bool {
+	_, exists := msc.accountsMapping.accountsShardInfo[accountAddress]
+	return exists
+}
+
+func (msc *multiShardCoordinator) AccountsMapping() AccountsMapping {
+	return msc.accountsMapping
+}
+
+func (msc *multiShardCoordinator) AccountsShardInfo() map[string]ShardInfo {
+	return msc.accountsMapping.accountsShardInfo
+}
+
+func (msc *multiShardCoordinator) CurrentEpoch() uint32 {
+	return msc.accountsMapping.currentEpoch
+}
+
+func (msc *multiShardCoordinator) GetCurrentShardFromAddressString(accountAddress string) uint32 {
+	return msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
+}
+
+func (msc *multiShardCoordinator) GetCurrentShardFromAddressBytes(pubKeyBytes []byte) uint32 {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	return msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
+}
+
+func (msc *multiShardCoordinator) GetOldShardFromAddressString(accountAddress string) uint32 {
+	return msc.accountsMapping.accountsShardInfo[accountAddress].oldShardId
+}
+
+func (msc *multiShardCoordinator) GetOldShardFromAddressBytes(pubKeyBytes []byte) uint32 {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	return msc.accountsMapping.accountsShardInfo[accountAddress].oldShardId
+}
+
+func (msc *multiShardCoordinator) GetEpochOfUpdateFromAddressString(accountAddress string) uint32 {
+	return msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch
+}
+
+func (msc *multiShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes []byte) uint32 {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	return msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch
+}
+
+func (msc *multiShardCoordinator) GetShardInfoFromAddressString(accountAddress string) ShardInfo {
+	return msc.accountsMapping.accountsShardInfo[accountAddress]
+}
+
+func (msc *multiShardCoordinator) GetShardInfoFromAddressBytes(pubKeyBytes []byte) ShardInfo {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	return msc.accountsMapping.accountsShardInfo[accountAddress]
+}
+
+
+func (msc *multiShardCoordinator) WasPreviouslyMineAddrBytes(pubKeyBytes []byte) bool {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	selfShardId := msc.SelfId()
+
+	if _, ok := msc.accountsMapping.accountsShardInfo[accountAddress]; !ok{
+		// receiver account is not event present inside accountsMapping, therefore it has never been migrated
+		// which also means that is not possible that a tx inside a miniblock with as receiver account the account with this address,
+		// that I'm processing dst me (because theoretically it is mine) is problematic
+		return false
+	}
+	
+	oldShardId := msc.accountsMapping.accountsShardInfo[accountAddress].oldShardId
+	currentShardId := msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
+	updatedInEpoch := msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch
+	currentEpoch := msc.accountsMapping.currentEpoch
+	
+	if (oldShardId == selfShardId && currentShardId != selfShardId && updatedInEpoch == currentEpoch){
+		return true
+	}
+
+	return false
+}
+
+func (msc *multiShardCoordinator) WasPreviouslyMineAddrString(accountAddress string) bool {
+	selfShardId := msc.SelfId()
+
+	if _, ok := msc.accountsMapping.accountsShardInfo[accountAddress]; !ok{
+		// receiver account is not event present inside accountsMapping, therefore it has never been migrated
+		// which also means that is not possible that a tx inside a miniblock with as receiver account the account with this address,
+		// that I'm processing dst me (because theoretically it is mine) is problematic
+		return false
+	}
+
+	oldShardId := msc.accountsMapping.accountsShardInfo[accountAddress].oldShardId
+	currentShardId := msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
+	updatedInEpoch := msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch
+	currentEpoch := msc.accountsMapping.currentEpoch
+
+	if (oldShardId == selfShardId && currentShardId != selfShardId && updatedInEpoch == currentEpoch){
+		return true
+	}
+	
+	return false
+}
+
+//! ---------------- END OF NEW CODE -----------------	
 
 // IsInterfaceNil returns true if there is no value under the interface
 func (msc *multiShardCoordinator) IsInterfaceNil() bool {

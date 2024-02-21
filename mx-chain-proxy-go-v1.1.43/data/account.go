@@ -23,6 +23,9 @@ type Account struct {
 	CodeMetadata    []byte `json:"codeMetadata"`
 	DeveloperReward string `json:"developerReward"`
 	OwnerAddress    string `json:"ownerAddress"`
+	//! -------------------- NEW CODE --------------------
+	ShardId 		uint32 `json:"shardId"`
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 // ValidatorApiResponse represents the data which is fetched from each validator for returning it in API call

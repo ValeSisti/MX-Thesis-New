@@ -612,7 +612,7 @@ func getShardCoordinator(cfg *config.Config) (common.Coordinator, error) {
 		}
 	}
 
-	shardCoordinator, err := sharding.NewMultiShardCoordinator(maxShardID+1, 0)
+	shardCoordinator, err := sharding.NewMultiShardCoordinator(maxShardID+1, 0, cfg.AddressPubkeyConverter.Length)
 	if err != nil {
 		return nil, err
 	}

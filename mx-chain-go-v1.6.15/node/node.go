@@ -964,6 +964,9 @@ func (n *Node) GetAccount(address string, options api.AccountQueryOptions) (api.
 		CodeMetadata:    account.GetCodeMetadata(),
 		DeveloperReward: account.GetDeveloperReward().String(),
 		OwnerAddress:    ownerAddress,
+		//! -------------------- NEW CODE --------------------
+		ShardId: n.processComponents.ShardCoordinator().ComputeId(account.AddressBytes()),
+		//! ---------------- END OF NEW CODE -----------------		
 	}, blockInfo, nil
 }
 
