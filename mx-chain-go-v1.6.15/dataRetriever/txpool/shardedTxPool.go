@@ -28,6 +28,9 @@ type shardedTxPool struct {
 	configPrototypeSourceMe      txcache.ConfigSourceMe
 	selfShardID                  uint32
 	txGasHandler                 txcache.TxGasHandler
+	//! -------------------- NEW CODE --------------------
+	migratingAccounts			 map[string]bool
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 type txPoolShard struct {
@@ -78,6 +81,9 @@ func NewShardedTxPool(args ArgShardedTxPool) (*shardedTxPool, error) {
 		configPrototypeSourceMe:      configPrototypeSourceMe,
 		selfShardID:                  args.SelfShardID,
 		txGasHandler:                 args.TxGasHandler,
+		//! -------------------- NEW CODE --------------------
+		migratingAccounts:			  make(map[string]bool),
+		//! ---------------- END OF NEW CODE -----------------
 	}
 
 	return shardedTxPoolObject, nil
@@ -370,3 +376,29 @@ func (txPool *shardedTxPool) routeToCacheUnions(cacheID string) string {
 
 	return cacheID
 }
+
+//! -------------------- NEW CODE --------------------
+func (txPool *shardedTxPool) AddAccountToMigratingAccounts(account string) {
+	log.Debug("***Account added inside migratingAccounts***", "account", account)
+	txPool.migratingAccounts[account] = true
+}
+
+func (txPool *shardedTxPool) RemoveAccountFromMigratingAccounts(account string) {
+	delete(txPool.migratingAccounts, account)
+	log.Debug("***Account removed from migratingAccounts***", "account", account)
+
+}
+
+func (txPool *shardedTxPool) IsAccountInMigratingAccounts(account string) bool {
+	_, ok := txPool.migratingAccounts[account]
+	if !ok {
+		log.Debug("***Account is not present in migratingAccounts***", "account", account)
+    	return false
+	}
+	return true
+}
+
+func (txPool *shardedTxPool) GetMigratingAccounts() map[string]bool{
+	return txPool.migratingAccounts
+}
+//! ---------------- END OF NEW CODE -----------------

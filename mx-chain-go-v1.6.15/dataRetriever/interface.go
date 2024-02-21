@@ -183,6 +183,16 @@ type ShardedDataCacherNotifier interface {
 	IsInterfaceNil() bool
 }
 
+//! -------------------- NEW CODE --------------------
+type ShardedTxPool interface {
+	ShardedDataCacherNotifier
+	AddAccountToMigratingAccounts(account string)
+	RemoveAccountFromMigratingAccounts(account string)
+	IsAccountInMigratingAccounts(account string) bool
+	GetMigratingAccounts() map[string]bool
+}
+//! ---------------- END OF NEW CODE -----------------
+
 // ShardIdHashMap represents a map for shardId and hash
 type ShardIdHashMap interface {
 	Load(shardId uint32) ([]byte, bool)

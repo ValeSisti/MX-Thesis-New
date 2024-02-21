@@ -139,6 +139,25 @@ func (a *userAccount) IncreaseNonce(value uint64) {
 	a.Nonce = a.Nonce + value
 }
 
+//! ------------------- NEW CODE ---------------------
+// IncreaseMigrationNonce adds the given value to the current migration nonce
+func (a *userAccount) IncreaseMigrationNonce(value uint64) {
+	a.MigrationNonce = a.MigrationNonce + value
+}
+
+func (a *userAccount) GetMigrationNonce() uint64{
+	return a.MigrationNonce
+}
+
+func (a *userAccount) GetIsBeingMigrated() bool{
+	return a.IsBeingMigrated
+}
+
+func (a *userAccount) SetIsBeingMigrated(value bool) {
+	a.IsBeingMigrated = value
+}
+//! ---------------- END OF NEW CODE -----------------	
+
 // SetCodeHash sets the code hash associated with the account
 func (a *userAccount) SetCodeHash(codeHash []byte) {
 	a.CodeHash = codeHash

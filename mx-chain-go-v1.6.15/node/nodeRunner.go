@@ -12,6 +12,9 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	//! -------------------- NEW CODE --------------------
+	"encoding/hex"
+	//! ---------------- END OF NEW CODE -----------------
 
 	"github.com/google/gops/agent"
 	"github.com/multiversx/mx-chain-core-go/core"
@@ -62,6 +65,9 @@ import (
 	trieStatistics "github.com/multiversx/mx-chain-go/trie/statistics"
 	"github.com/multiversx/mx-chain-go/update/trigger"
 	logger "github.com/multiversx/mx-chain-logger-go"
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-go/state"
+	//! ---------------- END OF NEW CODE -----------------	
 )
 
 type nextOperationForNode int
@@ -286,9 +292,9 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 	//! SCOMMENTARE
 	///*
 	accountAddressToBeMigrated := "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th" //alice's address
-	//sourceShardId := uint32(1)
+	sourceShardId := uint32(1)
 	destinationShardId := uint32(0)
-	//migrationNonce := uint64(0) //? perché il next expected nonce è il valore del nonce correntemente salvato nello stato dell'account (e all'inizio è pari a 0)
+	migrationNonce := uint64(0) //? perché il next expected nonce è il valore del nonce correntemente salvato nello stato dell'account (e all'inizio è pari a 0)
 	//*/
 
 	//TODO: TOGLIERE ASSOLUTAMENTE
@@ -319,9 +325,163 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 		log.Debug("***Current Accounts Mapping***", "accountsMapping", currentAccountsMapping)
 	}
 	//TODO: SCOMMENTARE
-	//CreateSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
+	CreateSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
 	//*/
 }
+
+
+func CreateSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, epoch uint32, accountAddressToBeMigrated string, sourceShard uint32, destShard uint32, migrationNonce uint64){
+    
+    selfShardId, _ := h.currentNode.processComponents.NodesCoordinator().ShardIdForEpoch(epoch)
+    shardedTxPool := h.currentNode.dataComponents.Datapool().Transactions().(dataRetriever.ShardedTxPool)
+    accountToBeMigratedAddrBytes, _ := h.currentNode.coreComponents.AddressPubKeyConverter().Decode(accountAddressToBeMigrated)
+
+    
+    if(epoch == uint32(1)){
+
+        transactionData := ""   // Additional data for the transaction
+        privateKey := h.currentNode.cryptoComponents.TxPrivateKey()     // Your private key here
+        publicKey := h.currentNode.cryptoComponents.TxPublicKey()     // Your private key here
+        chainID := "localnet"     // Unique identifier of the blockchain network
+        minTxVersion := uint32(2)          // Minimum transaction version
+
+        
+        //! Genero la transazione solo se il sender fa parte del mio shard
+        accountHandler, err := h.currentNode.stateComponents.AccountsAdapter().GetExistingAccount(accountToBeMigratedAddrBytes)
+        
+        if err != nil {
+            //! se err != nil vuol dire che ho avuto un errore, e se ho avuto un errore significa che il sender non è nel mio shard (l'account non è stato trovato)
+            log.Debug("ACCOUNT ADDRESS TO BE MIGRATED ", accountAddressToBeMigrated, " IS NOT IN MY SHARD (", selfShardId, ")")
+            log.Debug("NOT GENERATING THE ACCOUNT MIGRATION TRANSACTION FOR ALICE!")
+
+        }else if (err == nil && selfShardId == sourceShard){
+            //! altrimenti, err == nil, ovvero non ho avuto nessun errore, quindi il sender è nel mio shard (l'account è stato trovato)
+            log.Debug("ACCOUNT ADDRESS TO BE MIGRATE IS IN MY SHARD", "account", accountAddressToBeMigrated, "from shard", string(selfShardId))         
+            log.Debug("GENERATING THE ACCOUNT MIGRATION TRANSACTION FOR ALICE!")
+
+
+            tx, txHash, txSigningData, err := h.currentNode.CreateAccountMigrationTransaction(accountAddressToBeMigrated, transactionData, privateKey, publicKey, chainID, minTxVersion, sourceShard, destShard, migrationNonce)
+			if err != nil {
+				log.Debug("***Error: CreateAccountMigrationTransaction***", err.Error())
+			}
+
+            //TODO: CONTROLLA SE SERVE QUI, NON LO FACCIO PRIMA DI CHIAMARE QUESTA FUNZIONE, DIRETTAMENTE DENTRO EpochConfirmed?????
+            h.currentNode.bootstrapComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destShard, epoch)
+
+
+            
+            userAccountHandler, ok := accountHandler.(state.UserAccountHandler)
+            if !ok {
+                log.Debug("CANNOT CAST ACCOUNT TO BE MIGRATED TO UserAccountHandler")
+            }
+            //setto il flag IsBeingMigrated a true
+            userAccountHandler.SetIsBeingMigrated(true)
+            //setto il flag IsBeingMigrated a true anche nella txPool (cache) -> i.e. dentro la txListForSender di questo account -> sender = string(tx.GetSndAddr())
+            shardedTxPool.AddAccountToMigratingAccounts(string(userAccountHandler.AddressBytes()))
+
+        
+            log.Debug("*** Migrated account state inside source shard: ***",
+                    "nonce", userAccountHandler.GetNonce(), 
+                    "balance", userAccountHandler.GetBalance().String(),
+                    "migrationNonce", userAccountHandler.GetMigrationNonce(),
+                    "username", userAccountHandler.GetUserName(),
+                    "rootHash", string(userAccountHandler.GetRootHash()),
+            )
+
+            log.Debug("*** AccountsMapping is now: ***", "accountsMapping", h.currentNode.processComponents.ShardCoordinator().AccountsShardInfo(), "len", len(h.currentNode.processComponents.ShardCoordinator().AccountsShardInfo()))
+
+
+
+
+            err = h.currentNode.cryptoComponents.TxSingleSigner().Verify(h.currentNode.cryptoComponents.TxPublicKey(), txSigningData, tx.Signature)
+            if err != nil {
+                log.Debug("***nodeRunner TRANSACTION VERIFICATION: transaction is not valid***", "error", err.Error(),)
+                //! NON VIENE STAMPATO, QUINDI LA TX A QUESTO STAGE è VALIDA
+            }else{
+                log.Debug("***nodeRunner TRANSACTION VERIFICATION: transaction is valid***", "error")
+            }
+
+
+            err = h.currentNode.ValidateTransaction(tx) //? al suo interno chiama CheckTxValidity()
+            if err != nil {
+                log.Debug("TRANSACTION IS NOT VALID", "error", err.Error(),)
+            }else{
+                log.Debug("***TRANSACTION IS VALID INSIDE nodeRunner***")
+            }
+            
+            log.Debug(
+                "***PRINTING AMT inside nodeRunner***", 
+                "tx.Nonce", tx.Nonce,
+                "tx.Value", tx.Value,
+                "tx.RcvAddr", tx.RcvAddr,
+                "tx.RcvUserName", tx.RcvUserName,
+                "tx.SndAddr", tx.SndAddr,
+                "tx.SndUserName", tx.SndUserName,
+                "tx.GasPrice", tx.GasPrice,
+                "tx.GasLimit", tx.GasLimit,
+                "tx.Data", hex.EncodeToString(tx.Data),
+                "tx.ChainID", tx.ChainID,
+                "tx.Version", tx.Version,
+                "tx.Signature", hex.EncodeToString(tx.Signature),
+                "tx.Options", tx.Options,
+                "tx.GuardianAddr", tx.GuardianAddr,
+                "tx.GuardianSignature", tx.GuardianSignature,
+                "tx.MigrationNonce", tx.MigrationNonce,
+                "tx.SenderShard", tx.SenderShard,
+                "tx.ReceiverShard", tx.ReceiverShard,
+                "tx.SignerPubKey", hex.EncodeToString(tx.SignerPubKey),
+            )
+            
+            log.Debug("PRINTING TXHASH", "txHash", txHash, "string(txHash)", string(txHash),)
+
+            //TODO: SCOMMENTARE ASSOLUTAMENTE!!
+            //cacheID := process.ShardCacherIdentifier(sourceShard, destShard)
+            //h.currentNode.dataComponents.Datapool().Transactions().AddData(txHash, tx, tx.Size(), cacheID)
+        }
+
+        
+
+
+        //? NOTA: fino ad ora era tutto relativo al sender, ovvero si crea l'AMT in base al fatto che il sender sia presente o meno nello shard del nodo corrente.
+        //? Adesso però devo fare il ragionamento anche per lo shard di destinazione.
+        //? Ovvero: se sono lo shard di destinazione, è vero che non devo creare io stesso la AMT, ma devo creare l'account (perché voglio iniziare a salvare le tx di quell'account nella mia txPool, anche se non posso processarle da subito)
+        
+
+        
+        if (destShard == selfShardId){
+            //! Devo creare l'account, MA SOLO SE NON ESISTE GIA!!!
+            // LoadAccount fetches the account based on the address. Creates an empty account if the account is missing.
+            accountHandler, err := h.currentNode.stateComponents.AccountsAdapter().LoadAccount(accountToBeMigratedAddrBytes)
+            if err != nil {
+                log.Debug("***CANNOT LOAD ACCOUNT INSIDE nodeRunner***")
+            }
+
+            //faccio il cast a UserAccount così ho disponibili i metodi per il flag IsBeingMigrated
+            userAccountHandler, ok := accountHandler.(state.UserAccountHandler)
+            if !ok{
+                log.Debug("***CANNOT CAST accountHandler INSIDE nodeRunner")
+            }
+
+            //setto il flag IsBeingMigrated a true
+            userAccountHandler.SetIsBeingMigrated(true)
+            //setto il flag IsBeingMigrated a true anche nella txPool (cache) -> i.e. dentro la txListForSender di questo account -> sender = string(tx.GetSndAddr())
+            shardedTxPool.AddAccountToMigratingAccounts(string(userAccountHandler.AddressBytes()))
+
+            //settando questo, so che da adesso in poi dovrò occuparmi io delle txs che arrivano per questo account
+            h.currentNode.bootstrapComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destShard, epoch)
+
+            
+        }
+        
+    }
+
+}
+
+
+
+
+
+
 
 func (nr *nodeRunner) executeOneComponentCreationCycle(
 	chanStopNodeProcess chan endProcess.ArgEndProcess,

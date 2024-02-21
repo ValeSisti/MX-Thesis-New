@@ -236,6 +236,12 @@ type UserAccountHandler interface {
 	AddToBalance(value *big.Int) error
 	SubFromBalance(value *big.Int) error
 	GetBalance() *big.Int
+	//! ------------------- NEW CODE ---------------------
+	IncreaseMigrationNonce(nonce uint64)
+	GetMigrationNonce() uint64
+	GetIsBeingMigrated() bool
+	SetIsBeingMigrated(bool)
+	//! --------------- END OF NEW CODE ------------------
 	ClaimDeveloperRewards([]byte) (*big.Int, error)
 	AddToDeveloperReward(*big.Int)
 	GetDeveloperReward() *big.Int
