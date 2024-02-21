@@ -78,6 +78,11 @@ func (tx *Transaction) GetDataForSigning(encoder data.Encoder, marshaller data.M
 		return nil, err
 	}
 
+	//! ------------------- NEW CODE ---------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
+	
+
 	ftx := &FrontendTransaction{
 		Nonce:            tx.Nonce,
 		Value:            tx.Value.String(),
@@ -93,6 +98,75 @@ func (tx *Transaction) GetDataForSigning(encoder data.Encoder, marshaller data.M
 		Options:          tx.Options,
 	}
 
+	//! ------------------- NEW CODE ---------------------
+	*/
+	var ftx *FrontendTransaction
+
+	//!NOTA: l'unico campo che posso controllare per vedere se è una AMT o no è
+	//! la SignerPubKey, perché "for non-pointer fields like uint64, there's no definite way to know if the field was explicitly set to its zero value or if it simply retains the default value due to not being set"
+	//! Invece, "For slices (like []byte fields in your struct), you can check if they are nil or have a length of 0"
+	
+	isAccountMigration := len(tx.SignerPubKey) > 0 && !(len(tx.OriginalTxHash) > 0 && len(tx.OriginalMiniBlockHash) > 0)
+	isAccountAdjustment := len(tx.SignerPubKey) > 0 && (len(tx.OriginalTxHash) > 0 && len(tx.OriginalMiniBlockHash) > 0)
+	
+	if (isAccountAdjustment){
+		ftx = &FrontendTransaction{
+			Nonce:            tx.Nonce, //TODO: controllare
+			//MigrationNonce:   tx.MigrationNonce,
+			Value:            tx.Value.String(),
+			Receiver:         receiverAddr,
+			Sender:           senderAddr,
+			GasPrice:         tx.GasPrice,
+			GasLimit:         tx.GasLimit,
+			SenderUsername:   tx.SndUserName,
+			ReceiverUsername: tx.RcvUserName,
+			Data:             tx.Data,
+			ChainID:          string(tx.ChainID),
+			Version:          tx.Version,
+			Options:          tx.Options,
+			SenderShard:      tx.SenderShard,
+			ReceiverShard:    tx.ReceiverShard,
+			SignerPubKey:     tx.SignerPubKey,
+			OriginalTxHash:   tx.OriginalTxHash,
+			OriginalMiniBlockHash: tx.OriginalMiniBlockHash,
+		}	
+	}else if (isAccountMigration) {
+		ftx = &FrontendTransaction{
+			//Nonce:            tx.Nonce, //TODO: controllare
+			MigrationNonce:   tx.MigrationNonce,
+			Value:            tx.Value.String(),
+			Receiver:         receiverAddr,
+			Sender:           senderAddr,
+			GasPrice:         tx.GasPrice,
+			GasLimit:         tx.GasLimit,
+			SenderUsername:   tx.SndUserName,
+			ReceiverUsername: tx.RcvUserName,
+			Data:             tx.Data,
+			ChainID:          string(tx.ChainID),
+			Version:          tx.Version,
+			Options:          tx.Options,
+			SenderShard:      tx.SenderShard,
+			ReceiverShard:    tx.ReceiverShard,
+			SignerPubKey:     tx.SignerPubKey,
+		}
+	}else{ //? è una transazione normale
+		ftx = &FrontendTransaction{
+			Nonce:            tx.Nonce,
+			Value:            tx.Value.String(),
+			Receiver:         receiverAddr,
+			Sender:           senderAddr,
+			GasPrice:         tx.GasPrice,
+			GasLimit:         tx.GasLimit,
+			SenderUsername:   tx.SndUserName,
+			ReceiverUsername: tx.RcvUserName,
+			Data:             tx.Data,
+			ChainID:          string(tx.ChainID),
+			Version:          tx.Version,
+			Options:          tx.Options,
+		}
+	}
+
+	//! ---------------- END OF NEW CODE -----------------	
 	if len(tx.GuardianAddr) > 0 {
 		guardianAddr, errGuardian := encoder.Encode(tx.GuardianAddr)
 		if errGuardian != nil {

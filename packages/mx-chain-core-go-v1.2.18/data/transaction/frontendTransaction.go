@@ -2,7 +2,7 @@ package transaction
 
 // FrontendTransaction represents the DTO used in transaction signing/validation.
 type FrontendTransaction struct {
-	Nonce             uint64 `json:"nonce"`
+	Nonce             uint64 `json:"nonce,omitempty"`
 	Value             string `json:"value"`
 	Receiver          string `json:"receiver"`
 	Sender            string `json:"sender"`
@@ -17,4 +17,12 @@ type FrontendTransaction struct {
 	Options           uint32 `json:"options,omitempty"`
 	GuardianAddr      string `json:"guardian,omitempty"`
 	GuardianSignature string `json:"guardianSignature,omitempty"`
+//! -------------------- NEW CODE --------------------
+	MigrationNonce    uint64 `json:"migrationNonce,omitempty"`
+	SenderShard       uint32 `json:"senderShard,omitempty"`
+	ReceiverShard     uint32 `json:"receiverShard,omitempty"`
+	SignerPubKey      []byte `json:"signerPubKey,omitempty"`
+	OriginalTxHash        []byte `json:"originalTxHash,omitempty"`
+	OriginalMiniBlockHash []byte `json:"originalMiniBlockHash,omitempty"`
+//! ---------------- END OF NEW CODE -----------------
 }

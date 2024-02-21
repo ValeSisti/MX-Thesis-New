@@ -6,6 +6,13 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data/headerVersionData"
 )
 
+//! -------------------- NEW CODE --------------------
+type ProblematicMBInfo struct {
+	ProblematicTxHashes []string
+	AccAdjTxHashes []string
+}
+//! ---------------- END OF NEW CODE -----------------
+
 // TriggerRegistryHandler defines getters and setters for the trigger registry
 type TriggerRegistryHandler interface {
 	GetIsEpochStart() bool
@@ -280,6 +287,26 @@ type TransactionHandler interface {
 
 	CheckIntegrity() error
 }
+
+//! -------------------- NEW CODE --------------------
+//? "Normal transaction" nel senso che è una normale tx di move balance o è una AMT (quindi non è una RewardTx né una SmartContract tx o roba del genere)
+type NormalTransactionHandler interface {
+	TransactionHandler
+	GetMigrationNonce() uint64
+	GetSignerPubKey() []byte
+	GetSenderShard() uint32
+	GetReceiverShard() uint32
+	GetOriginalTxHash() []byte
+	GetOriginalMiniBlockHash() []byte
+}
+
+/*type AccountAdjustmentTransactionHandler interface {
+	NormalTransactionHandler
+	GetOriginalTxHash() []byte
+	GetOriginalMiniBlockHash() []byte
+}*/
+//! ---------------- END OF NEW CODE -----------------	
+
 
 type TxWithExecutionOrderHandler interface {
 	SetExecutionOrder(order uint32)
