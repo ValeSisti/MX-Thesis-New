@@ -699,13 +699,32 @@ func (n *Node) SendBulkTransactions(txs []*transaction.Transaction) (uint64, err
 
 // ValidateTransaction will validate a transaction
 func (n *Node) ValidateTransaction(tx *transaction.Transaction) error {
+	//! -------------------- NEW CODE --------------------
+	//? Commento la chiamata a checkSenderIsInShard perché mi ritorna errore:
+	//? questo perché questa funzione va a controllare se lo shard del currentNode (ad esempio 1) è uguale allo shard del sender
+	//? Il problema è che non appena creo l'AMT per Alice (dallo shard 1 allo shard 0), vado a mettere l'account di Alice dentro
+	//? il mapping che contiene i sender che stanno eseguendo la migrazione, e la funzione con cui viene controllato lo shard del sender (Alice in questo caso)
+	//? è ComputeId (dello ShardCoordinator), che va prima di tutto a controllare se l'account è presente nel mapping, altrimenti fa il compute dell'id in base all'indirizzo del sender
+	//? Ma siccome Alice è appena stata inserita nel mapping con lo shard id che è lo shard di destinazione in cui sarà migrata,
+	//? allora ComputeId ritornerà che lo shard di Alice è 0 (anche se non è ancora stata migrata, ma questo serve semplicemente
+	//? per non accettare più le txs di Alice nello shard 1, perché da adesso in poi se ne dovrà occupare lo shard 0, anche se Alice non è ancora stata effettivamente migrata allo shard 0)
+	//? Siccome questa funzione (ValidateTransaction del Node) la chiamo solo io per capire se la tx è valida non appena la creo,
+	//? non è un problema per il resto del sistema se commento semplicemente questa funzione
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	err := n.checkSenderIsInShard(tx)
 	if err != nil {
 		return err
 	}
+	//! -------------------- NEW CODE --------------------
+	*/
+	//! ---------------- END OF NEW CODE -----------------
 
 	txValidator, intTx, err := n.commonTransactionValidation(tx, n.processComponents.WhiteListerVerifiedTxs(), n.processComponents.WhiteListHandler(), true)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ERROR INSIDE commonTransactionValidation***", "error", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 

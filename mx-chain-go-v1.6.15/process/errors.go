@@ -1229,3 +1229,20 @@ var ErrInvalidAsyncArguments = errors.New("invalid arguments to process async/ca
 
 // ErrNilSentSignatureTracker defines the error for setting a nil SentSignatureTracker
 var ErrNilSentSignatureTracker = errors.New("nil sent signature tracker")
+
+//! -------------------- NEW CODE --------------------
+var ErrSenderAndReceiverNotTheSameInAMT = errors.New("sender and receiver accounts are not the same in the Account Migration Transaction")
+
+var ValueForAMTIsNotTheSameAsAccountBalance = errors.New("value for Account Migration Transaction is not the same as the account balance")
+
+var ErrHigherMigrationNonceInTransaction = errors.New("higher migration nonce in transaction")
+
+var ErrLowerMigrationNonceInTransaction = errors.New("lower migration nonce in transaction")
+
+var ErrTxNotValidInDest = errors.New("***transaction made not valid in destination by me (for testing)***")
+
+var ErrAccountNotFoundBecauseMigrated = errors.New("***account has not been found because it has been recently migrated***")
+
+var ErrProblematicMiniBlock = errors.New("***account has not been found because it has been recently migrated***")
+
+//! ---------------- END OF NEW CODE -----------------	

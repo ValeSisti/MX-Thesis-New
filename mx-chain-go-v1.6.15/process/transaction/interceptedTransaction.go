@@ -133,6 +133,9 @@ func NewInterceptedTransaction(
 	if err != nil {
 		return nil, err
 	}
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** Intercepted transaction created ***", "txHash", string(inTx.hash))
+	//! ---------------- END OF NEW CODE -----------------	
 
 	return inTx, nil
 }
@@ -172,8 +175,14 @@ func createRelayedV2(relayedTx *transaction.Transaction, args [][]byte) (*transa
 
 // CheckValidity checks if the received transaction is valid (not nil fields, valid sig and so on)
 func (inTx *InterceptedTransaction) CheckValidity() error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***inTx.CheckValidity called***", "txHash", hex.EncodeToString(inTx.Hash()), "string(txHash)", string(inTx.Hash()))
+	//! ---------------- END OF NEW CODE -----------------		
 	err := inTx.integrity(inTx.tx)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ERROR INSIDE integrity***", "error", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
@@ -181,7 +190,14 @@ func (inTx *InterceptedTransaction) CheckValidity() error {
 	if !whiteListedVerified {
 		err = inTx.verifySig(inTx.tx)
 		if err != nil {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***ERROR INSIDE verifySig***", "error", err.Error())
+			//! ---------------- END OF NEW CODE -----------------				
 			return err
+		}else{
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***verifySig SUCCESSFUL***")
+			//! ---------------- END OF NEW CODE -----------------		
 		}
 
 		err = inTx.VerifyGuardianSig(inTx.tx)
@@ -198,6 +214,9 @@ func (inTx *InterceptedTransaction) CheckValidity() error {
 		if err != nil {
 			return err
 		}
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***inTx.whiteListerVerifiedTxs.Add([][]byte{inTx.Hash()}) called***")
+		//! ---------------- END OF NEW CODE -----------------			
 
 		inTx.whiteListerVerifiedTxs.Add([][]byte{inTx.Hash()})
 	}
@@ -301,14 +320,82 @@ func (inTx *InterceptedTransaction) verifyIfRelayedTx(tx *transaction.Transactio
 }
 
 func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
-	inTx.hash = inTx.hasher.Compute(string(txBuff))
+	
+	//! -------------------- NEW CODE --------------------
+	// ! AAT CHECK OK
+	isAccountMigrationTransaction := len(inTx.tx.SignerPubKey) > 0 && !(len(inTx.tx.OriginalMiniBlockHash) > 0 && len(inTx.tx.OriginalTxHash) > 0)
+	isAccountAdjustmentTransaction := len(inTx.tx.SignerPubKey) > 0 && (len(inTx.tx.OriginalMiniBlockHash) > 0 && len(inTx.tx.OriginalTxHash) > 0)
+	
 
-	inTx.sndShard = inTx.coordinator.ComputeId(inTx.tx.SndAddr)
-	emptyAddr := make([]byte, len(inTx.tx.RcvAddr))
-	inTx.rcvShard = inTx.coordinator.ComputeId(inTx.tx.RcvAddr)
-	if bytes.Equal(inTx.tx.RcvAddr, emptyAddr) {
-		inTx.rcvShard = inTx.sndShard
+	if (isAccountAdjustmentTransaction){
+		
+		aat := &transaction.Transaction{
+			Nonce: 			inTx.tx.Nonce,
+			MigrationNonce:	inTx.tx.MigrationNonce,
+			Value:    		inTx.tx.Value,
+			GasLimit: 		inTx.tx.GasLimit, 
+			GasPrice: 		inTx.tx.GasPrice,
+			RcvAddr:  		inTx.tx.RcvAddr,
+			SndAddr:  		inTx.tx.SndAddr,
+			Data:	 		inTx.tx.Data,
+			ChainID:  		inTx.tx.ChainID,
+			Version:  		inTx.tx.Version,
+			SenderShard: 	inTx.tx.SenderShard,
+			ReceiverShard: 	inTx.tx.ReceiverShard,
+			OriginalTxHash: inTx.tx.OriginalTxHash,
+			OriginalMiniBlockHash: inTx.tx.OriginalMiniBlockHash,
+		}
+
+		mrsData, err := inTx.protoMarshalizer.Marshal(aat)
+		if err != nil {
+			return err
+		}
+
+		inTx.hash = inTx.hasher.Compute(string(mrsData))
+
+		inTx.sndShard = inTx.tx.SenderShard
+		inTx.rcvShard = inTx.tx.ReceiverShard
+
+	}else if(isAccountMigrationTransaction){				// Create the transaction object
+		
+		amt := &transaction.Transaction{
+			Nonce: 			inTx.tx.Nonce,
+			MigrationNonce:	inTx.tx.MigrationNonce,
+			Value:    		inTx.tx.Value,
+			GasLimit: 		inTx.tx.GasLimit, 
+			GasPrice: 		inTx.tx.GasPrice,
+			RcvAddr:  		inTx.tx.RcvAddr,
+			SndAddr:  		inTx.tx.SndAddr,
+			Data:	 		inTx.tx.Data,
+			ChainID:  		inTx.tx.ChainID,
+			Version:  		inTx.tx.Version,
+			SenderShard: 	inTx.tx.SenderShard,
+			ReceiverShard: 	inTx.tx.ReceiverShard,
+		}
+
+		mrsData, err := inTx.protoMarshalizer.Marshal(amt)
+		if err != nil {
+			return err
+		}
+
+		inTx.hash = inTx.hasher.Compute(string(mrsData))
+
+		inTx.sndShard = inTx.tx.SenderShard
+		inTx.rcvShard = inTx.tx.ReceiverShard
+
+	}else{
+	//! ---------------- END OF NEW CODE -----------------	
+		inTx.hash = inTx.hasher.Compute(string(txBuff))
+
+		inTx.sndShard = inTx.coordinator.ComputeId(inTx.tx.SndAddr)
+		emptyAddr := make([]byte, len(inTx.tx.RcvAddr))
+		inTx.rcvShard = inTx.coordinator.ComputeId(inTx.tx.RcvAddr)
+		if bytes.Equal(inTx.tx.RcvAddr, emptyAddr) {
+			inTx.rcvShard = inTx.sndShard
+		}
+	//! -------------------- NEW CODE --------------------
 	}
+	//! ---------------- END OF NEW CODE -----------------	
 
 	isForCurrentShardRecv := inTx.rcvShard == inTx.coordinator.SelfId()
 	isForCurrentShardSender := inTx.sndShard == inTx.coordinator.SelfId()
@@ -326,6 +413,9 @@ func (inTx *InterceptedTransaction) integrity(tx *transaction.Transaction) error
 
 	err = tx.CheckIntegrity()
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ERROR INSIDE CheckIntegrity()***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
@@ -370,13 +460,66 @@ func (inTx *InterceptedTransaction) checkMaxGasPrice() error {
 func (inTx *InterceptedTransaction) verifySig(tx *transaction.Transaction) error {
 	txMessageForSigVerification, err := inTx.getTxMessageForGivenTx(tx)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ERROR INSIDE getTxMessageForGivenTx***", "error", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
 	senderPubKey, err := inTx.keyGen.PublicKeyFromByteArray(tx.SndAddr)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ERROR INSIDE PublicKeyFromByteArray***", "error", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
+
+	//! -------------------- NEW CODE --------------------
+	//TODO: Qui devo mettere un check: se è una AccountMigration Tx allora non devo verificare la signature
+	//TODO: usando la PubKey del sender ma usando la PubKey del nodo che l'ha generata.
+	//TODO: per poter fare questo, devo includere la PubKey del nodo nelle informazioni della Tx
+
+	//? Ora, se guardo sopra, la PubKey del sender normalmente viene recuperata dal byte array corrispondente al suo indirizzo
+	//? Per il nodo, 
+
+
+	/*log.Debug(
+		"***PRINTING tx inside verifySig***", 
+		"tx.Nonce", tx.Nonce,
+		"tx.Value", tx.Value,
+		"tx.RcvAddr", tx.RcvAddr,
+		"tx.RcvUserName", tx.RcvUserName,
+		"tx.SndAddr", tx.SndAddr,
+		"tx.SndUserName", tx.SndUserName,
+		"tx.GasPrice", tx.GasPrice,
+		"tx.GasLimit", tx.GasLimit,
+		"tx.Data", hex.EncodeToString(tx.Data),
+		"tx.ChainID", tx.ChainID,
+		"tx.Version", tx.Version,
+		"tx.Signature", hex.EncodeToString(tx.Signature),
+		"tx.Options", tx.Options,
+		"tx.GuardianAddr", tx.GuardianAddr,
+		"tx.GuardianSignature", tx.GuardianSignature,
+	)*/
+
+
+	if (len(tx.SignerPubKey) > 0){ //? Se il field della SignerPubKey ha una len > 0, significa che è o una AMT o una AAT
+		txMessageForSigVerification, _ = tx.GetDataForSigning(inTx.pubkeyConv, inTx.signMarshalizer, inTx.txSignHasher)
+		log.Debug("***PUBKEY PROVIDED INSIDE tx fields: tx is going to be verified using the node's pubkey, as it is an AMT***")
+		senderPubKey, err = inTx.keyGen.PublicKeyFromByteArray(tx.SignerPubKey)
+		log.Debug("***tx.SignerPubKey IS", "tx.SignerPubKey", hex.EncodeToString(tx.SignerPubKey),)
+		if err != nil {
+			log.Debug("***ERROR INSIDE PublicKeyFromByteArray***", "error", err.Error())
+		}
+
+
+		//? THIS IS JUST FOR DEBUGGING:
+
+	}
+
+	log.Debug("***txMessageForSigVerification (txSigningData) IS", "txMessageForSigVerification", hex.EncodeToString(txMessageForSigVerification))
+	log.Debug("***tx.Signature IS", "tx.Signature", hex.EncodeToString(tx.Signature))
+	//! ---------------- END OF NEW CODE -----------------	
 
 	return inTx.singleSigner.Verify(senderPubKey, txMessageForSigVerification, tx.Signature)
 }

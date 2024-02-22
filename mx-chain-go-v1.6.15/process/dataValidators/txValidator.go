@@ -2,6 +2,10 @@ package dataValidators
 
 import (
 	"fmt"
+	//! -------------------- NEW CODE --------------------
+	"encoding/hex"
+	"bytes"	
+	//! ---------------- END OF NEW CODE -----------------	
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -10,6 +14,10 @@ import (
 	"github.com/multiversx/mx-chain-go/state"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	vmcommon "github.com/multiversx/mx-chain-vm-common-go"
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-core-go/data"
+	//! ---------------- END OF NEW CODE -----------------	
+
 )
 
 var _ process.TxValidator = (*txValidator)(nil)
@@ -63,23 +71,58 @@ func NewTxValidator(
 
 // CheckTxValidity will filter transactions that needs to be added in pools
 func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransactionHandler) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***CheckTxValidity called***")	
+	//! ---------------- END OF NEW CODE -----------------			
 	interceptedData, ok := interceptedTx.(process.InterceptedData)
 	if ok {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***interceptedData, ok := interceptedTx.(process.InterceptedData) cast is ok***")	
+		//! ---------------- END OF NEW CODE -----------------				
 		if txv.whiteListHandler.IsWhiteListed(interceptedData) {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***interceptedData is not whitelisted inside CheckTxValidity. Returning nil***", "interceptedTx", hex.EncodeToString(interceptedData.Hash()))	
+			//! ---------------- END OF NEW CODE -----------------					
 			return nil
 		}
 	}
 
 	if txv.isSenderInDifferentShard(interceptedTx) {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***sender is in different shard for interceptedTx. Returning nil***", "hash", hex.EncodeToString(interceptedData.Hash()))	
+		//! ---------------- END OF NEW CODE -----------------				
 		return nil
 	}
 
 	accountHandler, err := txv.getSenderAccount(interceptedTx)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***could not get sender account inside CheckTxValidity***", "err", err.Error())	
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
-
-	return txv.checkAccount(interceptedTx, accountHandler)
+	//! -------------------- NEW CODE --------------------
+	
+	normalTransactionHandler, ok := interceptedTx.Transaction().(data.NormalTransactionHandler)
+	isAccountMigrationTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && !(len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+	isAccountAdjustmentTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && (len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+	
+	if (isAccountAdjustmentTransaction){
+		//return txv.checkAccountForAAT(interceptedTx, accountHandler) //TODO: implement
+		//TODO: ADD AAT LOGIC
+		return nil
+	}else if (isAccountMigrationTransaction) {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***isAccountMigrationTransaction = true inside CheckTxValidity. Calling txv.checkAccountForAMT***")	
+		//! ---------------- END OF NEW CODE -----------------	
+		return txv.checkAccountForAMT(interceptedTx, accountHandler)
+	}else{
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***isAccountMigrationTransaction = false inside CheckTxValidity. Calling txv.checkAccount***")	
+		//! ---------------- END OF NEW CODE -----------------
+		return txv.checkAccount(interceptedTx, accountHandler)
+	}
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 func (txv *txValidator) checkAccount(
@@ -88,11 +131,17 @@ func (txv *txValidator) checkAccount(
 ) error {
 	err := txv.checkNonce(interceptedTx, accountHandler)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***checkNonce returned an error inside CheckTxValidity***", "err", err.Error())	
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
 	account, err := txv.getSenderUserAccount(interceptedTx, accountHandler)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***getSenderUserAccount returned an error inside CheckTxValidity***", "err", err.Error())	
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
@@ -119,6 +168,9 @@ func (txv *txValidator) checkBalance(interceptedTx process.InterceptedTransactio
 	txFee := interceptedTx.Fee()
 	if accountBalance.Cmp(txFee) < 0 {
 		senderAddress := interceptedTx.SenderAddress()
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ERROR INSIDE checkBalance()***")
+		//! ---------------- END OF NEW CODE -----------------			
 		return fmt.Errorf("%w, for address: %s, wanted %v, have %v",
 			process.ErrInsufficientFunds,
 			txv.pubKeyConverter.SilentEncode(senderAddress, log),
@@ -199,3 +251,80 @@ func (txv *txValidator) CheckTxWhiteList(data process.InterceptedData) error {
 func (txv *txValidator) IsInterfaceNil() bool {
 	return txv == nil
 }
+
+//! -------------------- NEW CODE --------------------
+
+func (txv *txValidator) checkAccountForAMT(
+	interceptedTx process.InterceptedTransactionHandler,
+	accountHandler vmcommon.AccountHandler,
+) error {
+
+	log.Debug("***checkAccountForAMT called***")			
+
+	//TODO: per una AMT, oltre a controllare il migration nonce (invece del nonce), devo controllare anche
+	//TODO: che il balance della tx sia uguale al balance del sender, che il sender e il receiver siano lo stesso account,
+	//TODO: e che il sender shard e il receiver shard siano quelli del risultato della predizione -> questo verrà dopo //TODO: implementare
+
+
+	err := txv.checkMigrationNonce(interceptedTx, accountHandler)
+	if err != nil {
+		log.Debug("***checkMigrationNonce returned an error***", "err", err.Error())	
+		return err
+	}
+
+	//check that sender and receiver accounts are the same
+	if !bytes.Equal(interceptedTx.Transaction().GetSndAddr(), interceptedTx.Transaction().GetRcvAddr()) {
+		return process.ErrSenderAndReceiverNotTheSameInAMT
+	}
+
+
+	account, err := txv.getSenderUserAccount(interceptedTx, accountHandler)
+	if err != nil {
+		return err
+	}
+
+	return txv.checkBalanceForAMT(interceptedTx, account)
+}
+
+
+
+func (txv *txValidator) checkBalanceForAMT(interceptedTx process.InterceptedTransactionHandler, account state.UserAccountHandler) error {
+	log.Debug("***checkBalanceForAMT called***")	
+	accountBalance := account.GetBalance()
+	txValue := interceptedTx.Transaction().GetValue()
+	
+	if !(accountBalance.Cmp(txValue) == 0) { //? if the account balance is NOT equal to the transaction value
+		log.Debug("***Account Balance and TxValue: ", "accountBalance", accountBalance.String(), "txValue", txValue.String())
+		return process.ValueForAMTIsNotTheSameAsAccountBalance
+	}
+
+	return nil
+}
+
+func (txv *txValidator) checkMigrationNonce(interceptedTx process.InterceptedTransactionHandler, accountHandler vmcommon.AccountHandler) error {
+	userAccountHandler, ok := accountHandler.(state.UserAccountHandler)
+	if !ok{
+		return fmt.Errorf("cannot cast to user account (insideMigrationNonce)")
+	}
+	accountMigrationNonce := userAccountHandler.GetMigrationNonce()
+	
+	
+	txMigrationNonce := interceptedTx.Transaction().(data.NormalTransactionHandler).GetMigrationNonce()
+	log.Debug("***txMigrationNonce inside checkMigrationNonce***", "txMigrationNonce", string(txMigrationNonce))		
+	
+	lowerMigrationNonceInTx := txMigrationNonce < accountMigrationNonce
+	log.Debug("***lowerMigrationNonceInTx := txMigrationNonce < accountMigrationNonce***", "lowerMigrationNonceInTx", lowerMigrationNonceInTx, "txMigrationNonce", string(txMigrationNonce), "accountMigrationNonce", string(accountMigrationNonce))		
+	
+	veryHighMigrationNonceInTx := txMigrationNonce > accountMigrationNonce+uint64(txv.maxNonceDeltaAllowed)
+	log.Debug("***veryHighMigrationNonceInTx := txMigrationNonce > accountMigrationNonce+uint64(txv.maxNonceDeltaAllowed)***", "veryHighMigrationNonceInTx", veryHighMigrationNonceInTx)		
+	
+	if lowerMigrationNonceInTx || veryHighMigrationNonceInTx {
+		return fmt.Errorf("%w lowerMigrationNonceInTx: %v, veryHighMigrationNonceInTx: %v",
+			process.ErrWrongTransaction,
+			lowerMigrationNonceInTx,
+			veryHighMigrationNonceInTx,
+		)
+	}
+	return nil
+}
+//! ---------------- END OF NEW CODE -----------------	
