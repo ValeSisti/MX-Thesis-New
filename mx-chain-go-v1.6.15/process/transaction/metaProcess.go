@@ -94,12 +94,15 @@ func NewMetaTxProcessor(args ArgsNewMetaTxProcessor) (*metaTxProcessor, error) {
 	return txProc, nil
 }
 
+//? NOTA: ProcessTransaction del metaTxProcessor processa SOLO degli smart contract
 // ProcessTransaction modifies the account states in respect with the transaction data
 func (txProc *metaTxProcessor) ProcessTransaction(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
 	if check.IfNil(tx) {
 		return 0, process.ErrNilTransaction
 	}
-
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***metaTxProcessor.ProcessTransaction called*** -------POTENTIAL PROBLEM--------- (getAccounts -> devo capire come separare getAccounts e getReceiverAccount anche qui????????)")
+	//! ---------------- END OF NEW CODE -----------------
 	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
 	if err != nil {
 		return 0, err
@@ -111,7 +114,7 @@ func (txProc *metaTxProcessor) ProcessTransaction(tx *transaction.Transaction) (
 	}
 
 	process.DisplayProcessTxDetails(
-		"ProcessTransaction: sender account details",
+		"***metaTxProcessor.ProcessTransaction: sender account details", //! MODIFIED CODE
 		acntSnd,
 		tx,
 		txHash,
@@ -155,6 +158,140 @@ func (txProc *metaTxProcessor) ProcessTransaction(tx *transaction.Transaction) (
 
 	return vmcommon.UserError, nil
 }
+
+//! -------------------- NEW CODE --------------------
+// ProcessTransaction modifies the account states in respect with the transaction data
+func (txProc *metaTxProcessor) ProcessTransactionFromMe(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
+	//TODO: MODIFICA LOGICA (getAccounts)
+	if check.IfNil(tx) {
+		return 0, process.ErrNilTransaction
+	}
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***metaTxProcessor.ProcessTransactionFromMe called*** -------POTENTIAL PROBLEM--------- (getAccounts -> devo capire come separare getAccounts e getReceiverAccount anche qui????????)")
+	//! ---------------- END OF NEW CODE -----------------
+	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+	if err != nil {
+		return 0, err
+	}
+
+
+	process.DisplayProcessTxDetails(
+		"***metaTxProcessor.ProcessTransactionFROM_ME called: sender account details***",
+		acntSnd,
+		tx,
+		txHash,
+		txProc.pubkeyConv,
+	)
+
+	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)
+	if err != nil {
+		if errors.Is(err, process.ErrUserNameDoesNotMatchInCrossShardTx) {
+			errProcessIfErr := txProc.processIfTxErrorCrossShard(tx, err.Error())
+			if errProcessIfErr != nil {
+				return 0, errProcessIfErr
+			}
+			return vmcommon.UserError, nil
+		}
+		return 0, err
+	}
+
+	txType, _ := txProc.txTypeHandler.ComputeTransactionType(tx)
+
+	switch txType {
+	case process.SCDeployment:
+		return txProc.processSCDeployment(tx, tx.SndAddr)
+	case process.SCInvoking:
+		return txProc.processSCInvoking(tx, tx.SndAddr, tx.RcvAddr)
+	case process.BuiltInFunctionCall:
+		if txProc.enableEpochsHandler.IsBuiltInFunctionOnMetaFlagEnabled() {
+			return txProc.processBuiltInFunctionCall(tx, tx.SndAddr, tx.RcvAddr)
+		}
+
+		if txProc.enableEpochsHandler.IsESDTFlagEnabled() {
+			return txProc.processSCInvoking(tx, tx.SndAddr, tx.RcvAddr)
+		}
+	}
+
+	snapshot := txProc.accounts.JournalLen()
+	err = txProc.scProcessor.ProcessIfError(acntSnd, txHash, tx, process.ErrWrongTransaction.Error(), nil, snapshot, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	return vmcommon.UserError, nil
+}
+
+
+// ProcessTransaction modifies the account states in respect with the transaction data
+func (txProc *metaTxProcessor) ProcessTransactionDstMe(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
+	if check.IfNil(tx) {
+		return 0, process.ErrNilTransaction
+	}
+
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***metaTxProcessor.ProcessTransactionDstMe called*** -------POTENTIAL PROBLEM--------- (getAccounts -> devo capire come separare getAccounts e getReceiverAccount anche qui????????)")
+	//! ---------------- END OF NEW CODE -----------------
+	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+	if err != nil {
+		return 0, err
+	}
+
+	process.DisplayProcessTxDetails(
+		"***metaTxProcessor.ProcessTransactionDST_ME: sender account details***",
+		acntSnd,
+		tx,
+		txHash,
+		txProc.pubkeyConv,
+	)
+
+	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)
+	if err != nil {
+		if errors.Is(err, process.ErrUserNameDoesNotMatchInCrossShardTx) {
+			errProcessIfErr := txProc.processIfTxErrorCrossShard(tx, err.Error())
+			if errProcessIfErr != nil {
+				return 0, errProcessIfErr
+			}
+			return vmcommon.UserError, nil
+		}
+		return 0, err
+	}
+
+	txType, _ := txProc.txTypeHandler.ComputeTransactionType(tx)
+
+	switch txType {
+	case process.SCDeployment:
+		return txProc.processSCDeployment(tx, tx.SndAddr)
+	case process.SCInvoking:
+		return txProc.processSCInvoking(tx, tx.SndAddr, tx.RcvAddr)
+	case process.BuiltInFunctionCall:
+		if txProc.enableEpochsHandler.IsBuiltInFunctionOnMetaFlagEnabled() {
+			return txProc.processBuiltInFunctionCall(tx, tx.SndAddr, tx.RcvAddr)
+		}
+
+		if txProc.enableEpochsHandler.IsESDTFlagEnabled() {
+			return txProc.processSCInvoking(tx, tx.SndAddr, tx.RcvAddr)
+		}
+	}
+
+	snapshot := txProc.accounts.JournalLen()
+	err = txProc.scProcessor.ProcessIfError(acntSnd, txHash, tx, process.ErrWrongTransaction.Error(), nil, snapshot, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	return vmcommon.UserError, nil
+}
+//! ---------------- END OF NEW CODE -----------------
 
 func (txProc *metaTxProcessor) processSCDeployment(
 	tx *transaction.Transaction,

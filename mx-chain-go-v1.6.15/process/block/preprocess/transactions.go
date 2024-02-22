@@ -587,7 +587,14 @@ func (txs *transactions) processTxsToMe(
 		if scheduledMode {
 			txs.scheduledTxsExecutionHandler.AddScheduledTx(txHash, tx)
 		} else {
+			//! -------------------- NEW CODE --------------------
+			/*
+			//! ---------------- END OF NEW CODE -----------------		
 			err = txs.processAndRemoveBadTransaction(
+			//! -------------------- NEW CODE --------------------	
+			*/
+			//! ---------------- END OF NEW CODE -----------------		
+			err = txs.processAndRemoveBadTransactionToMe( //! MODIFIED CODE
 				txHash,
 				tx,
 				senderShardID,
@@ -880,6 +887,9 @@ func (txs *transactions) processAndRemoveBadTransaction(
 	sndShardId uint32,
 	dstShardId uint32,
 ) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***processAndRemoveBadTransaction called", "txHash", string(txHash))
+	//! ---------------- END OF NEW CODE -----------------
 
 	txs.txExecutionOrderHandler.Add(txHash)
 	_, err := txs.txProcessor.ProcessTransaction(tx)
@@ -903,6 +913,76 @@ func (txs *transactions) processAndRemoveBadTransaction(
 
 	return err
 }
+
+//! -------------------- NEW CODE --------------------
+// processAndRemoveBadTransactions processed transactions, if txs are with error it removes them from pool
+func (txs *transactions) processAndRemoveBadTransactionFromMe(
+	txHash []byte,
+	tx *transaction.Transaction,
+	sndShardId uint32,
+	dstShardId uint32,
+) error {
+	log.Debug("***processAndRemoveBadTransactionFROM_ME called", "txHash", string(txHash))
+
+
+	txs.txExecutionOrderHandler.Add(txHash)
+	_, err := txs.txProcessor.ProcessTransactionFromMe(tx)
+	isTxTargetedForDeletion := errors.Is(err, process.ErrLowerNonceInTransaction) || errors.Is(err, process.ErrInsufficientFee) || errors.Is(err, process.ErrTransactionNotExecutable)
+	if isTxTargetedForDeletion {
+		txs.txExecutionOrderHandler.Remove(txHash)
+		strCache := process.ShardCacherIdentifier(sndShardId, dstShardId)
+		txs.txPool.RemoveData(txHash, strCache)
+	}
+
+	if err != nil && !errors.Is(err, process.ErrFailedTransaction) {
+		txs.txExecutionOrderHandler.Remove(txHash)
+
+		return err
+	}
+
+	txShardInfoToSet := &txShardInfo{senderShardID: sndShardId, receiverShardID: dstShardId}
+	txs.txsForCurrBlock.mutTxsForBlock.Lock()
+	txs.txsForCurrBlock.txHashAndInfo[string(txHash)] = &txInfo{tx: tx, txShardInfo: txShardInfoToSet}
+	txs.txsForCurrBlock.mutTxsForBlock.Unlock()
+
+	return err
+}
+
+
+// processAndRemoveBadTransactions processed transactions, if txs are with error it removes them from pool
+func (txs *transactions) processAndRemoveBadTransactionToMe(
+	txHash []byte,
+	tx *transaction.Transaction,
+	sndShardId uint32,
+	dstShardId uint32,
+) error {
+
+	log.Debug("***processAndRemoveBadTransactionTO_ME called", "txHash", string(txHash))
+
+	txs.txExecutionOrderHandler.Add(txHash)
+	_, err := txs.txProcessor.ProcessTransactionDstMe(tx) //! MODIFIED CODE
+	isTxTargetedForDeletion := errors.Is(err, process.ErrLowerNonceInTransaction) || errors.Is(err, process.ErrInsufficientFee) || errors.Is(err, process.ErrTransactionNotExecutable)
+	if isTxTargetedForDeletion {
+		txs.txExecutionOrderHandler.Remove(txHash)
+		strCache := process.ShardCacherIdentifier(sndShardId, dstShardId)
+		txs.txPool.RemoveData(txHash, strCache)
+	}
+
+	if err != nil && !errors.Is(err, process.ErrFailedTransaction) {
+		txs.txExecutionOrderHandler.Remove(txHash)
+
+		return err
+	}
+
+	txShardInfoToSet := &txShardInfo{senderShardID: sndShardId, receiverShardID: dstShardId}
+	txs.txsForCurrBlock.mutTxsForBlock.Lock()
+	txs.txsForCurrBlock.txHashAndInfo[string(txHash)] = &txInfo{tx: tx, txShardInfo: txShardInfoToSet}
+	txs.txsForCurrBlock.mutTxsForBlock.Unlock()
+
+	return err
+}
+//! ---------------- END OF NEW CODE -----------------
+
 
 func (txs *transactions) notifyTransactionProviderIfNeeded() {
 	txs.accountTxsShards.RLock()
@@ -1209,6 +1289,9 @@ func (txs *transactions) createAndProcessMiniBlocksFromMeV1(
 
 		err = txs.processMiniBlockBuilderTx(mbBuilder, wtx, tx)
 		if err != nil {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***ERROR INSIDE processMiniBlockBuilderTx***")
+			//! ---------------- END OF NEW CODE -----------------
 			if core.IsGetNodeFromDBError(err) {
 				return nil, nil, err
 			}
@@ -1265,7 +1348,14 @@ func (txs *transactions) processMiniBlockBuilderTx(
 ) error {
 	snapshot := mb.accounts.JournalLen()
 	startTime := time.Now()
-	err := txs.processAndRemoveBadTransaction(
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
+	err = txs.processAndRemoveBadTransaction(
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------	
+	err := txs.processAndRemoveBadTransactionFromMe( //! MODIFIED CODE
 		wtx.TxHash,
 		tx,
 		wtx.SenderShardID,
@@ -1540,6 +1630,14 @@ func (txs *transactions) ProcessMiniBlock(
 
 	numOfOldCrossInterMbs, numOfOldCrossInterTxs := preProcessorExecutionInfoHandler.GetNumOfCrossInterMbsAndTxs()
 
+	//! -------------------- NEW CODE --------------------
+	selfShardId := txs.shardCoordinator.SelfId()
+
+	isIntra := miniBlock.SenderShardID == selfShardId && miniBlock.ReceiverShardID == selfShardId
+	isCrossFromMe := miniBlock.SenderShardID == selfShardId && !(miniBlock.ReceiverShardID == selfShardId)
+	isCrossDstMe := !(miniBlock.SenderShardID == selfShardId) && miniBlock.ReceiverShardID == selfShardId
+	//! ---------------- END OF NEW CODE -----------------		
+
 	for txIndex = indexOfFirstTxToBeProcessed; txIndex < len(miniBlockTxs); txIndex++ {
 		if !haveTime() && !haveAdditionalTime() {
 			err = process.ErrTimeIsOut
@@ -1569,13 +1667,38 @@ func (txs *transactions) ProcessMiniBlock(
 			break
 		}
 
+
+
 		if !scheduledMode {
-			err = txs.processInNormalMode(
-				preProcessorExecutionInfoHandler,
-				miniBlockTxs[txIndex],
-				miniBlockTxHashes[txIndex],
-				&gasInfo,
-				gasProvidedByTxInSelfShard)
+			//! -------------------- NEW CODE --------------------
+			if (isIntra){
+			//! ---------------- END OF NEW CODE -----------------			
+				err = txs.processInNormalMode(
+					preProcessorExecutionInfoHandler,
+					miniBlockTxs[txIndex],
+					miniBlockTxHashes[txIndex],
+					&gasInfo,
+					gasProvidedByTxInSelfShard)
+			//! -------------------- NEW CODE --------------------
+			}else if (isCrossFromMe){
+				err = txs.processInNormalModeFromMe(
+					preProcessorExecutionInfoHandler,
+					miniBlockTxs[txIndex],
+					miniBlockTxHashes[txIndex],
+					&gasInfo,
+					gasProvidedByTxInSelfShard)				
+			}else if (isCrossDstMe){
+				err = txs.processInNormalModeToMe(
+					preProcessorExecutionInfoHandler,
+					miniBlockTxs[txIndex],
+					miniBlockTxHashes[txIndex],
+					&gasInfo,
+					gasProvidedByTxInSelfShard)
+			}else{
+				log.Debug("***Miniblock is neither intra, nor crossFromMe, nor crossDstMe when executing ProcessMiniBlock! --------PROBLEM--------!!!***")
+				break
+			}
+			//! ---------------- END OF NEW CODE -----------------					
 			if err != nil {
 				break
 			}
@@ -1635,6 +1758,9 @@ func (txs *transactions) processInNormalMode(
 	gasInfo *gasConsumedInfo,
 	gasProvidedByTxInSelfShard uint64,
 ) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***processInNormalModeMe called", "txHash", string(txHash))
+	//! ---------------- END OF NEW CODE -----------------	
 
 	snapshot := txs.handleProcessTransactionInit(preProcessorExecutionInfoHandler, txHash)
 
@@ -1650,6 +1776,56 @@ func (txs *transactions) processInNormalMode(
 
 	return nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (txs *transactions) processInNormalModeFromMe(
+	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
+	tx *transaction.Transaction,
+	txHash []byte,
+	gasInfo *gasConsumedInfo,
+	gasProvidedByTxInSelfShard uint64,
+) error {
+	log.Debug("***processInNormalModeFromMe called", "txHash", string(txHash))
+
+	snapshot := txs.handleProcessTransactionInit(preProcessorExecutionInfoHandler, txHash)
+
+	txs.txExecutionOrderHandler.Add(txHash)
+	_, err := txs.txProcessor.ProcessTransactionFromMe(tx)  //! MODIFIED CODE
+	if err != nil {
+		txs.handleProcessTransactionError(preProcessorExecutionInfoHandler, snapshot, txHash)
+		return err
+	}
+
+	txs.updateGasConsumedWithGasRefundedAndGasPenalized(txHash, gasInfo)
+	txs.gasHandler.SetGasProvided(gasProvidedByTxInSelfShard, txHash)
+
+	return nil
+}
+
+func (txs *transactions) processInNormalModeToMe(
+	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
+	tx *transaction.Transaction,
+	txHash []byte,
+	gasInfo *gasConsumedInfo,
+	gasProvidedByTxInSelfShard uint64,
+) error {
+	log.Debug("***processInNormalModeToMe called", "txHash", string(txHash))
+
+	snapshot := txs.handleProcessTransactionInit(preProcessorExecutionInfoHandler, txHash)
+
+	txs.txExecutionOrderHandler.Add(txHash)
+	_, err := txs.txProcessor.ProcessTransactionDstMe(tx) //! MODIFIED CODE
+	if err != nil {
+		txs.handleProcessTransactionError(preProcessorExecutionInfoHandler, snapshot, txHash)
+		return err
+	}
+
+	txs.updateGasConsumedWithGasRefundedAndGasPenalized(txHash, gasInfo)
+	txs.gasHandler.SetGasProvided(gasProvidedByTxInSelfShard, txHash)
+
+	return nil
+}
+//! ---------------- END OF NEW CODE -----------------
 
 // CreateMarshalledData marshals transactions hashes and saves them into a new structure
 func (txs *transactions) CreateMarshalledData(txHashes [][]byte) ([][]byte, error) {

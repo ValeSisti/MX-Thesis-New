@@ -14,6 +14,18 @@ func (txProc *TxProcessor) ProcessTransaction(_ *transaction.Transaction) (vmcom
 	return 0, nil
 }
 
+//! -------------------- NEW CODE --------------------
+// ProcessTransaction does nothing as it is disabled
+func (txProc *TxProcessor) ProcessTransactionFromMe(_ *transaction.Transaction) (vmcommon.ReturnCode, error) {
+	return 0, nil
+}
+
+// ProcessTransaction does nothing as it is disabled
+func (txProc *TxProcessor) ProcessTransactionDstMe(_ *transaction.Transaction) (vmcommon.ReturnCode, error) {
+	return 0, nil
+}
+//! ---------------- END OF NEW CODE -----------------
+
 // VerifyTransaction does nothing as it is disabled
 func (txProc *TxProcessor) VerifyTransaction(_ *transaction.Transaction) error {
 	return nil

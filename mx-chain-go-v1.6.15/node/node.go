@@ -1558,7 +1558,7 @@ func (n *Node) CreateCustomTransaction(senderHex string, receiverHex string, val
 func (n *Node) CreateAccountMigrationTransaction(
 	accountToBeMigratedHex string, 
 	transactionData string, 
-	privateKey crypto.PrivateKey, 
+	privateKey crypto.PrivateKey,
 	publicKey crypto.PublicKey, 
 	chainID string, minTxVersion uint32,
 	sourceShard uint32,
@@ -1642,5 +1642,69 @@ func (n *Node) CreateAccountMigrationTransaction(
 
 	return tx, txHash, txSigningData, nil
 }
+
+
+
+/*func (sp *shardProcessor) createAccountAdjustmentTransaction(
+	originalProblematicTx data.NormalTransactionHandler,
+	originalProblematicTxHash string,
+	originalMiniBlockHash string,
+) (*transaction.Transaction, []byte, error) {	
+	rcvAccOldShardId := sp.shardCoordinator.GetOldShardFromAddressBytes(originalProblematicTx.GetRcvAddr())
+	rcvAccCurrentShardId := sp.shardCoordinator.GetCurrentShardFromAddressBytes(originalProblematicTx.GetRcvAddr())
+
+	originalTxHashBytes, _ := hex.DecodeString(originalProblematicTxHash)
+	originalMiniBlockHashBytes, _ := hex.DecodeString(originalMiniBlockHash)
+
+	txPublicKeyBytes, _ := sp.txPublicKey.ToByteArray()
+
+	log.Debug("***Checking that rcvAccOldShardId is SelfId inside createAccountAdjustmentTransasction (IMPORTANT!!!)***",  "rcvAccOldShardId == selfShardId", rcvAccOldShardId == sp.shardCoordinator.SelfId())
+
+		// Create the transaction object
+	aat := &transaction.Transaction{
+		Nonce: 			originalProblematicTx.GetNonce(),
+		MigrationNonce:	originalProblematicTx.GetMigrationNonce(),
+		Value:    		originalProblematicTx.GetValue(),
+		GasLimit: 		originalProblematicTx.GetGasLimit(),  // Adjust as required
+		GasPrice: 		originalProblematicTx.GetGasPrice(),  // Adjust as required
+		RcvAddr:  		originalProblematicTx.GetRcvAddr(), // ? RECEIVER
+		SndAddr:  		originalProblematicTx.GetRcvAddr(), // ? RECEIVER (come per le AMT, in cui mi interessava solo il sender account, qui mi interessa solo il receiver account)
+		Data:     		[]byte(""),
+		ChainID:  		[]byte("localnet"),
+		Version:  		uint32(2),
+		SenderShard: 	rcvAccOldShardId, //? the shard from which the RECEIVER account has been migrated, that should be the current shard, from which we are sending this AAT)
+		ReceiverShard: 	rcvAccCurrentShardId, //? the shard to which the RECEIVER account has been migrated, to which we have to send this AAT)
+		OriginalTxHash: originalTxHashBytes,
+		OriginalMiniBlockHash: originalMiniBlockHashBytes,
+		//SignerPubKey: 	publicKeyBytes,
+	}
+
+	//! NOTA: CALCOLO PRIMA L'HASH DELLA SIGNATURE
+	// Optional: Compute the transaction hash if needed
+	aatHash, err := core.CalculateHash(sp.marshalizer, sp.hasher, aat)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//! Soltanto DOPO aver calcolato l'hash, aggiungo la PubKey del signer, perché altrimenti,
+	//! essendo diversa per ogni signer, mi andrà a rendere tutti gli hash diversi
+	aat.SignerPubKey = txPublicKeyBytes
+
+    // Generate signature data
+	aatSigningData, err := aat.GetDataForSigning(sp.shardCoordinator.AddressPubKeyConverter(), sp.marshalizer, sp.coreComponents.TxSignHasher())
+	if err != nil {
+		return nil, nil, errors.New("could not marshal transaction for signing (inside createAccountAdjustmentTransaction)")
+	}
+
+	// Sign the transaction data
+	sig, err := sp.txSingleSigner.Sign(sp.txPrivateKey, aatSigningData)
+	if err != nil {
+		return nil, nil, errors.New("could not sign the transaction (inside createAccountAdjustmentTransaction)")
+	}
+	aat.Signature = sig
+	
+	return aat, aatHash, nil	
+}*/
+
 
 //! ---------------- END OF NEW CODE -----------------	

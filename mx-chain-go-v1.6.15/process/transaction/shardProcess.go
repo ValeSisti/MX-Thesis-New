@@ -233,6 +233,156 @@ func (txProc *txProcessor) ProcessTransaction(tx *transaction.Transaction) (vmco
 	return vmcommon.UserError, txProc.executingFailedTransaction(tx, acntSnd, process.ErrWrongTransaction)
 }
 
+//! -------------------- NEW CODE --------------------
+// ProcessTransaction modifies the account states in respect with the transaction data
+func (txProc *txProcessor) ProcessTransactionFromMe(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
+	//TODO: MODIFICA LOGICA (getAccounts)
+	if check.IfNil(tx) {
+		return 0, process.ErrNilTransaction
+	}
+
+	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+	if err != nil {
+		return 0, err
+	}
+
+	process.DisplayProcessTxDetails(
+		"ProcessTransaction: sender account details",
+		acntSnd,
+		tx,
+		txHash,
+		txProc.pubkeyConv,
+	)
+
+	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx)
+	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)
+	if err != nil {
+		if errors.Is(err, process.ErrInsufficientFunds) {
+			receiptErr := txProc.executingFailedTransaction(tx, acntSnd, err)
+			if receiptErr != nil {
+				return 0, receiptErr
+			}
+		}
+
+		if errors.Is(err, process.ErrUserNameDoesNotMatch) && txProc.enableEpochsHandler.IsRelayedTransactionsFlagEnabled() {
+			receiptErr := txProc.executingFailedTransaction(tx, acntSnd, err)
+			if receiptErr != nil {
+				return vmcommon.UserError, receiptErr
+			}
+		}
+
+		if errors.Is(err, process.ErrUserNameDoesNotMatchInCrossShardTx) {
+			errProcessIfErr := txProc.processIfTxErrorCrossShard(tx, err.Error())
+			if errProcessIfErr != nil {
+				return 0, errProcessIfErr
+			}
+			return vmcommon.UserError, nil
+		}
+		return vmcommon.UserError, err
+	}
+
+	switch txType {
+	case process.MoveBalance:
+		err = txProc.processMoveBalance(tx, acntSnd, acntDst, dstShardTxType, nil, false)
+		if err != nil {
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err)
+		}
+		return vmcommon.Ok, err
+	case process.SCDeployment:
+		return txProc.processSCDeployment(tx, acntSnd)
+	case process.SCInvoking:
+		return txProc.processSCInvoking(tx, acntSnd, acntDst)
+	case process.BuiltInFunctionCall:
+		return txProc.processBuiltInFunctionCall(tx, acntSnd, acntDst)
+	case process.RelayedTx:
+		return txProc.processRelayedTx(tx, acntSnd, acntDst)
+	case process.RelayedTxV2:
+		return txProc.processRelayedTxV2(tx, acntSnd, acntDst)
+	}
+
+	return vmcommon.UserError, txProc.executingFailedTransaction(tx, acntSnd, process.ErrWrongTransaction)
+}
+
+// ProcessTransaction modifies the account states in respect with the transaction data
+func (txProc *txProcessor) ProcessTransactionDstMe(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
+	//TODO: MODIFICA LOGICA (getAccounts)
+	if check.IfNil(tx) {
+		return 0, process.ErrNilTransaction
+	}
+
+	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+	if err != nil {
+		return 0, err
+	}
+
+	process.DisplayProcessTxDetails(
+		"ProcessTransaction: sender account details",
+		acntSnd,
+		tx,
+		txHash,
+		txProc.pubkeyConv,
+	)
+
+	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx)
+	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)
+	if err != nil {
+		if errors.Is(err, process.ErrInsufficientFunds) {
+			receiptErr := txProc.executingFailedTransaction(tx, acntSnd, err)
+			if receiptErr != nil {
+				return 0, receiptErr
+			}
+		}
+
+		if errors.Is(err, process.ErrUserNameDoesNotMatch) && txProc.enableEpochsHandler.IsRelayedTransactionsFlagEnabled() {
+			receiptErr := txProc.executingFailedTransaction(tx, acntSnd, err)
+			if receiptErr != nil {
+				return vmcommon.UserError, receiptErr
+			}
+		}
+
+		if errors.Is(err, process.ErrUserNameDoesNotMatchInCrossShardTx) {
+			errProcessIfErr := txProc.processIfTxErrorCrossShard(tx, err.Error())
+			if errProcessIfErr != nil {
+				return 0, errProcessIfErr
+			}
+			return vmcommon.UserError, nil
+		}
+		return vmcommon.UserError, err
+	}
+
+	switch txType {
+	case process.MoveBalance:
+		err = txProc.processMoveBalance(tx, acntSnd, acntDst, dstShardTxType, nil, false)
+		if err != nil {
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err)
+		}
+		return vmcommon.Ok, err
+	case process.SCDeployment:
+		return txProc.processSCDeployment(tx, acntSnd)
+	case process.SCInvoking:
+		return txProc.processSCInvoking(tx, acntSnd, acntDst)
+	case process.BuiltInFunctionCall:
+		return txProc.processBuiltInFunctionCall(tx, acntSnd, acntDst)
+	case process.RelayedTx:
+		return txProc.processRelayedTx(tx, acntSnd, acntDst)
+	case process.RelayedTxV2:
+		return txProc.processRelayedTxV2(tx, acntSnd, acntDst)
+	}
+
+	return vmcommon.UserError, txProc.executingFailedTransaction(tx, acntSnd, process.ErrWrongTransaction)
+}
+//! ---------------- END OF NEW CODE -----------------
+
 func (txProc *txProcessor) executeAfterFailedMoveBalanceTransaction(
 	tx *transaction.Transaction,
 	txError error,
@@ -773,6 +923,10 @@ func (txProc *txProcessor) processUserTx(
 	relayedNonce uint64,
 	txHash []byte,
 ) (vmcommon.ReturnCode, error) {
+
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***processUserTx called*** -------POTENTIAL PROBLEM--------- (getAccounts -> devo capire come separare getAccounts e getReceiverAccount anche qui????????)")
+	//! ---------------- END OF NEW CODE -----------------
 
 	acntSnd, acntDst, err := txProc.getAccounts(userTx.SndAddr, userTx.RcvAddr)
 	if err != nil {

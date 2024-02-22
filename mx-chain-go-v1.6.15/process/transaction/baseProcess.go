@@ -87,11 +87,100 @@ func (txProc *baseTxProcessor) getAccounts(
 			return nil, nil, process.ErrWrongTypeAssertion
 		}
 
+		//! -------------------- NEW CODE --------------------
+		//TODO: perché lo avevo messo? A che serviva? Boh, intanto lo scommento
+		/*if(txProc.shardCoordinator.IsAddressStringInAccountsMapping(string(account.AddressBytes()))){
+			account.SetIsBeingMigrated(true)
+		}*/
+		//! ---------------- END OF NEW CODE -----------------		
+
 		acntDst = account
 	}
 
 	return acntSrc, acntDst, nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (txProc *baseTxProcessor) getReceiverAccounts(
+	adrSrc, adrDst []byte,
+) (state.UserAccountHandler, state.UserAccountHandler, error) {
+
+	var acntSrc, acntDst state.UserAccountHandler
+
+	shardForCurrentNode := txProc.shardCoordinator.SelfId()
+	//shardForSrc := txProc.shardCoordinator.ComputeId(adrSrc) //! MODIFIED CODE
+	shardForDst := txProc.shardCoordinator.ComputeId(adrDst)
+
+	//srcInShard := shardForSrc == shardForCurrentNode //! MODIFIED CODE
+	dstInShard := shardForDst == shardForCurrentNode
+
+
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------	
+	if srcInShard && len(adrSrc) == 0 || dstInShard && len(adrDst) == 0 {
+		return nil, nil, process.ErrNilAddressContainer
+	}
+
+	if bytes.Equal(adrSrc, adrDst) {
+		acntWrp, err := txProc.accounts.LoadAccount(adrSrc)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		account, ok := acntWrp.(state.UserAccountHandler)
+		if !ok {
+			return nil, nil, process.ErrWrongTypeAssertion
+		}
+
+		return account, account, nil
+	}
+
+	if srcInShard {
+		acntSrcWrp, err := txProc.accounts.LoadAccount(adrSrc)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		account, ok := acntSrcWrp.(state.UserAccountHandler)
+		if !ok {
+			return nil, nil, process.ErrWrongTypeAssertion
+		}
+
+		acntSrc = account
+	}
+
+	//! -------------------- NEW CODE --------------------
+	*/
+	//! ---------------- END OF NEW CODE -----------------		
+
+	if dstInShard {
+		acntDstWrp, err := txProc.accounts.LoadAccount(adrDst)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		account, ok := acntDstWrp.(state.UserAccountHandler)
+		if !ok {
+			return nil, nil, process.ErrWrongTypeAssertion
+		}
+		
+		//! -------------------- NEW CODE --------------------
+		//TODO: perché lo avevo messo? A che serviva? Boh, intanto lo scommento
+		/*
+		if(txProc.shardCoordinator.IsAddressStringInAccountsMapping(string(account.AddressBytes()))){
+			account.SetIsBeingMigrated(true)
+		}
+		*/
+		//! ---------------- END OF NEW CODE -----------------
+
+		acntDst = account
+	}
+
+	return acntSrc, acntDst, nil
+}
+//! ---------------- END OF NEW CODE -----------------
+
 
 func (txProc *baseTxProcessor) getAccountFromAddress(adrSrc []byte) (state.UserAccountHandler, error) {
 	shardForCurrentNode := txProc.shardCoordinator.SelfId()
@@ -211,7 +300,9 @@ func (txProc *baseTxProcessor) VerifyTransaction(tx *transaction.Transaction) er
 	if check.IfNil(tx) {
 		return process.ErrNilTransaction
 	}
-
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***baseTxProcessor.VerifyTransaction called*** -------POTENTIAL PROBLEM--------- (getAccounts -> devo capire come separare getAccounts e getReceiverAccount anche qui????????)")
+	//! ---------------- END OF NEW CODE -----------------
 	senderAccount, receiverAccount, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
 	if err != nil {
 		return err

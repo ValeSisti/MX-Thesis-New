@@ -219,12 +219,18 @@ func (ste *scheduledTxsExecution) setScheduledMiniBlockHashes() error {
 }
 
 func (ste *scheduledTxsExecution) execute(txHash []byte, txHandler data.TransactionHandler) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***scheduledTxsExecution.execute() called*** ------POTENTIAL PROBLEM----- (devo separare la logica tra ProcessTransactionFromMe e ProcessTransactionToMe anche qui dentro???????)")
+	//! ---------------- END OF NEW CODE -----------------
 	tx, ok := txHandler.(*transaction.Transaction)
 	if !ok {
 		return fmt.Errorf("%w: in scheduledTxsExecution.execute", process.ErrWrongTypeAssertion)
 	}
 
 	ste.txExecutionOrderHandler.Add(txHash)
+	//! -------------------- NEW CODE --------------------
+	//TODO: OCCHIO QUI (devo separare la logica tra FromMe e ToMe anche qui???)
+	//! ---------------- END OF NEW CODE -----------------	
 	_, err := ste.txProcessor.ProcessTransaction(tx)
 	return err
 }

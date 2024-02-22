@@ -133,6 +133,10 @@ func (txs *transactions) processTransaction(
 	receiverShardID uint32,
 	mbInfo *createAndProcessMiniBlocksInfo,
 ) (bool, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** transactionsV2.processTransaction called: occhio che qui dentro non ho modificato nulla!!!! (viene chiamata da createAndProcessMiniBlocksFromMeV2) ***")
+	//! ---------------- END OF NEW CODE -----------------
+
 	snapshot := txs.accounts.JournalLen()
 
 	mbInfo.gasInfo.gasConsumedByMiniBlockInReceiverShard = mbInfo.mapGasConsumedByMiniBlockInReceiverShard[receiverShardID]
@@ -166,7 +170,15 @@ func (txs *transactions) processTransaction(
 
 	// execute transaction to change the trie root hash
 	startTime = time.Now()
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	err = txs.processAndRemoveBadTransaction(
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------	
+	err = txs.processAndRemoveBadTransactionFromMe(
+
 		txHash,
 		tx,
 		senderShardID,
@@ -346,6 +358,9 @@ func (txs *transactions) verifyTransaction(
 	receiverShardID uint32,
 	mbInfo *createScheduledMiniBlocksInfo,
 ) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***transactions.verifyTransaction called*** -------POTENTIAL PROBLEM--------- (getAccounts -> devo capire come separare getAccounts e getReceiverAccount anche qui????????)")
+	//! ---------------- END OF NEW CODE -----------------	
 	mbInfo.gasInfo.gasConsumedByMiniBlockInReceiverShard = mbInfo.mapGasConsumedByMiniBlockInReceiverShard[receiverShardID]
 	oldGasConsumedByMiniBlocksInSenderShard := mbInfo.gasInfo.gasConsumedByMiniBlocksInSenderShard
 	oldGasConsumedByMiniBlockInReceiverShard := mbInfo.gasInfo.gasConsumedByMiniBlockInReceiverShard
