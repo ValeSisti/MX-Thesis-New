@@ -65,6 +65,9 @@ func (bdi *baseDataInterceptor) isMessageFromSelfToSelf(fromConnectedPeer core.P
 func (bdi *baseDataInterceptor) processInterceptedData(data process.InterceptedData, msg p2p.MessageP2P) {
 	err := bdi.processor.Validate(data, msg.Peer())
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***intercepted data is not valid***")
+		//! ---------------- END OF NEW CODE -----------------			
 		log.Trace("intercepted data is not valid",
 			"hash", data.Hash(),
 			"type", data.Type(),
@@ -80,6 +83,9 @@ func (bdi *baseDataInterceptor) processInterceptedData(data process.InterceptedD
 
 	err = bdi.processor.Save(data, msg.Peer(), bdi.topic)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***intercepted data can not be processed***")
+		//! ---------------- END OF NEW CODE -----------------		
 		log.Trace("intercepted data can not be processed",
 			"hash", data.Hash(),
 			"type", data.Type(),
@@ -93,6 +99,9 @@ func (bdi *baseDataInterceptor) processInterceptedData(data process.InterceptedD
 		return
 	}
 
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***intercepted data is processed***")
+	//! ---------------- END OF NEW CODE -----------------		
 	log.Trace("intercepted data is processed",
 		"hash", data.Hash(),
 		"type", data.Type(),
@@ -104,6 +113,9 @@ func (bdi *baseDataInterceptor) processInterceptedData(data process.InterceptedD
 }
 
 func (bdi *baseDataInterceptor) processDebugInterceptedData(interceptedData process.InterceptedData, err error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***processDebugInterceptedData called***")
+	//! ---------------- END OF NEW CODE -----------------		
 	identifiers := interceptedData.Identifiers()
 
 	bdi.mutDebugHandler.RLock()
@@ -112,6 +124,9 @@ func (bdi *baseDataInterceptor) processDebugInterceptedData(interceptedData proc
 }
 
 func (bdi *baseDataInterceptor) receivedDebugInterceptedData(interceptedData process.InterceptedData) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***receivedDebugInterceptedData called***")
+	//! ---------------- END OF NEW CODE -----------------		
 	identifiers := interceptedData.Identifiers()
 
 	bdi.mutDebugHandler.RLock()

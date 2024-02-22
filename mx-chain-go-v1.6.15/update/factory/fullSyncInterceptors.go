@@ -562,6 +562,9 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneTxInterceptor(topic s
 			WhiteListRequest:     ficf.whiteListHandler,
 			CurrentPeerId:        ficf.mainMessenger.ID(),
 			PreferredPeersHolder: ficf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  ficf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -597,6 +600,9 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneUnsignedTxInterceptor
 			WhiteListRequest:     ficf.whiteListHandler,
 			CurrentPeerId:        ficf.mainMessenger.ID(),
 			PreferredPeersHolder: ficf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  ficf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -632,6 +638,9 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneRewardTxInterceptor(t
 			WhiteListRequest:     ficf.whiteListHandler,
 			CurrentPeerId:        ficf.mainMessenger.ID(),
 			PreferredPeersHolder: ficf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  ficf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -780,6 +789,9 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneTrieNodesInterceptor(
 			WhiteListRequest:     ficf.whiteListHandler,
 			CurrentPeerId:        ficf.mainMessenger.ID(),
 			PreferredPeersHolder: ficf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  ficf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {

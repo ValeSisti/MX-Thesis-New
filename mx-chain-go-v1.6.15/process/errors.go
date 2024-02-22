@@ -1245,4 +1245,5 @@ var ErrAccountNotFoundBecauseMigrated = errors.New("***account has not been foun
 
 var ErrProblematicMiniBlock = errors.New("***account has not been found because it has been recently migrated***")
 
+var ErrNilDataPoolInsideMultiDataInterceptor = errors.New("***data pool is nil inside multiDataInterceptor***")
 //! ---------------- END OF NEW CODE -----------------	

@@ -173,6 +173,10 @@ func (cache *TxCache) GetByTxHash(txHash []byte) (*WrappedTransaction, bool) {
 	return tx, ok
 }
 
+
+//! -------------------- NEW CODE --------------------
+/*
+//! ---------------- END OF NEW CODE -----------------		
 // SelectTransactionsWithBandwidth selects a reasonably fair list of transactions to be included in the next miniblock
 // It returns at most "numRequested" transactions
 // Each sender gets the chance to give at least bandwidthPerSender gas worth of transactions, unless "numRequested" limit is reached before iterating over all senders
@@ -181,8 +185,31 @@ func (cache *TxCache) SelectTransactionsWithBandwidth(numRequested int, batchSiz
 	go cache.doAfterSelection()
 	return result
 }
+//! -------------------- NEW CODE --------------------	
+*/
+//! ---------------- END OF NEW CODE -----------------	
 
+// SelectTransactionsWithBandwidth selects a reasonably fair list of transactions to be included in the next miniblock
+// It returns at most "numRequested" transactions
+// Each sender gets the chance to give at least bandwidthPerSender gas worth of transactions, unless "numRequested" limit is reached before iterating over all senders
+func (cache *TxCache) SelectTransactionsWithBandwidth(numRequested int, batchSizePerSender int, bandwidthPerSender uint64, migratingAccounts map[string]bool) []*WrappedTransaction { //! MODIFIED CODE
+	result := cache.doSelectTransactions(numRequested, batchSizePerSender, bandwidthPerSender, migratingAccounts) //! MODIFIED CODE
+	go cache.doAfterSelection()
+	return result
+}
+
+
+	
+//! -------------------- NEW CODE --------------------
+/*
+//! ---------------- END OF NEW CODE -----------------		
 func (cache *TxCache) doSelectTransactions(numRequested int, batchSizePerSender int, bandwidthPerSender uint64) []*WrappedTransaction {
+
+//! -------------------- NEW CODE --------------------	
+*/
+//! ---------------- END OF NEW CODE -----------------	
+func (cache *TxCache) doSelectTransactions(numRequested int, batchSizePerSender int, bandwidthPerSender uint64, migratingAccounts map[string]bool) []*WrappedTransaction { //! MODIFIED CODE
+
 	stopWatch := cache.monitorSelectionStart()
 
 	result := make([]*WrappedTransaction, numRequested)
@@ -234,7 +261,7 @@ func (cache *TxCache) doSelectTransactions(numRequested int, batchSizePerSender 
 	if !resultIsFull {
 		log.Debug("***result is not full: adding also normal transactions (besides AMTs, that had priority)***")
 	//! ---------------- END OF NEW CODE -----------------	
-		snapshotOfSenders := cache.getSendersEligibleForSelection()
+		snapshotOfSenders := cache.getSendersEligibleForSelection2(migratingAccounts)
 		//! -------------------- NEW CODE --------------------
 		log.Debug("***snapshotOfSenders := cache.getSendersEligibleForSelection(migratingAccounts)***", "len(snapshotOfSenders)", len(snapshotOfSenders))
 		//! ---------------- END OF NEW CODE -----------------	

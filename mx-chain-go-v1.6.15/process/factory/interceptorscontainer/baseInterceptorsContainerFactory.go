@@ -297,6 +297,9 @@ func (bicf *baseInterceptorsContainerFactory) createOneTxInterceptor(topic strin
 			WhiteListRequest:     bicf.whiteListHandler,
 			CurrentPeerId:        bicf.mainMessenger.ID(),
 			PreferredPeersHolder: bicf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  bicf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -340,6 +343,9 @@ func (bicf *baseInterceptorsContainerFactory) createOneUnsignedTxInterceptor(top
 			WhiteListRequest:     bicf.whiteListHandler,
 			CurrentPeerId:        bicf.mainMessenger.ID(),
 			PreferredPeersHolder: bicf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  bicf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -383,6 +389,9 @@ func (bicf *baseInterceptorsContainerFactory) createOneRewardTxInterceptor(topic
 			WhiteListRequest:     bicf.whiteListHandler,
 			CurrentPeerId:        bicf.mainMessenger.ID(),
 			PreferredPeersHolder: bicf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  bicf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -513,6 +522,9 @@ func (bicf *baseInterceptorsContainerFactory) createOneMiniBlocksInterceptor(top
 			WhiteListRequest:     bicf.whiteListHandler,
 			CurrentPeerId:        bicf.mainMessenger.ID(),
 			PreferredPeersHolder: bicf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  bicf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -589,6 +601,9 @@ func (bicf *baseInterceptorsContainerFactory) createOneTrieNodesInterceptor(topi
 			WhiteListRequest:     bicf.whiteListHandler,
 			CurrentPeerId:        bicf.mainMessenger.ID(),
 			PreferredPeersHolder: bicf.preferredPeersHolder,
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  bicf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -680,6 +695,9 @@ func (bicf *baseInterceptorsContainerFactory) generatePeerAuthenticationIntercep
 			WhiteListRequest:     bicf.whiteListHandler,
 			PreferredPeersHolder: bicf.preferredPeersHolder,
 			CurrentPeerId:        bicf.mainMessenger.ID(),
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  bicf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {
@@ -825,6 +843,9 @@ func (bicf *baseInterceptorsContainerFactory) generateValidatorInfoInterceptor()
 			WhiteListRequest:     bicf.whiteListHandler,
 			PreferredPeersHolder: bicf.preferredPeersHolder,
 			CurrentPeerId:        bicf.mainMessenger.ID(),
+			//! -------------------- NEW CODE --------------------
+			DataPool: 		   	  bicf.dataPool,
+			//! ---------------- END OF NEW CODE -----------------	
 		},
 	)
 	if err != nil {

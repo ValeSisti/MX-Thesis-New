@@ -8,14 +8,28 @@ import (
 
 // SortedTransactionsProvider defines the public API of the transactions cache
 type SortedTransactionsProvider interface {
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	GetSortedTransactions() []*txcache.WrappedTransaction
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------
+	GetSortedTransactions(migratingAccounts map[string]bool) []*txcache.WrappedTransaction //! MODIFIED CODE
 	NotifyAccountNonce(accountKey []byte, nonce uint64)
 	IsInterfaceNil() bool
 }
 
 // TxCache defines the functionality for the transactions cache
 type TxCache interface {
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	SelectTransactionsWithBandwidth(numRequested int, batchSizePerSender int, bandwidthPerSender uint64) []*txcache.WrappedTransaction
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------	
+	SelectTransactionsWithBandwidth(numRequested int, batchSizePerSender int, bandwidthPerSender uint64, migratingAccounts map[string]bool) []*txcache.WrappedTransaction //! MODIFIED CODE
 	NotifyAccountNonce(accountKey []byte, nonce uint64)
 	IsInterfaceNil() bool
 }

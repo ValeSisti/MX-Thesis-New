@@ -13,6 +13,9 @@ import (
 	"github.com/multiversx/mx-chain-go/process"
 	"github.com/multiversx/mx-chain-go/process/interceptors/disabled"
 	logger "github.com/multiversx/mx-chain-logger-go"
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-go/dataRetriever"
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 var log = logger.GetOrCreate("process/interceptors")
@@ -28,6 +31,9 @@ type ArgMultiDataInterceptor struct {
 	WhiteListRequest     process.WhiteListHandler
 	PreferredPeersHolder process.PreferredPeersHolderHandler
 	CurrentPeerId        core.PeerID
+	//! -------------------- NEW CODE --------------------
+	DataPool 			 dataRetriever.PoolsHolder
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 // MultiDataInterceptor is used for intercepting packed multi data
@@ -38,6 +44,9 @@ type MultiDataInterceptor struct {
 	whiteListRequest   process.WhiteListHandler
 	mutChunksProcessor sync.RWMutex
 	chunksProcessor    process.InterceptedChunksProcessor
+	//! -------------------- NEW CODE --------------------
+	dataPool 			 dataRetriever.PoolsHolder
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 // NewMultiDataInterceptor hooks a new interceptor for packed multi data
@@ -66,6 +75,12 @@ func NewMultiDataInterceptor(arg ArgMultiDataInterceptor) (*MultiDataInterceptor
 	if check.IfNil(arg.PreferredPeersHolder) {
 		return nil, process.ErrNilPreferredPeersHolder
 	}
+	//! -------------------- NEW CODE --------------------
+	if check.IfNil(arg.DataPool) {
+		return nil, process.ErrNilDataPoolInsideMultiDataInterceptor
+	}
+	//! ---------------- END OF NEW CODE -----------------	
+
 	if len(arg.CurrentPeerId) == 0 {
 		return nil, process.ErrEmptyPeerID
 	}
@@ -84,6 +99,9 @@ func NewMultiDataInterceptor(arg ArgMultiDataInterceptor) (*MultiDataInterceptor
 		factory:          arg.DataFactory,
 		whiteListRequest: arg.WhiteListRequest,
 		chunksProcessor:  disabled.NewDisabledInterceptedChunksProcessor(),
+		//! -------------------- NEW CODE --------------------
+		dataPool:		  arg.DataPool,
+		//! ---------------- END OF NEW CODE -----------------
 	}
 
 	return multiDataIntercept, nil
@@ -92,14 +110,23 @@ func NewMultiDataInterceptor(arg ArgMultiDataInterceptor) (*MultiDataInterceptor
 // ProcessReceivedMessage is the callback func from the p2p.Messenger and will be called each time a new message was received
 // (for the topic this validator was registered to)
 func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, fromConnectedPeer core.PeerID, _ p2p.MessageHandler) error {
+	//! ------------------- NEW CODE ---------------------
+	log.Debug("***Calling MultiDataInterceptor.ProcessReceivedMessage***", "topic", message.Topic(), "key", string(message.Key()))
+	//! ---------------- END OF NEW CODE -----------------		
 	err := mdi.preProcessMesage(message, fromConnectedPeer)
 	if err != nil {
+ 		//! ------------------- NEW CODE ---------------------
+		 log.Debug("***mdi.preProcessMesage(message, fromConnectedPeer) returned an error inside MultiDataInterceptor.ProcessReceivedMessage***", "err", err.Error())
+		 //! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
 	b := batch.Batch{}
 	err = mdi.marshalizer.Unmarshal(&b, message.Data())
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***mdi.marshalizer.Unmarshal(&b, message.Data()) returned an error inside MultiDataInterceptor.ProcessReceivedMessage. Calling mdi.throttler.EndProcessing() and blacklisting peer***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		mdi.throttler.EndProcessing()
 
 		// this situation is so severe that we need to black list de peers
@@ -112,6 +139,9 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 	multiDataBuff := b.Data
 	lenMultiData := len(multiDataBuff)
 	if lenMultiData == 0 {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***lenMultiData == 0 inside ProcessReceivedMessage. Ending processing***")
+		//! ---------------- END OF NEW CODE -----------------		
 		mdi.throttler.EndProcessing()
 		return process.ErrNoDataInMessage
 	}
@@ -124,6 +154,9 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 		message.SeqNo(),
 	)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***mdi.antifloodHandler.CanProcessMessagesOnTopic returned an error inside ProcessReceivedMessage. Ending processing***", "err", err.Error(), "topic", mdi.topic)
+		//! ---------------- END OF NEW CODE -----------------			
 		mdi.throttler.EndProcessing()
 		return err
 	}
@@ -132,6 +165,9 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 	checkChunksRes, err := mdi.chunksProcessor.CheckBatch(&b, mdi.whiteListRequest)
 	mdi.mutChunksProcessor.RUnlock()
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***mdi.chunksProcessor.CheckBatch returned an error inside ProcessReceivedMessage. Ending processing***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		mdi.throttler.EndProcessing()
 		return err
 	}
@@ -150,6 +186,10 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 	errOriginator := mdi.antifloodHandler.IsOriginatorEligibleForTopic(message.Peer(), mdi.topic)
 
 	for index, dataBuff := range multiDataBuff {
+		//! -------------------- NEW CODE --------------------
+		//? NON scommentare, dava problemi
+		//log.Debug("***inside for index, dataBuff := range multiDataBuff of ProcessReceivedMessage. Ending processing***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		var interceptedData process.InterceptedData
 		interceptedData, err = mdi.interceptedData(dataBuff, message.Peer(), fromConnectedPeer)
 		listInterceptedData[index] = interceptedData
@@ -160,6 +200,9 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 
 		isWhiteListed := mdi.whiteListRequest.IsWhiteListed(interceptedData)
 		if !isWhiteListed && errOriginator != nil {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***!isWhiteListed && errOriginator != nil is true inside ProcessReceivedMessage. Ending processing***")
+			//! ---------------- END OF NEW CODE -----------------			
 			mdi.throttler.EndProcessing()
 			log.Trace("got message from peer on topic only for validators", "originator",
 				p2p.PeerIdToShortString(message.Peer()),
@@ -170,7 +213,20 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 
 		isForCurrentShard := interceptedData.IsForCurrentShard()
 		shouldProcess := isForCurrentShard || isWhiteListed
+
+		//! -------------------- NEW CODE --------------------
+		//? SERVE PER QUANDO VENGONO INVIATE LE TRANSAZIONI RIMASTE IN CODA DI UN ACCOUNT CHE è STATO MIGRATO!!!!
+		_, txPresentInShardedTxPool := mdi.dataPool.Transactions().SearchFirstData(interceptedData.Hash())
+		
+		if (txPresentInShardedTxPool){
+			shouldProcess = true
+		}
+		//! ---------------- END OF NEW CODE -----------------		
+
 		if !shouldProcess {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***!shouldProcess is true inside ProcessReceivedMessage. Ending processing***")
+			//! ---------------- END OF NEW CODE -----------------			
 			log.Trace("intercepted data should not be processed",
 				"pid", p2p.MessageOriginatorPid(message),
 				"seq no", p2p.MessageOriginatorSeq(message),
@@ -185,7 +241,15 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 	}
 
 	go func() {
+		/*
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***inside go func() of ProcessReceivedMessage***")
+		//! ---------------- END OF NEW CODE -----------------
+		*/			
 		for _, interceptedData := range listInterceptedData {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***processInterceptedData called inside MultiDataInterceptor.ProcessReceivedMessage***", "interceptedData", interceptedData.Hash())
+			//! ---------------- END OF NEW CODE -----------------			
 			mdi.processInterceptedData(interceptedData, message)
 		}
 		mdi.throttler.EndProcessing()
@@ -197,6 +261,9 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 func (mdi *MultiDataInterceptor) interceptedData(dataBuff []byte, originator core.PeerID, fromConnectedPeer core.PeerID) (process.InterceptedData, error) {
 	interceptedData, err := mdi.factory.Create(dataBuff)
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Cannot create object from received bytes. Blacklisting peer***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------		
 		// this situation is so severe that we need to black list de peers
 		reason := "can not create object from received bytes, topic " + mdi.topic + ", error " + err.Error()
 		mdi.antifloodHandler.BlacklistPeer(originator, reason, common.InvalidMessageBlacklistDuration)
@@ -205,10 +272,19 @@ func (mdi *MultiDataInterceptor) interceptedData(dataBuff []byte, originator cor
 		return nil, err
 	}
 
+	//! ------------------- NEW CODE ---------------------
+	log.Debug("***Calling receivedDebugInterceptedData() inside interceptedData***")
+	//! ---------------- END OF NEW CODE -----------------
 	mdi.receivedDebugInterceptedData(interceptedData)
 
+	//! ------------------- NEW CODE ---------------------
+	log.Debug("***Calling CheckValidity() inside interceptedData***")
+	//! ---------------- END OF NEW CODE -----------------	
 	err = interceptedData.CheckValidity()
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***interceptedData.CheckValidity() of the MultiDataInterceptor returned an error. Calling processDebugInterceptedData()***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------		
 		mdi.processDebugInterceptedData(interceptedData, err)
 
 		isWrongVersion := err == process.ErrInvalidTransactionVersion || err == process.ErrInvalidChainID

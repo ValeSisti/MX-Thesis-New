@@ -129,7 +129,7 @@ func NewInterceptedTransaction(
 		txSignHasher:           txSignHasher,
 	}
 
-	err = inTx.processFields(txBuff)
+	err = inTx.processFields(txBuff) //! MODIFIED CODE
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +328,7 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 	
 
 	if (isAccountAdjustmentTransaction){
-		
+	
 		aat := &transaction.Transaction{
 			Nonce: 			inTx.tx.Nonce,
 			MigrationNonce:	inTx.tx.MigrationNonce,
@@ -356,8 +356,10 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 		inTx.sndShard = inTx.tx.SenderShard
 		inTx.rcvShard = inTx.tx.ReceiverShard
 
-	}else if(isAccountMigrationTransaction){				// Create the transaction object
-		
+		log.Debug("***Intercepted transaction: isAccountAdjustmentTransaction***", "txHash", inTx.hash)
+
+	}else if(isAccountMigrationTransaction){			
+				
 		amt := &transaction.Transaction{
 			Nonce: 			inTx.tx.Nonce,
 			MigrationNonce:	inTx.tx.MigrationNonce,
@@ -383,9 +385,14 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 		inTx.sndShard = inTx.tx.SenderShard
 		inTx.rcvShard = inTx.tx.ReceiverShard
 
+		log.Debug("***Intercepted transaction: isAccountAdjustmentTransaction***")
+
 	}else{
-	//! ---------------- END OF NEW CODE -----------------	
+	//! ---------------- END OF NEW CODE -----------------
 		inTx.hash = inTx.hasher.Compute(string(txBuff))
+
+		log.Debug("***Intercepted transaction: is a normal move balance transaction***")
+
 
 		inTx.sndShard = inTx.coordinator.ComputeId(inTx.tx.SndAddr)
 		emptyAddr := make([]byte, len(inTx.tx.RcvAddr))
@@ -394,7 +401,7 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 			inTx.rcvShard = inTx.sndShard
 		}
 	//! -------------------- NEW CODE --------------------
-	}
+	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 	//! ---------------- END OF NEW CODE -----------------	
 
 	isForCurrentShardRecv := inTx.rcvShard == inTx.coordinator.SelfId()

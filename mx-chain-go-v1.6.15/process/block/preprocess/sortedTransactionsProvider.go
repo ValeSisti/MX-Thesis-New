@@ -31,9 +31,22 @@ func newAdapterTxCacheToSortedTransactionsProvider(txCache TxCache) *adapterTxCa
 	return adapter
 }
 
+//! -------------------- NEW CODE --------------------
+/*
+//! ---------------- END OF NEW CODE -----------------		
 // GetSortedTransactions gets the transactions from the cache
 func (adapter *adapterTxCacheToSortedTransactionsProvider) GetSortedTransactions() []*txcache.WrappedTransaction {
 	txs := adapter.txCache.SelectTransactionsWithBandwidth(process.MaxNumOfTxsToSelect, process.NumTxPerSenderBatchForFillingMiniblock, process.MaxGasBandwidthPerBatchPerSender)
+	return txs
+}
+//! -------------------- NEW CODE --------------------	
+*/
+//! ---------------- END OF NEW CODE -----------------	
+
+
+// GetSortedTransactions gets the transactions from the cache
+func (adapter *adapterTxCacheToSortedTransactionsProvider) GetSortedTransactions(migratingAccounts map[string]bool) []*txcache.WrappedTransaction { //! MODIFIED CODE
+	txs := adapter.txCache.SelectTransactionsWithBandwidth(process.MaxNumOfTxsToSelect, process.NumTxPerSenderBatchForFillingMiniblock, process.MaxGasBandwidthPerBatchPerSender, migratingAccounts) //! MODIFIED CODE
 	return txs
 }
 
@@ -51,8 +64,19 @@ func (adapter *adapterTxCacheToSortedTransactionsProvider) IsInterfaceNil() bool
 type disabledSortedTransactionsProvider struct {
 }
 
+//! -------------------- NEW CODE --------------------
+/*
+//! ---------------- END OF NEW CODE -----------------		
 // GetSortedTransactions returns an empty slice
 func (adapter *disabledSortedTransactionsProvider) GetSortedTransactions() []*txcache.WrappedTransaction {
+	return make([]*txcache.WrappedTransaction, 0)
+}
+//! -------------------- NEW CODE --------------------	
+*/
+//! ---------------- END OF NEW CODE -----------------	
+
+// GetSortedTransactions returns an empty slice
+func (adapter *disabledSortedTransactionsProvider) GetSortedTransactions(migratingAccounts map[string]bool) []*txcache.WrappedTransaction { //! MODIFIED CODE
 	return make([]*txcache.WrappedTransaction, 0)
 }
 

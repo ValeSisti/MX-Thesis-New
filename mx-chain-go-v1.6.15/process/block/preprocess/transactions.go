@@ -1540,12 +1540,52 @@ func (txs *transactions) computeSortedTxs(
 	}
 
 	sortedTransactionsProvider := createSortedTransactionsProvider(txShardPool)
+
+	//! -------------------- NEW CODE --------------------
+	//Devo passare anche il map con i migratingAccounts della shardedTxPool generale
+	txPool, ok := txs.txPool.(dataRetriever.ShardedTxPool)
+	if !ok{
+		log.Debug("***Cannot cast txs.txPool into dataRetriever.ShardedTxPool***")
+	}
+	migratingAccounts := txPool.GetMigratingAccounts()
+	log.Debug("***Printing migratingAccounts", "migratingAccounts", migratingAccounts)	
+	//! ---------------- END OF NEW CODE -----------------
+
 	log.Debug("computeSortedTxs.GetSortedTransactions")
-	sortedTxs := sortedTransactionsProvider.GetSortedTransactions()
+	sortedTxs := sortedTransactionsProvider.GetSortedTransactions(migratingAccounts) //! MODIFIED CODE
+
+	//! -------------------- NEW CODE --------------------
+	if len(sortedTxs) == 0 {
+		log.Debug("***NO TRANSACTION SELECTED FROM CACHE***")
+
+	}else{
+		for i, tx := range sortedTxs {
+			log.Debug("sortedTxs", "i", i, "txHash", string(tx.TxHash), "senderShardID", tx.SenderShardID, "receiverShardID", tx.ReceiverShardID, "nonce", tx.Tx.GetNonce(), "senderAddr", tx.Tx.GetSndAddr(), "receiverAddr", tx.Tx.GetRcvAddr())
+		}			
+	}
+	//! ---------------- END OF NEW CODE -----------------		
 
 	// TODO: this could be moved to SortedTransactionsProvider
 	selectedTxs, remainingTxs := txs.preFilterTransactionsWithMoveBalancePriority(sortedTxs, gasBandwidth)
+	//! -------------------- NEW CODE --------------------
+	if len(remainingTxs) > 0 {
+		log.Debug("***remainingTxs len is > 0! These remainingtxs will be processed in scheduled mode*** -----Could it be a POTENTIAL PROBLEM-------???")		
+	}
+
+	for i, tx := range selectedTxs {
+		log.Debug("selectedUnsortedTxs", "i", i, "txHash", string(tx.TxHash), "senderShardID", tx.SenderShardID, "receiverShardID", tx.ReceiverShardID, "nonce", tx.Tx.GetNonce(), "senderAddr", tx.Tx.GetSndAddr(), "receiverAddr", tx.Tx.GetRcvAddr())
+	}	
+	for i, tx := range remainingTxs {
+		log.Debug("remainingTxs", "i", i, "txHash", string(tx.TxHash), "senderShardID", tx.SenderShardID, "receiverShardID", tx.ReceiverShardID, "nonce", tx.Tx.GetNonce(), "senderAddr", tx.Tx.GetSndAddr(), "receiverAddr", tx.Tx.GetRcvAddr())
+	}		
+	//! ---------------- END OF NEW CODE -----------------	
 	txs.sortTransactionsBySenderAndNonce(selectedTxs, randomness)
+
+	//! -------------------- NEW CODE --------------------
+	for i, tx := range selectedTxs {
+		log.Debug("selectedSortedTxs", "i", i, "txHash", string(tx.TxHash), "senderShardID", tx.SenderShardID, "receiverShardID", tx.ReceiverShardID, "nonce", tx.Tx.GetNonce(), "senderAddr", tx.Tx.GetSndAddr(), "receiverAddr", tx.Tx.GetRcvAddr())
+	}	
+	//! ---------------- END OF NEW CODE -----------------	
 
 	return selectedTxs, remainingTxs, nil
 }
