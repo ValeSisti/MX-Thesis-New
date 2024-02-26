@@ -8,8 +8,7 @@ import (
 	"github.com/multiversx/mx-chain-go/sharding/nodesCoordinator"
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-go/state"
-	//! ---------------- END OF NEW CODE -----------------	
-
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 var _ Coordinator = (*multiShardCoordinator)(nil)
@@ -187,7 +186,9 @@ func (msc *multiShardCoordinator) UpdateAccountsMappingEntryFromAddressString(ac
 	if !msc.IsAddressStringInAccountsMapping(accountAddress){ //if it's the first time we add the account to accountsMapping because it wasn't already present
 		//intialize both oldShardId and currentShardId to the currentShardId
 		//notice that in general situations, i.e. when the account has been migrated multiple times, it will never happen that the oldShardId and the currentShardId will be the same anymore
-		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: newShardId, currentShardId: newShardId, updatedInEpoch: epoch}
+		acntAddrBytes, _ := msc.addressPubKeyConverter.Decode(accountAddress)
+		oldShardIdFromAdrBytes := msc.ComputeIdFromBytes(acntAddrBytes)
+		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: oldShardIdFromAdrBytes, currentShardId: newShardId, updatedInEpoch: epoch}
 	}else{
 		oldCurrentShardId := msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
 		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: oldCurrentShardId, currentShardId: newShardId, updatedInEpoch: epoch}
@@ -201,7 +202,8 @@ func (msc *multiShardCoordinator) UpdateAccountsMappingEntryFromPubKeyBytes(pubK
 	if !msc.IsAddressStringInAccountsMapping(accountAddress){ //if it's the first time we add the account to accountsMapping because it wasn't already present
 		//intialize both oldShardId and currentShardId to the currentShardId
 		//notice that in general situations, i.e. when the account has been migrated multiple times, it will never happen that the oldShardId and the currentShardId will be the same anymore
-		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: newShardId, currentShardId: newShardId, updatedInEpoch: epoch}
+		oldShardIdFromAdrBytes := msc.ComputeIdFromBytes(pubKeyBytes)
+		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: oldShardIdFromAdrBytes, currentShardId: newShardId, updatedInEpoch: epoch}
 	}else{
 		oldCurrentShardId := msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
 		msc.accountsMapping.accountsShardInfo[accountAddress] = ShardInfo{oldShardId: oldCurrentShardId, currentShardId: newShardId, updatedInEpoch: epoch}
@@ -287,6 +289,7 @@ func (msc *multiShardCoordinator) WasPreviouslyMineAddrBytes(pubKeyBytes []byte)
 		// receiver account is not event present inside accountsMapping, therefore it has never been migrated
 		// which also means that is not possible that a tx inside a miniblock with as receiver account the account with this address,
 		// that I'm processing dst me (because theoretically it is mine) is problematic
+		log.Debug("***WasPreviouslyMineAddrBytes: account is not present inside AccountsMapping, returning false!***", "account", accountAddress)
 		return false
 	}
 	
@@ -294,6 +297,18 @@ func (msc *multiShardCoordinator) WasPreviouslyMineAddrBytes(pubKeyBytes []byte)
 	currentShardId := msc.accountsMapping.accountsShardInfo[accountAddress].currentShardId
 	updatedInEpoch := msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch
 	currentEpoch := msc.accountsMapping.currentEpoch
+
+	log.Debug("***WasPreviouslyMineAddrBytes***",
+		"account", accountAddress,
+		"oldShardId", oldShardId,
+		"currentShardId", currentShardId,
+		"updatedInEpoch", updatedInEpoch,
+		"currentEpoch", currentEpoch,
+		"selfShardId", selfShardId,
+		"oldShardId == selfShardId", oldShardId == selfShardId,
+		"currentShardId != selfShardId", currentShardId != selfShardId,
+		"updatedInEpoch == currentEpoch", updatedInEpoch == currentEpoch,
+	)
 	
 	if (oldShardId == selfShardId && currentShardId != selfShardId && updatedInEpoch == currentEpoch){
 		return true

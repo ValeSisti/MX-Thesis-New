@@ -1893,6 +1893,10 @@ func (bp *baseProcessor) Close() error {
 
 // ProcessScheduledBlock processes a scheduled block
 func (bp *baseProcessor) ProcessScheduledBlock(headerHandler data.HeaderHandler, bodyHandler data.BodyHandler, haveTime func() time.Duration) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***baseProcessor.ProcessScheduledBlock called***")
+	//! ---------------- END OF NEW CODE -----------------
+
 	var err error
 	bp.processStatusHandler.SetBusy("baseProcessor.ProcessScheduledBlock")
 	defer func() {

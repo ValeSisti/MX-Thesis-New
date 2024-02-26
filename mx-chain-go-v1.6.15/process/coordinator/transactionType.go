@@ -74,6 +74,9 @@ func NewTxTypeHandler(
 func (tth *txTypeHandler) ComputeTransactionType(tx data.TransactionHandler) (process.TransactionType, process.TransactionType) {
 	err := tth.checkTxValidity(tx)
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***ComputeTransactionType returned process.InvalidTransaction***")
+		//! ---------------- END OF NEW CODE -----------------				
 		return process.InvalidTransaction, process.InvalidTransaction
 	}
 
@@ -84,6 +87,22 @@ func (tth *txTypeHandler) ComputeTransactionType(tx data.TransactionHandler) (pr
 		}
 		return process.InvalidTransaction, process.InvalidTransaction
 	}
+
+	//! ------------------- NEW CODE ---------------------
+	// ? AAT LOGIC
+	normalTransactionHandler, ok := tx.(data.NormalTransactionHandler)
+	isAccountMigrationTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && !(len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+	isAccountAdjustmentTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && (len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+	
+
+	if (isAccountMigrationTransaction){
+		log.Debug("***tx is account migration transaction inside ComputeTransactionType***")
+		return process.AccountMigration, process.AccountMigration
+	}else if (isAccountAdjustmentTransaction){
+		log.Debug("***tx is account adjustment transaction inside ComputeTransactionType***")
+		return process.AccountAdjustment, process.AccountAdjustment
+	}
+	//! ---------------- END OF NEW CODE -----------------		
 
 	if len(tx.GetData()) == 0 {
 		return process.MoveBalance, process.MoveBalance

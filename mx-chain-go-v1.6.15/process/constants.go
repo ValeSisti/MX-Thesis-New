@@ -40,6 +40,12 @@ const (
 	RewardTx
 	// InvalidTransaction defines unknown transaction type
 	InvalidTransaction
+	//! -------------------- NEW CODE --------------------
+	// AccountMigration defines ID of a transaction to migrate an account
+	AccountMigration
+	// AccountMigration defines ID of a transaction to address problematic tx problem
+	AccountAdjustment
+	//! ---------------- END OF NEW CODE -----------------		
 )
 
 func (transactionType TransactionType) String() string {

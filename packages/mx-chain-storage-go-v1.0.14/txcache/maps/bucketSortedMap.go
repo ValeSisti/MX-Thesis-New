@@ -310,14 +310,22 @@ func (sortedMap *BucketSortedMap) fillSnapshotDescending2(scoreChunks []*MapChun
 
 // This function should only be called under already read-locked score chunks
 func (sortedMap *BucketSortedMap) fillSnapshotDescending3(scoreChunks []*MapChunk, snapshot []BucketSortedMapItem, migratingAccounts map[string]bool) []BucketSortedMapItem {
-    i := uint32(0)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***fillSnapshotDescending3 called***")
+	//! ---------------- END OF NEW CODE -----------------	    
+	
+	i := uint32(0)
     for chunkIndex := len(scoreChunks) - 1; chunkIndex >= 0; chunkIndex-- {
         chunk := scoreChunks[chunkIndex]
         for _, item := range chunk.items {
             _, isAccountPresentInMigratingAccounts := migratingAccounts[item.GetKey()]
-            if !isAccountPresentInMigratingAccounts {
+            if !isAccountPresentInMigratingAccounts {				
                 snapshot[i] = item
                 i++
+			//! -------------------- NEW CODE --------------------
+			}else{
+				log.Debug("***Account is present inside migratingAccounts, skipping his transactions!***", "account", item.GetKey())	
+			//! ---------------- END OF NEW CODE -----------------
             }
         }
     }

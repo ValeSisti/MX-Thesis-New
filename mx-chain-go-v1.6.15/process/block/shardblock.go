@@ -1979,11 +1979,18 @@ func (sp *shardProcessor) createMbsAndProcessCrossShardTransactionsDstMe(
 			"num mbs added", len(currMiniBlocksAdded),
 			"num txs added", currNumTxsAdded)
 
+		//! -------------------- NEW CODE --------------------
+		//TODO: CONTROLLARE SE TOGLIERE LA POSSIBILITà DI ESEGUIRE IL MINIBLOCCO DST ME IN SCHEDULED MODE CREA PROBLEMI
+		/*
+		//! ---------------- END OF NEW CODE -----------------		
 		if sp.enableEpochsHandler.IsScheduledMiniBlocksFlagEnabled() && !createAndProcessInfo.scheduledMode {
 			createAndProcessInfo.scheduledMode = true
 			createAndProcessInfo.haveAdditionalTime = process.HaveAdditionalTime()
 			return sp.createMbsAndProcessCrossShardTransactionsDstMe(createAndProcessInfo)
 		}
+		//! -------------------- NEW CODE --------------------	
+		*/
+		//! ---------------- END OF NEW CODE -----------------				
 
 		return false, nil
 	}

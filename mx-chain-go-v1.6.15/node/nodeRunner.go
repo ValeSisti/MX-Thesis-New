@@ -67,6 +67,7 @@ import (
 	logger "github.com/multiversx/mx-chain-logger-go"
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-go/state"
+	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	//! ---------------- END OF NEW CODE -----------------	
 )
 
@@ -325,12 +326,71 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 		log.Debug("***Current Accounts Mapping***", "accountsMapping", currentAccountsMapping)
 	}
 	//TODO: SCOMMENTARE
-	CreateSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
+	createSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
 	//*/
+	createSingleTestAccountAdjustmentTransaction(h, epoch)	
 }
 
 
-func CreateSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, epoch uint32, accountAddressToBeMigrated string, sourceShard uint32, destShard uint32, migrationNonce uint64){
+func createSingleTestAccountAdjustmentTransaction(h *AccountMigrationHandler, epoch uint32){ // Additional data for the transaction
+	if epoch != uint32(1){
+		return
+	}
+
+	//TODO: add "if senderShard == selfShardId"
+	
+	privateKey := h.currentNode.cryptoComponents.TxPrivateKey()     // Your private key here
+	publicKey := h.currentNode.cryptoComponents.TxPublicKey()     // Your private key here  // Unique identifier of the blockchain network
+
+	tx, txHash, _, err := h.currentNode.CreateAccountAdjustmentTransactionForTest(privateKey, publicKey)
+	if err != nil {
+		log.Debug("***Error: CreateAccountMigrationTransactionForTest***", err.Error())
+	}
+
+	err = h.currentNode.ValidateTransaction(tx) //? al suo interno chiama CheckTxValidity()
+	if err != nil {
+		log.Debug("***Error: TRANSACTION (AAT) IS NOT VALID inside createSingleTestAccountAdjustmentTransaction***", "error", err.Error(),)
+	}else{
+		log.Debug("***TRANSACTION (AAT) IS VALID INSIDE createSingleTestAccountAdjustmentTransaction***")
+	}
+
+	log.Debug(
+		"***PRINTING AAT inside nodeRunner***",
+		"txHash", txHash,
+		"tx.Nonce", tx.Nonce,
+		"tx.Value", tx.Value,
+		"tx.RcvAddr", tx.RcvAddr,
+		"tx.RcvUserName", tx.RcvUserName,
+		"tx.SndAddr", tx.SndAddr,
+		"tx.SndUserName", tx.SndUserName,
+		"tx.GasPrice", tx.GasPrice,
+		"tx.GasLimit", tx.GasLimit,
+		"tx.Data", hex.EncodeToString(tx.Data),
+		"tx.ChainID", tx.ChainID,
+		"tx.Version", tx.Version,
+		"tx.Signature", hex.EncodeToString(tx.Signature),
+		"tx.Options", tx.Options,
+		"tx.GuardianAddr", tx.GuardianAddr,
+		"tx.GuardianSignature", tx.GuardianSignature,
+		"tx.MigrationNonce", tx.MigrationNonce,
+		"tx.SenderShard", tx.SenderShard,
+		"tx.ReceiverShard", tx.ReceiverShard,
+		"tx.SignerPubKey", hex.EncodeToString(tx.SignerPubKey),
+		"tx.OriginalTxHash", hex.EncodeToString(tx.OriginalTxHash),
+		"tx.OriginalMiniBlockHash", hex.EncodeToString(tx.OriginalMiniBlockHash),
+	)
+
+	cacheID := process.ShardCacherIdentifier(tx.SenderShard, tx.ReceiverShard)
+    h.currentNode.dataComponents.Datapool().Transactions().AddData(txHash, tx, tx.Size(), cacheID)
+	_, err = h.currentNode.SendBulkTransactions([]*transaction.Transaction{tx})
+	if err != nil {
+		log.Debug("***ERROR DURING SendBulkTransactions", "error", err.Error(),)
+	}
+}
+
+
+
+func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, epoch uint32, accountAddressToBeMigrated string, sourceShard uint32, destShard uint32, migrationNonce uint64){
     
     selfShardId, _ := h.currentNode.processComponents.NodesCoordinator().ShardIdForEpoch(epoch)
     shardedTxPool := h.currentNode.dataComponents.Datapool().Transactions().(dataRetriever.ShardedTxPool)
@@ -366,7 +426,10 @@ func CreateSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
 			}
 
             //TODO: CONTROLLA SE SERVE QUI, NON LO FACCIO PRIMA DI CHIAMARE QUESTA FUNZIONE, DIRETTAMENTE DENTRO EpochConfirmed?????
-            h.currentNode.bootstrapComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destShard, epoch)
+            //h.currentNode.bootstrapComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destShard, epoch) //! LASCIARLO COMMENTATO, lo aggiorno già prima di chiamare questa funzione 
+																																							//! i.e. dentro EpochConfirmed, questo perché l'accounts mapping lo devo aggiornare a prescindere
+																																							//! (e sicuramente non due volte!! altrimenti si fuckuppa l'oldShardId)
+																																							
 
 
             
@@ -404,7 +467,7 @@ func CreateSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
 
             err = h.currentNode.ValidateTransaction(tx) //? al suo interno chiama CheckTxValidity()
             if err != nil {
-                log.Debug("TRANSACTION IS NOT VALID", "error", err.Error(),)
+                log.Debug("***Error: TRANSACTION IS NOT VALID***", "error", err.Error(),)
             }else{
                 log.Debug("***TRANSACTION IS VALID INSIDE nodeRunner***")
             }

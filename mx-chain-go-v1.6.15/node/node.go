@@ -1643,6 +1643,70 @@ func (n *Node) CreateAccountMigrationTransaction(
 	return tx, txHash, txSigningData, nil
 }
 
+func (n *Node) CreateAccountAdjustmentTransactionForTest(
+	privateKey crypto.PrivateKey,
+	publicKey crypto.PublicKey, 
+) (*transaction.Transaction, []byte, []byte, error) {
+    
+
+	originalTxHashBytes, _ := hex.DecodeString("006a193be4124e22a4590e3ce52370d75731069a26000cbd5b7a50a9b584ff71")
+	originalMiniBlockHashBytes, _ := hex.DecodeString("006a193be4124e22a4590e3ce52370d75731069a26000cbd5b7a50a9b584ff71")
+
+
+	receiverAddressString := "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th"
+	receiverAddressBytes, err := n.coreComponents.AddressPubKeyConverter().Decode(receiverAddressString)
+
+	publicKeyBytes, _ := publicKey.ToByteArray()
+
+	var txGasPrice = uint64(1000000000)
+	var txGasLimit = uint64(70000000) //70000
+
+		// Create the transaction object
+	aat := &transaction.Transaction{
+		Nonce: 			uint64(1),
+		//MigrationNonce:	uint64(0),
+		Value:    		big.NewInt(0),
+		GasLimit: 		txGasLimit,  // Adjust as required
+		GasPrice: 		txGasPrice, // Adjust as required
+		RcvAddr:  		receiverAddressBytes, // ? RECEIVER
+		SndAddr:  		receiverAddressBytes, // ? RECEIVER (come per le AMT, in cui mi interessava solo il sender account, qui mi interessa solo il receiver account)
+		Data:     		[]byte(""),
+		ChainID:  		[]byte("localnet"),
+		Version:  		uint32(2),
+		SenderShard: 	uint32(1), //? the shard from which the RECEIVER account has been migrated, that should be the current shard, from which we are sending this AAT)
+		ReceiverShard: 	uint32(0), //? the shard to which the RECEIVER account has been migrated, to which we have to send this AAT)
+		OriginalTxHash: originalTxHashBytes,
+		OriginalMiniBlockHash: originalMiniBlockHashBytes,
+		//SignerPubKey: 	publicKeyBytes,
+	}
+
+	//! NOTA: CALCOLO PRIMA L'HASH DELLA SIGNATURE
+	// Optional: Compute the transaction hash if needed
+	aatHash, err := core.CalculateHash(n.coreComponents.InternalMarshalizer(), n.coreComponents.Hasher(), aat)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	//! Soltanto DOPO aver calcolato l'hash, aggiungo la PubKey del signer, perché altrimenti,
+	//! essendo diversa per ogni signer, mi andrà a rendere tutti gli hash diversi
+	aat.SignerPubKey = publicKeyBytes
+
+    // Generate signature data
+	aatSigningData, err := aat.GetDataForSigning(n.coreComponents.AddressPubKeyConverter(), n.coreComponents.TxMarshalizer(), n.coreComponents.TxSignHasher())
+	if err != nil {
+		return nil, nil, nil, errors.New("could not marshal transaction for signing (inside createAccountAdjustmentTransaction)")
+	}
+
+	// Sign the transaction data
+	sig, err := n.cryptoComponents.TxSingleSigner().Sign(privateKey, aatSigningData)
+	if err != nil {
+		return nil, nil, nil, errors.New("could not sign the transaction (inside createAccountAdjustmentTransaction)")
+	}
+	aat.Signature = sig
+	
+	return aat, aatHash, aatSigningData, err	
+}
+
 
 
 /*func (sp *shardProcessor) createAccountAdjustmentTransaction(

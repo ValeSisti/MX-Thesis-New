@@ -162,16 +162,28 @@ func NewTxProcessor(args ArgsNewTxProcessor) (*txProcessor, error) {
 
 // ProcessTransaction modifies the account states in respect with the transaction data
 func (txProc *txProcessor) ProcessTransaction(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***txProcessor.ProcessTransaction called (shardProcess.go)***")
+	//! ---------------- END OF NEW CODE -----------------		
 	if check.IfNil(tx) {
 		return 0, process.ErrNilTransaction
 	}
 
 	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error: getAccounts() inside ProcessTransaction***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return 0, err
 	}
 
-	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+	//! -------------------- NEW CODE --------------------
+	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx) //! MODIFIED IMPLEMENTATION
+	//! ---------------- END OF NEW CODE -----------------	
+
+
+	//txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx) //! MODIFIED CODE
+	txHash, err := txProc.computeTxHashBasedOnTxType(tx, txType) //! MODIFIED CODE
 	if err != nil {
 		return 0, err
 	}
@@ -184,9 +196,20 @@ func (txProc *txProcessor) ProcessTransaction(tx *transaction.Transaction) (vmco
 		txProc.pubkeyConv,
 	)
 
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx)
-	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)
+	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)	
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------		
+	err = txProc.checkTxValuesBasedOnTxType(tx, txType, acntSnd, acntDst) //! MODIFIED CODE
+
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error: checkTxValuesBasedOnTxType() inside ProcessTransaction", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------				
 		if errors.Is(err, process.ErrInsufficientFunds) {
 			receiptErr := txProc.executingFailedTransaction(tx, acntSnd, err)
 			if receiptErr != nil {
@@ -215,9 +238,28 @@ func (txProc *txProcessor) ProcessTransaction(tx *transaction.Transaction) (vmco
 	case process.MoveBalance:
 		err = txProc.processMoveBalance(tx, acntSnd, acntDst, dstShardTxType, nil, false)
 		if err != nil {
+			//! ------------------- NEW CODE ---------------------
+			log.Debug("***Error during proccessMoveBalance", "err", err.Error())
+			//! ---------------- END OF NEW CODE -----------------				
 			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err)
 		}
 		return vmcommon.Ok, err
+	//! ------------------- NEW CODE ---------------------
+	case process.AccountMigration:
+		err := txProc.processAccountMigration(tx, acntSnd, acntDst)
+		if err != nil {
+			log.Debug("***Error during proccessAccountMigration", "err", err.Error())		
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err) //TODO: va bene lasciarlo?
+		}
+		return vmcommon.Ok, err
+	case process.AccountAdjustment:
+		err := txProc.processAccountAdjustment(tx, acntSnd, acntDst)
+		if err != nil {
+			log.Debug("***Error during proccessAccountAdjustment***", "err", err.Error())		
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err) //TODO: va bene lasciarlo?
+		}
+		return vmcommon.Ok, err
+	//! ---------------- END OF NEW CODE -----------------			
 	case process.SCDeployment:
 		return txProc.processSCDeployment(tx, acntSnd)
 	case process.SCInvoking:
@@ -236,17 +278,28 @@ func (txProc *txProcessor) ProcessTransaction(tx *transaction.Transaction) (vmco
 //! -------------------- NEW CODE --------------------
 // ProcessTransaction modifies the account states in respect with the transaction data
 func (txProc *txProcessor) ProcessTransactionFromMe(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
-	//TODO: MODIFICA LOGICA (getAccounts)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***txProcessor.ProcessTransactionFromMe called (shardProcess.go)***")
+	//! ---------------- END OF NEW CODE -----------------		
 	if check.IfNil(tx) {
 		return 0, process.ErrNilTransaction
 	}
 
 	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error: getAccounts() inside ProcessTransactionFromMe***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return 0, err
 	}
 
-	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+	//! -------------------- NEW CODE --------------------
+	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx) //! MODIFIED IMPLEMENTATION
+	//! ---------------- END OF NEW CODE -----------------	
+
+
+	//txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx) //! MODIFIED CODE
+	txHash, err := txProc.computeTxHashBasedOnTxType(tx, txType) //! MODIFIED CODE
 	if err != nil {
 		return 0, err
 	}
@@ -259,9 +312,20 @@ func (txProc *txProcessor) ProcessTransactionFromMe(tx *transaction.Transaction)
 		txProc.pubkeyConv,
 	)
 
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx)
-	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)
+	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)	
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------		
+	err = txProc.checkTxValuesBasedOnTxType(tx, txType, acntSnd, acntDst) //! MODIFIED CODE
+
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error: checkTxValuesBasedOnTxType() inside ProcessTransaction", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------				
 		if errors.Is(err, process.ErrInsufficientFunds) {
 			receiptErr := txProc.executingFailedTransaction(tx, acntSnd, err)
 			if receiptErr != nil {
@@ -290,9 +354,28 @@ func (txProc *txProcessor) ProcessTransactionFromMe(tx *transaction.Transaction)
 	case process.MoveBalance:
 		err = txProc.processMoveBalance(tx, acntSnd, acntDst, dstShardTxType, nil, false)
 		if err != nil {
+			//! ------------------- NEW CODE ---------------------
+			log.Debug("***Error during proccessMoveBalance", "err", err.Error())
+			//! ---------------- END OF NEW CODE -----------------				
 			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err)
 		}
 		return vmcommon.Ok, err
+	//! ------------------- NEW CODE ---------------------
+	case process.AccountMigration:
+		err := txProc.processAccountMigration(tx, acntSnd, acntDst)
+		if err != nil {
+			log.Debug("***Error during proccessAccountMigration", "err", err.Error())		
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err) //TODO: va bene lasciarlo?
+		}
+		return vmcommon.Ok, err
+	case process.AccountAdjustment:
+		err := txProc.processAccountAdjustment(tx, acntSnd, acntDst)
+		if err != nil {
+			log.Debug("***Error during proccessAccountAdjustment***", "err", err.Error())		
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err) //TODO: va bene lasciarlo?
+		}
+		return vmcommon.Ok, err
+	//! ---------------- END OF NEW CODE -----------------			
 	case process.SCDeployment:
 		return txProc.processSCDeployment(tx, acntSnd)
 	case process.SCInvoking:
@@ -310,32 +393,66 @@ func (txProc *txProcessor) ProcessTransactionFromMe(tx *transaction.Transaction)
 
 // ProcessTransaction modifies the account states in respect with the transaction data
 func (txProc *txProcessor) ProcessTransactionDstMe(tx *transaction.Transaction) (vmcommon.ReturnCode, error) {
-	//TODO: MODIFICA LOGICA (getAccounts)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***txProcessor.ProcessTransactionDstMe called (shardProcess.go)***")
+	//! ---------------- END OF NEW CODE -----------------		
 	if check.IfNil(tx) {
 		return 0, process.ErrNilTransaction
 	}
+	
+	
+	//! -------------------- NEW CODE --------------------
+	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx) //! MODIFIED IMPLEMENTATION
+	//! ---------------- END OF NEW CODE -----------------	
 
-	acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr)
+
+	//txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx) //! MODIFIED CODE
+	txHash, err := txProc.computeTxHashBasedOnTxType(tx, txType) //! MODIFIED CODE
 	if err != nil {
 		return 0, err
 	}
 
-	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+
+
+	//acntSnd, acntDst, err := txProc.getAccounts(tx.SndAddr, tx.RcvAddr) //! MODIFIED CODE
+	acntSnd, acntDst, err := txProc.getReceiverAccount(tx.RcvAddr) //! MODIFIED CODE
+	
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error: getReceiverAccount() inside ProcessTransactionDstMe***", "err", err.Error())
+
+		if err == process.ErrAccountNotFoundBecauseMigrated{
+			log.Debug("***-----------FOUND PROBLEMATIC TX INSIDE MINIBLOCK---------- Make sure that this transaction is not executed by scheduledTxsExecution, by calling txProcessor.ProcessTransaction() (so NOT dst me as it should be)! This could be critical because it could create the problem at iPad page 182***", 
+				"txHash", txHash,
+			)
+		}
+		//! ---------------- END OF NEW CODE -----------------
 		return 0, err
 	}
+
 
 	process.DisplayProcessTxDetails(
-		"ProcessTransaction: sender account details",
+		"ProcessTransactionDstMe: sender account details",
 		acntSnd,
 		tx,
 		txHash,
 		txProc.pubkeyConv,
 	)
 
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	txType, dstShardTxType := txProc.txTypeHandler.ComputeTransactionType(tx)
-	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)
+	err = txProc.checkTxValues(tx, acntSnd, acntDst, false)	
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------		
+	err = txProc.checkTxValuesBasedOnTxType(tx, txType, acntSnd, acntDst) //! MODIFIED CODE
+
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error: checkTxValuesBasedOnTxType() inside ProcessTransaction", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------				
 		if errors.Is(err, process.ErrInsufficientFunds) {
 			receiptErr := txProc.executingFailedTransaction(tx, acntSnd, err)
 			if receiptErr != nil {
@@ -364,9 +481,28 @@ func (txProc *txProcessor) ProcessTransactionDstMe(tx *transaction.Transaction) 
 	case process.MoveBalance:
 		err = txProc.processMoveBalance(tx, acntSnd, acntDst, dstShardTxType, nil, false)
 		if err != nil {
+			//! ------------------- NEW CODE ---------------------
+			log.Debug("***Error during proccessMoveBalance", "err", err.Error())
+			//! ---------------- END OF NEW CODE -----------------				
 			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err)
 		}
 		return vmcommon.Ok, err
+	//! ------------------- NEW CODE ---------------------
+	case process.AccountMigration:
+		err := txProc.processAccountMigration(tx, acntSnd, acntDst)
+		if err != nil {
+			log.Debug("***Error during proccessAccountMigration", "err", err.Error())		
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err) //TODO: va bene lasciarlo?
+		}
+		return vmcommon.Ok, err
+	case process.AccountAdjustment:
+		err := txProc.processAccountAdjustment(tx, acntSnd, acntDst)
+		if err != nil {
+			log.Debug("***Error during proccessAccountAdjustment***", "err", err.Error())		
+			return vmcommon.UserError, txProc.executeAfterFailedMoveBalanceTransaction(tx, err) //TODO: va bene lasciarlo?
+		}
+		return vmcommon.Ok, err
+	//! ---------------- END OF NEW CODE -----------------			
 	case process.SCDeployment:
 		return txProc.processSCDeployment(tx, acntSnd)
 	case process.SCInvoking:
@@ -380,6 +516,80 @@ func (txProc *txProcessor) ProcessTransactionDstMe(tx *transaction.Transaction) 
 	}
 
 	return vmcommon.UserError, txProc.executingFailedTransaction(tx, acntSnd, process.ErrWrongTransaction)
+}
+
+
+func (txProc *txProcessor) computeTxHashBasedOnTxType(tx *transaction.Transaction, txType process.TransactionType) ([]byte, error){
+	var txHash []byte
+	var err error
+	
+	if txType == process.AccountAdjustment{
+		txAATToHash := &transaction.Transaction{
+			Nonce: 			tx.Nonce,
+			MigrationNonce:	tx.MigrationNonce,
+			Value:    		tx.Value,
+			GasLimit: 		tx.GasLimit,
+			GasPrice: 		tx.GasPrice,
+			RcvAddr:  		tx.RcvAddr,
+			SndAddr:  		tx.RcvAddr, 
+			Data:     		tx.Data,
+			ChainID:  		tx.ChainID,
+			Version:  		tx.Version,
+			SenderShard: 	tx.SenderShard,
+			ReceiverShard: 	tx.ReceiverShard,
+			OriginalTxHash: tx.OriginalTxHash,
+			OriginalMiniBlockHash: tx.OriginalMiniBlockHash,
+		}
+		//? NOTA: l'hash lo calcolo senza la Signature e la SignerPubKey
+		txHash, err = core.CalculateHash(txProc.marshalizer, txProc.hasher, txAATToHash)
+		log.Debug("***computeTxHashBasedOnTxType: AccountAdjustment tx***", "txHash", txHash)
+	}else if (txType == process.AccountMigration){
+		txAMTToHash := &transaction.Transaction{
+			Nonce: 			tx.Nonce,
+			MigrationNonce:	tx.MigrationNonce,
+			Value:    		tx.Value,
+			GasLimit: 		tx.GasLimit,
+			GasPrice: 		tx.GasPrice,
+			RcvAddr:  		tx.RcvAddr,
+			SndAddr:  		tx.RcvAddr, 
+			Data:     		tx.Data,
+			ChainID:  		tx.ChainID,
+			Version:  		tx.Version,
+			SenderShard: 	tx.SenderShard,
+			ReceiverShard: 	tx.ReceiverShard,
+		}
+		//? NOTA: l'hash lo calcolo senza la Signature e la SignerPubKey
+		txHash, err = core.CalculateHash(txProc.marshalizer, txProc.hasher, txAMTToHash)
+		log.Debug("***computeTxHashBasedOnTxType: AccountMigration tx***", "txHash", txHash)
+	}else{
+		//? Altrimenti calcolo l'hash su tutto
+		txHash, err = core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+		log.Debug("***computeTxHashBasedOnTxType: MoveBalance tx***", "txHash", txHash)
+	}
+
+	return txHash, err
+}
+
+func (txProc *txProcessor) checkTxValuesBasedOnTxType(
+	tx *transaction.Transaction, 
+	txType process.TransactionType,
+	acntSnd state.UserAccountHandler,
+	acntDst state.UserAccountHandler,
+) error{
+	//? NOTA: mi sembra che checkValues in generale esegua il suo contenuto solo se siamo nello shard del sender, 
+	//? quindi eventualmente non mi serve una versione "from me" e "to me" anche per loro
+
+	var err error
+
+	switch txType {
+	case process.AccountAdjustment:
+		err = txProc.checkTxValuesForAAT(tx, acntSnd, acntDst,false)
+	case process.AccountMigration:
+		err = txProc.checkTxValuesForAMT(tx, acntSnd, acntDst, false)
+	default:
+		err = txProc.checkTxValues(tx, acntSnd, acntDst, false) 		
+	}
+	return err
 }
 //! ---------------- END OF NEW CODE -----------------
 
@@ -659,6 +869,235 @@ func (txProc *txProcessor) processMoveBalance(
 
 	return nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (txProc *txProcessor) processAccountMigration(
+	tx *transaction.Transaction,
+	acntSrc state.UserAccountHandler,
+	acntDst state.UserAccountHandler,
+) error {
+
+	if (txProc.shardCoordinator.SelfId() == tx.SenderShard){ //TODO: cambiare in tx.SourceShard
+		if !check.IfNil(acntSrc) {
+			acntSrc.IncreaseMigrationNonce(1) //! AGGIUNTO PER RISOLVERE IL PROBLEMA CHE UNA AMT, UNA VOLTA INSERITA IN UN BLOCCO, VIENE AGGIUNTA DI NUOVO NELLA CACHE
+			log.Debug("*** AMT processed in source shard ***", "account", string(acntSrc.AddressBytes()), "nonce", string(acntSrc.GetNonce()), "migration nonce",string(acntSrc.GetMigrationNonce()), "balance", acntSrc.GetBalance().String())
+		}
+
+		err := txProc.accounts.SaveAccount(acntSrc)
+		if err != nil {
+			return err
+		}
+	}
+
+
+	if (txProc.shardCoordinator.SelfId() == tx.ReceiverShard){ //TODO: cambiare in tx.DestinationShard
+		// is account address (src or dst, they are the same) in node shard
+		if !check.IfNil(acntDst) {
+			
+			acntDst.IncreaseMigrationNonce(tx.MigrationNonce + 1)
+			acntDst.IncreaseNonce(tx.Nonce)
+			acntDst.SetUserName(tx.SndUserName)
+			
+			err := acntDst.AddToBalance(tx.Value)
+			if err != nil {
+				return err
+			}
+
+			err = txProc.accounts.SaveAccount(acntDst)
+			if err != nil {
+				return err
+			}
+
+
+			log.Debug("*** AMT processed in destination shard ***", "account", string(acntDst.AddressBytes()), "nonce", string(acntSrc.GetNonce()), "migration nonce",string(acntDst.GetMigrationNonce()), "balance", acntDst.GetBalance().String())
+
+
+		}
+	}
+
+
+	txAMTToHash := &transaction.Transaction{
+		Nonce: 			tx.Nonce,
+		MigrationNonce:	tx.MigrationNonce,
+		Value:    		tx.Value,
+		GasLimit: 		tx.GasLimit,
+		GasPrice: 		tx.GasPrice,
+		RcvAddr:  		tx.RcvAddr,
+		SndAddr:  		tx.RcvAddr, 
+		Data:     		tx.Data,
+		ChainID:  		tx.ChainID,
+		Version:  		tx.Version,
+		SenderShard: 	tx.SenderShard,
+		ReceiverShard: 	tx.ReceiverShard,
+	}
+	
+	//? NOTA: l'hash lo calcolo senza la Signature e la SignerPubKey
+	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, txAMTToHash)
+	if err != nil {
+		return err
+	}
+
+
+	//? The AMT should require 0 txFee -> moveBalanceCost = big.NewInt(0)
+	txProc.txFeeHandler.ProcessTransactionFee(big.NewInt(0), big.NewInt(0), txHash)
+
+
+
+	/*moveBalanceCost, totalCost, err := txProc.processTxFee(tx, acntSrc, acntDst, destShardTxType, isUserTxOfRelayed)
+	if err != nil {
+		return err
+	}
+	var err error
+	
+	// is sender address in node shard
+	if !check.IfNil(acntSrc) {
+		acntSrc.IncreaseMigrationNonce(1)
+		err = acntSrc.SubFromBalance(tx.Value)
+		if err != nil {
+			return err
+		}
+
+		err = txProc.accounts.SaveAccount(acntSrc)
+		if err != nil {
+			return err
+		}
+	}
+
+	isPayable, err := txProc.scProcessor.IsPayable(tx.SndAddr, tx.RcvAddr)
+	if err != nil {
+		return err
+	}
+	if !isPayable {
+		return process.ErrAccountNotPayable
+	}
+
+	err = txProc.checkIfValidTxToMetaChain(tx, tx.RcvAddr)
+	if err != nil {
+		return err
+	}
+
+	// is receiver address in node shard
+	if !check.IfNil(acntDst) {
+		err = acntDst.AddToBalance(tx.Value)
+		if err != nil {
+			return err
+		}
+
+		err = txProc.accounts.SaveAccount(acntDst)
+		if err != nil {
+			return err
+		}
+	}
+
+	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, tx)
+	if err != nil {
+		return err
+	}
+	
+	err = txProc.createReceiptWithReturnedGas(txHash, tx, acntSrc, moveBalanceCost, totalCost, destShardTxType, isUserTxOfRelayed)
+	if err != nil {
+		return err
+	}
+
+	if isUserTxOfRelayed {
+		txProc.txFeeHandler.ProcessTransactionFeeRelayedUserTx(moveBalanceCost, big.NewInt(0), txHash, originalTxHash)
+	} else {
+		txProc.txFeeHandler.ProcessTransactionFee(moveBalanceCost, big.NewInt(0), txHash)
+	}*/
+
+	return nil
+}
+
+
+func (txProc *txProcessor) processAccountAdjustment(
+	tx *transaction.Transaction,
+	acntSrc state.UserAccountHandler,
+	acntDst state.UserAccountHandler,
+) error {
+
+	if (txProc.shardCoordinator.SelfId() == tx.SenderShard){
+		if !check.IfNil(acntSrc) {
+			//acntSrc.IncreaseMigrationNonce(1) //! AGGIUNTO PER RISOLVERE IL PROBLEMA CHE UNA AMT, UNA VOLTA INSERITA IN UN BLOCCO, VIENE AGGIUNTA DI NUOVO NELLA CACHE
+			//log.Debug("*** AAT processed in source shard ***", "account", string(acntSrc.AddressBytes()), "nonce", string(acntSrc.GetNonce()), "migration nonce",string(acntSrc.GetMigrationNonce()), "balance", acntSrc.GetBalance().String())
+			log.Debug("*** AAT processed in source shard ***", "account", string(acntSrc.AddressBytes()), "originalTxHash", string(tx.OriginalTxHash), "originalMBHash", string(tx.OriginalMiniBlockHash))
+		}
+
+		/*err := txProc.accounts.SaveAccount(acntSrc)
+		if err != nil {
+			return err
+		}*/
+	}
+
+
+	if (txProc.shardCoordinator.SelfId() == tx.ReceiverShard){
+		// is account address (src or dst, they are the same) in node shard
+		if !check.IfNil(acntDst) {		
+			//acntDst.IncreaseMigrationNonce(tx.MigrationNonce + 1)
+			//acntDst.IncreaseNonce(tx.Nonce)
+			//acntDst.SetUserName(tx.SndUserName)
+
+			//TODO: ADD AAT LOGIC
+
+			//TODO: IN REALTA DEVO FARE IL COMMITMENT!!!!!!!!!!!!
+			//TODO: MA COME LO FACCIO IL COMMITMENT?????????
+			//TODO: TOGLIERE ASSOLUTAMENTE
+			log.Debug("*** Processing AAT in destination shard ***", "account", string(acntDst.AddressBytes()), "balanceBefore", acntDst.GetBalance().String())
+
+
+			err := acntDst.AddToBalance(tx.Value)
+			if err != nil {
+				return err
+			}
+
+			err = txProc.accounts.SaveAccount(acntDst)
+			if err != nil {
+				return err
+			}
+
+			log.Debug("*** --------AAT processed in destination shard--------- ***", "account", string(acntDst.AddressBytes()), "balanceAfter", acntDst.GetBalance().String())
+
+		}
+	}
+
+
+	txAATToHash := &transaction.Transaction{
+		Nonce: 			tx.Nonce,
+		//MigrationNonce:	tx.MigrationNonce,
+		Value:    		tx.Value,
+		GasLimit: 		tx.GasLimit,
+		GasPrice: 		tx.GasPrice,
+		RcvAddr:  		tx.RcvAddr,
+		SndAddr:  		tx.RcvAddr, 
+		Data:     		tx.Data,
+		ChainID:  		tx.ChainID,
+		Version:  		tx.Version,
+		SenderShard: 	tx.SenderShard,
+		ReceiverShard: 	tx.ReceiverShard,
+		OriginalTxHash: tx.OriginalMiniBlockHash,
+		OriginalMiniBlockHash: tx.OriginalMiniBlockHash,
+	}
+	
+	//? NOTA: l'hash lo calcolo senza la Signature e la SignerPubKey
+	txHash, err := core.CalculateHash(txProc.marshalizer, txProc.hasher, txAATToHash)
+	if err != nil {
+		log.Debug("***Error: while calculating hash inside processAccountAdjustment***")
+		return err
+	}
+
+
+	//? The AAT should require 0 txFee -> moveBalanceCost = big.NewInt(0)
+	txProc.txFeeHandler.ProcessTransactionFee(big.NewInt(0), big.NewInt(0), txHash)
+
+
+	return nil
+}
+
+//! ---------------- END OF NEW CODE -----------------
+
+
+
+
+
 
 func (txProc *txProcessor) processSCDeployment(
 	tx *transaction.Transaction,

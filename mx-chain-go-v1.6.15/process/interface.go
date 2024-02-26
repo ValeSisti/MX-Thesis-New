@@ -100,6 +100,12 @@ type InterceptedTransactionHandler interface {
 	SenderAddress() []byte
 	Fee() *big.Int
 	Transaction() data.TransactionHandler
+	//MigrationNonce() uint64 //! Tolto perchè causava l'errore "meta block cannot be fully processed"
+	//! perché non riusciva a processare le RewardTransactions che, aderendo a questa interface e, allo stesso tempo,
+	//! non implementando il metodo MigrationNonce, causava errori strani durante il processing dell'InterceptedTransaction!
+	//! Questo per dire che se in futuro avrò bisogno di inserire un altro metodo in questa interface, fare MOLTA ATTENZIONE
+	//! a non modificare SOLO il file interceptedTransaction.go (come ho erroneamente fatto io, adesso l'ho cancellato perché ho risolto in un altro modo),
+	//! perché ci sono anche i file interceptedRewardTransaction.go e interceptedUnsignedTransaction.go che aderiscono a questa stessa interfaccia	
 }
 
 // TxVersionCheckerHandler defines the functionality that is needed for a TxVersionChecker to validate transaction version

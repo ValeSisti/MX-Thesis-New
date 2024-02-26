@@ -3,6 +3,7 @@ package txpool
 import (
 	"strconv"
 	"sync"
+	"encoding/hex"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/counting"
@@ -173,11 +174,25 @@ func (txPool *shardedTxPool) AddData(key []byte, value interface{}, sizeInBytes 
 		return
 	}
 
-	sourceShardID, destinationShardID, err := process.ParseShardCacherIdentifier(cacheID)
-	if err != nil {
-		log.Error("shardedTxPool.AddData()", "err", err)
-		return
-	}
+	var sourceShardID, destinationShardID uint32
+	var err error
+
+	//TODO: ADD AAT LOGIC
+	normalTransactionHandler, ok := valueAsTransaction.(data.NormalTransactionHandler)
+	isSpecialTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0
+
+	
+	if(isSpecialTransaction) { // ? AMT or AAT
+		sourceShardID = normalTransactionHandler.GetSenderShard()
+		destinationShardID = normalTransactionHandler.GetReceiverShard()
+	}else{
+		sourceShardID, destinationShardID, err = process.ParseShardCacherIdentifier(cacheID)
+		if err != nil {
+			log.Error("shardedTxPool.AddData()", "err", err)
+			return
+		}
+	}	
+
 
 	wrapper := &txcache.WrappedTransaction{
 		Tx:              valueAsTransaction,
@@ -186,6 +201,16 @@ func (txPool *shardedTxPool) AddData(key []byte, value interface{}, sizeInBytes 
 		ReceiverShardID: destinationShardID,
 		Size:            int64(sizeInBytes),
 	}
+
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** ADDING TX TO THE CACHE ***", 
+		"senderShardID", sourceShardID,
+		"destinationShardID", destinationShardID,
+		"hash", hex.EncodeToString(key),
+		"cacheID", cacheID,
+		"txSize", wrapper.Size,
+	)
+	//! ---------------- END OF NEW CODE -----------------		
 
 	txPool.addTx(wrapper, cacheID)
 }
@@ -196,6 +221,18 @@ func (txPool *shardedTxPool) addTx(tx *txcache.WrappedTransaction, cacheID strin
 	cache := shard.Cache
 	_, added := cache.AddTx(tx)
 	if added {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ADDED TXS INTO THE CACHE***",
+		"cacheID", cacheID,
+		"txHash", hex.EncodeToString(tx.TxHash),
+		)
+		retrievedTxFromPool, ok := cache.GetByTxHash(tx.TxHash)
+		log.Debug("***RETRIEVED TX FROM POOL",
+		"retrievedHash", hex.EncodeToString(retrievedTxFromPool.TxHash),
+		"txHash", hex.EncodeToString(tx.TxHash),
+		"ok", ok,
+		)
+		//! ---------------- END OF NEW CODE -----------------		
 		txPool.onAdded(tx.TxHash, tx)
 	}
 }

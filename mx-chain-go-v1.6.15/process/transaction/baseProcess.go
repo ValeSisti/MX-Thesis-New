@@ -35,6 +35,12 @@ func (txProc *baseTxProcessor) getAccounts(
 	adrSrc, adrDst []byte,
 ) (state.UserAccountHandler, state.UserAccountHandler, error) {
 
+	//! -------------------- NEW CODE --------------------
+	adrSrcString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrSrc)	
+	adrDstString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrDst)	
+	log.Debug("***getAccounts() called***", "adrSrc", adrSrcString, "adrDst", adrDstString)
+	//! ---------------- END OF NEW CODE -----------------		
+
 	var acntSrc, acntDst state.UserAccountHandler
 
 	shardForCurrentNode := txProc.shardCoordinator.SelfId()
@@ -63,6 +69,10 @@ func (txProc *baseTxProcessor) getAccounts(
 	}
 
 	if srcInShard {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***adrSrc is in my shard inside getAccounts()***", "adrSrc", adrSrcString)
+		//! ---------------- END OF NEW CODE -----------------		
+		
 		acntSrcWrp, err := txProc.accounts.LoadAccount(adrSrc)
 		if err != nil {
 			return nil, nil, err
@@ -77,6 +87,10 @@ func (txProc *baseTxProcessor) getAccounts(
 	}
 
 	if dstInShard {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***adrDst is in my shard inside getAccounts()***", "adrDst", adrDstString)
+		//! ---------------- END OF NEW CODE -----------------
+	
 		acntDstWrp, err := txProc.accounts.LoadAccount(adrDst)
 		if err != nil {
 			return nil, nil, err
@@ -100,10 +114,17 @@ func (txProc *baseTxProcessor) getAccounts(
 	return acntSrc, acntDst, nil
 }
 
+
+
 //! -------------------- NEW CODE --------------------
-func (txProc *baseTxProcessor) getReceiverAccounts(
-	adrSrc, adrDst []byte,
+func (txProc *baseTxProcessor) getReceiverAccount(
+	adrDst []byte,
 ) (state.UserAccountHandler, state.UserAccountHandler, error) {
+
+	//! -------------------- NEW CODE --------------------
+	adrDstString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrDst)
+	log.Debug("***getReceiverAccount() called***", "adrDst", adrDstString)
+	//! ---------------- END OF NEW CODE -----------------		
 
 	var acntSrc, acntDst state.UserAccountHandler
 
@@ -114,14 +135,14 @@ func (txProc *baseTxProcessor) getReceiverAccounts(
 	//srcInShard := shardForSrc == shardForCurrentNode //! MODIFIED CODE
 	dstInShard := shardForDst == shardForCurrentNode
 
-
-	//! -------------------- NEW CODE --------------------
-	/*
-	//! ---------------- END OF NEW CODE -----------------	
-	if srcInShard && len(adrSrc) == 0 || dstInShard && len(adrDst) == 0 {
+	//if srcInShard && len(adrSrc) == 0 || dstInShard && len(adrDst) == 0 { //! MODIFIED CODE
+	if dstInShard && len(adrDst) == 0 {
 		return nil, nil, process.ErrNilAddressContainer
 	}
 
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	if bytes.Equal(adrSrc, adrDst) {
 		acntWrp, err := txProc.accounts.LoadAccount(adrSrc)
 		if err != nil {
@@ -149,12 +170,13 @@ func (txProc *baseTxProcessor) getReceiverAccounts(
 
 		acntSrc = account
 	}
-
-	//! -------------------- NEW CODE --------------------
+	//! -------------------- NEW CODE --------------------	
 	*/
-	//! ---------------- END OF NEW CODE -----------------		
+	//! ---------------- END OF NEW CODE -----------------	
 
 	if dstInShard {
+		log.Debug("***adrDst is in my shard inside getReceiverAccount(), everything good!***", "adrDst", adrDstString)		
+
 		acntDstWrp, err := txProc.accounts.LoadAccount(adrDst)
 		if err != nil {
 			return nil, nil, err
@@ -164,17 +186,25 @@ func (txProc *baseTxProcessor) getReceiverAccounts(
 		if !ok {
 			return nil, nil, process.ErrWrongTypeAssertion
 		}
-		
+
 		//! -------------------- NEW CODE --------------------
 		//TODO: perché lo avevo messo? A che serviva? Boh, intanto lo scommento
-		/*
-		if(txProc.shardCoordinator.IsAddressStringInAccountsMapping(string(account.AddressBytes()))){
+		/*if(txProc.shardCoordinator.IsAddressStringInAccountsMapping(string(account.AddressBytes()))){
 			account.SetIsBeingMigrated(true)
-		}
-		*/
-		//! ---------------- END OF NEW CODE -----------------
+		}*/
+		//! ---------------- END OF NEW CODE -----------------		
 
 		acntDst = account
+	//! -------------------- NEW CODE --------------------
+	}else{
+		//? Check if the receiver account cannot be found because it has been "recently" migrated from my shard
+		hasBeenMigrated := txProc.shardCoordinator.WasPreviouslyMineAddrBytes(adrDst)
+		if hasBeenMigrated{
+			log.Debug("***Account is not present because it has been migrated: SPECIAL CASE OF AATs! Returning process.ErrAccountNotFoundBecauseMigrated***",  "adrDst", adrDstString)
+			return nil, nil, process.ErrAccountNotFoundBecauseMigrated
+		}
+		log.Debug("***Error: adrDst is not present is current shard (getReceiverAccount) while it should be (?)***", "adrDst", adrDstString)
+	//! ---------------- END OF NEW CODE -----------------
 	}
 
 	return acntSrc, acntDst, nil
@@ -219,13 +249,22 @@ func (txProc *baseTxProcessor) checkTxValues(
 		return nil
 	}
 	if acntSnd.GetNonce() < tx.Nonce {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***acntSnd.GetNonce() < tx.Nonce", "acntSnd.GetNonce()", acntSnd.GetNonce(), "tx.Nonce", tx.Nonce)
+		//! ---------------- END OF NEW CODE -----------------			
 		return process.ErrHigherNonceInTransaction
 	}
 	if acntSnd.GetNonce() > tx.Nonce {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***acntSnd.GetNonce() > tx.Nonce", "acntSnd.GetNonce()", acntSnd.GetNonce(), "tx.Nonce", tx.Nonce)
+		//! ---------------- END OF NEW CODE -----------------			
 		return process.ErrLowerNonceInTransaction
 	}
 	err = txProc.economicsFee.CheckValidityTxValues(tx)
 	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error during CheckValidityTxValues")
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
@@ -260,6 +299,89 @@ func (txProc *baseTxProcessor) checkTxValues(
 
 	return nil
 }
+
+//! ------------------- NEW CODE ---------------------
+
+func (txProc *baseTxProcessor) checkTxValuesForAMT(
+	tx *transaction.Transaction,
+	acntSnd, acntDst state.UserAccountHandler,
+	isUserTxOfRelayed bool,
+) error {
+	err := txProc.verifyGuardian(tx, acntSnd)
+	if err != nil {
+		return err
+	}
+	err = txProc.checkUserNames(tx, acntSnd, acntDst)
+	if err != nil {
+		return err
+	}
+	if check.IfNil(acntSnd) {
+		return nil
+	}
+	if acntSnd.GetMigrationNonce() < tx.MigrationNonce {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***acntSnd.GetMigrationNonce() < tx.MigrationNonce", "acntSnd.GetMigrationNonce()", acntSnd.GetMigrationNonce(), "tx.MigrationNonce", tx.MigrationNonce)
+		//! ---------------- END OF NEW CODE -----------------			
+		return process.ErrHigherMigrationNonceInTransaction
+	}
+	if acntSnd.GetMigrationNonce() > tx.MigrationNonce {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***acntSnd.GetMigrationNonce() > tx.MigrationNonce", "acntSnd.GetMigrationNonce()", acntSnd.GetMigrationNonce(), "tx.MigrationNonce", tx.MigrationNonce)
+		//! ---------------- END OF NEW CODE -----------------			
+		return process.ErrLowerMigrationNonceInTransaction
+	}
+	err = txProc.economicsFee.CheckValidityTxValues(tx) //? Credo che non faccia nulla, perché economicsFee è di tipo process.FeeHandler, ma se vedo il metodo CheckValidityTxValues di FeeHandler è disabilitato (?)
+	if err != nil {
+		//! ------------------- NEW CODE ---------------------
+		log.Debug("***Error during CheckValidityTxValues")
+		//! ---------------- END OF NEW CODE -----------------	
+		return err
+	}
+
+	/*var txFee *big.Int
+	if isUserTxOfRelayed {
+		if tx.GasLimit < txProc.economicsFee.ComputeGasLimit(tx) {
+			return process.ErrNotEnoughGasInUserTx
+		}
+		txFee = txProc.economicsFee.ComputeFeeForProcessing(tx, tx.GasLimit)
+	} else {
+		txFee = txProc.economicsFee.ComputeTxFee(tx)
+	}*/
+
+	/*txFee := big.NewInt(0)
+
+	if acntSnd.GetBalance().Cmp(txFee) < 0 {
+		return fmt.Errorf("%w, has: %s, wanted: %s",
+			process.ErrInsufficientFee,
+			acntSnd.GetBalance().String(),
+			txFee.String(),
+		)
+	}
+
+	if !txProc.enableEpochsHandler.IsPenalizedTooMuchGasFlagEnabled() {
+		// backwards compatibility issue when provided gas limit and gas price exceeds the available balance before the
+		// activation of the "penalize too much gas" flag
+		txFee = core.SafeMul(tx.GasLimit, tx.GasPrice)
+	}
+
+	cost := big.NewInt(0).Add(txFee, tx.Value)
+	if acntSnd.GetBalance().Cmp(cost) < 0 {
+		return process.ErrInsufficientFunds
+	}*/
+
+	return nil
+}
+
+func (txProc *baseTxProcessor) checkTxValuesForAAT(
+	tx *transaction.Transaction,
+	acntSnd, acntDst state.UserAccountHandler,
+	isUserTxOfRelayed bool,
+) error {
+	//TODO: implementare??? Serve????
+	return nil
+}
+
+//! ---------------- END OF NEW CODE -----------------	
 
 func (txProc *baseTxProcessor) checkUserNames(tx *transaction.Transaction, acntSnd, acntDst state.UserAccountHandler) error {
 	isUserNameWrong := len(tx.SndUserName) > 0 &&

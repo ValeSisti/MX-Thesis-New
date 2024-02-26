@@ -112,27 +112,6 @@ func (tx *Transaction) GetDataForSigning(encoder data.Encoder, marshaller data.M
 	if (isAccountAdjustment){
 		ftx = &FrontendTransaction{
 			Nonce:            tx.Nonce, //TODO: controllare
-			//MigrationNonce:   tx.MigrationNonce,
-			Value:            tx.Value.String(),
-			Receiver:         receiverAddr,
-			Sender:           senderAddr,
-			GasPrice:         tx.GasPrice,
-			GasLimit:         tx.GasLimit,
-			SenderUsername:   tx.SndUserName,
-			ReceiverUsername: tx.RcvUserName,
-			Data:             tx.Data,
-			ChainID:          string(tx.ChainID),
-			Version:          tx.Version,
-			Options:          tx.Options,
-			SenderShard:      tx.SenderShard,
-			ReceiverShard:    tx.ReceiverShard,
-			SignerPubKey:     tx.SignerPubKey,
-			OriginalTxHash:   tx.OriginalTxHash,
-			OriginalMiniBlockHash: tx.OriginalMiniBlockHash,
-		}	
-	}else if (isAccountMigration) {
-		ftx = &FrontendTransaction{
-			//Nonce:            tx.Nonce, //TODO: controllare
 			MigrationNonce:   tx.MigrationNonce,
 			Value:            tx.Value.String(),
 			Receiver:         receiverAddr,
@@ -147,7 +126,28 @@ func (tx *Transaction) GetDataForSigning(encoder data.Encoder, marshaller data.M
 			Options:          tx.Options,
 			SenderShard:      tx.SenderShard,
 			ReceiverShard:    tx.ReceiverShard,
-			SignerPubKey:     tx.SignerPubKey,
+			//SignerPubKey:     tx.SignerPubKey, //? anche se lo lasciassi, non mi darebbe problemi visto che questa funzione la chiamo senza prima aver assegnato questo field
+			OriginalTxHash:   tx.OriginalTxHash,
+			OriginalMiniBlockHash: tx.OriginalMiniBlockHash,
+		}	
+	}else if (isAccountMigration) {
+		ftx = &FrontendTransaction{
+			Nonce:            tx.Nonce, //TODO: controllare
+			MigrationNonce:   tx.MigrationNonce,
+			Value:            tx.Value.String(),
+			Receiver:         receiverAddr,
+			Sender:           senderAddr,
+			GasPrice:         tx.GasPrice,
+			GasLimit:         tx.GasLimit,
+			SenderUsername:   tx.SndUserName,
+			ReceiverUsername: tx.RcvUserName,
+			Data:             tx.Data,
+			ChainID:          string(tx.ChainID),
+			Version:          tx.Version,
+			Options:          tx.Options,
+			SenderShard:      tx.SenderShard,
+			ReceiverShard:    tx.ReceiverShard,
+			//SignerPubKey:     tx.SignerPubKey, //? anche se lo lasciassi, non mi darebbe problemi visto che questa funzione la chiamo senza prima aver assegnato questo field
 		}
 	}else{ //? è una transazione normale
 		ftx = &FrontendTransaction{
