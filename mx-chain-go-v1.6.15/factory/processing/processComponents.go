@@ -131,6 +131,9 @@ type processComponents struct {
 	accountsParser                   genesis.AccountsParser
 	receiptsRepository               mainFactory.ReceiptsRepository
 	sentSignaturesTracker            process.SentSignaturesTracker
+	//! -------------------- NEW CODE --------------------
+	queuingTxsSender			 	 process.TxsSenderHandler
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // ProcessComponentsFactoryArgs holds the arguments needed to create a process components factory
@@ -363,6 +366,13 @@ func (pcf *processComponentsFactory) Create() (*processComponents, error) {
 	}
 
 	pcf.txLogsProcessor = txLogsProcessor
+	
+
+	//! -------------------- NEW CODE --------------------
+	/*log.Debug("*** WAITING TO GENERATE GENESIS BLOCK***")
+	time.Sleep(30 * time.Second)
+	log.Debug("*** END OF WAITING TO GENERATE GENESIS BLOCK***")*/	
+	//! ---------------- END OF NEW CODE -----------------	
 	genesisBlocks, initialTxs, err := pcf.generateGenesisHeadersAndApplyInitialBalances()
 	if err != nil {
 		return nil, err
@@ -695,6 +705,20 @@ func (pcf *processComponentsFactory) Create() (*processComponents, error) {
 		return nil, fmt.Errorf("%w when assembling components for the transactions simulator processor", err)
 	}
 
+	//! -------------------- NEW CODE --------------------
+	args_q := txsSender.ArgsQueuingTxsSenderWithAccumulator{
+		Marshaller:        pcf.coreData.InternalMarshalizer(),
+		ShardCoordinator:  pcf.bootstrapComponents.ShardCoordinator(),
+		NetworkMessenger:  pcf.network.NetworkMessenger(),
+		AccumulatorConfig: pcf.config.Antiflood.TxAccumulator,
+		DataPacker:        dataPacker,
+	}
+	queuingTxsSenderWithAccumulator, err := txsSender.NewQueuingTxsSenderWithAccumulator(args_q)
+	if err != nil {
+		return nil, err
+	}
+	//! ---------------- END OF NEW CODE -----------------		
+
 	return &processComponents{
 		nodesCoordinator:                 pcf.nodesCoordinator,
 		shardCoordinator:                 pcf.bootstrapComponents.ShardCoordinator(),
@@ -742,6 +766,9 @@ func (pcf *processComponentsFactory) Create() (*processComponents, error) {
 		accountsParser:                   pcf.accountsParser,
 		receiptsRepository:               receiptsRepository,
 		sentSignaturesTracker:            sentSignaturesTracker,
+		//! -------------------- NEW CODE --------------------
+		queuingTxsSender: 			  queuingTxsSenderWithAccumulator,
+		//! ---------------- END OF NEW CODE -----------------		
 	}, nil
 }
 

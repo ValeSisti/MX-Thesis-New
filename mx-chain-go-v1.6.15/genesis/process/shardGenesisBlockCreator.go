@@ -187,6 +187,7 @@ func CreateShardGenesisBlock(
 	}
 
 	deployMetrics := &deployedScMetrics{}
+	
 
 	scAddresses, scTxs, err := deployInitialSmartContracts(processors, arg, deployMetrics)
 	if err != nil {

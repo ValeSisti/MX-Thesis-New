@@ -909,7 +909,7 @@ func (txProc *txProcessor) processAccountMigration(
 			}
 
 
-			log.Debug("*** AMT processed in destination shard ***", "account", string(acntDst.AddressBytes()), "nonce", string(acntSrc.GetNonce()), "migration nonce",string(acntDst.GetMigrationNonce()), "balance", acntDst.GetBalance().String())
+			log.Debug("*** AMT processed in destination shard ***", "account", string(acntDst.AddressBytes()), "nonce", string(acntDst.GetNonce()), "migration nonce",string(acntDst.GetMigrationNonce()), "balance", acntDst.GetBalance().String())
 
 
 		}

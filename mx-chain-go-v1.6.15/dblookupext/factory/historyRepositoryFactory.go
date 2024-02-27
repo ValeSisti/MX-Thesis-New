@@ -12,6 +12,11 @@ import (
 	"github.com/multiversx/mx-chain-go/dblookupext/disabled"
 	"github.com/multiversx/mx-chain-go/dblookupext/esdtSupply"
 	"github.com/multiversx/mx-chain-go/process"
+
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-go/sharding"
+	"github.com/multiversx/mx-chain-go/state"
+	//! ---------------- END OF NEW CODE -----------------	
 )
 
 // ArgsHistoryRepositoryFactory holds all dependencies required by the history processor factory in order to create
@@ -23,6 +28,11 @@ type ArgsHistoryRepositoryFactory struct {
 	Marshalizer              marshal.Marshalizer
 	Hasher                   hashing.Hasher
 	Uint64ByteSliceConverter typeConverters.Uint64ByteSliceConverter
+	//! -------------------- NEW CODE --------------------
+	ShardedTxPool 			 dataRetriever.ShardedTxPool
+	AccountsAdapter			 state.AccountsAdapter
+	ShardCoordinator 		 sharding.Coordinator
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 type historyRepositoryFactory struct {
@@ -32,6 +42,11 @@ type historyRepositoryFactory struct {
 	marshalizer              marshal.Marshalizer
 	hasher                   hashing.Hasher
 	uInt64ByteSliceConverter typeConverters.Uint64ByteSliceConverter
+	//! -------------------- NEW CODE --------------------
+	shardedTxPool 			 dataRetriever.ShardedTxPool
+	accountsAdapter 		 state.AccountsAdapter
+	shardCoordinator 		 sharding.Coordinator
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // NewHistoryRepositoryFactory creates an instance of historyRepositoryFactory
@@ -56,6 +71,11 @@ func NewHistoryRepositoryFactory(args *ArgsHistoryRepositoryFactory) (dblookupex
 		marshalizer:              args.Marshalizer,
 		hasher:                   args.Hasher,
 		uInt64ByteSliceConverter: args.Uint64ByteSliceConverter,
+		//! -------------------- NEW CODE --------------------
+		shardedTxPool: 			  args.ShardedTxPool,
+		accountsAdapter: 		  args.AccountsAdapter,
+		shardCoordinator: 		  args.ShardCoordinator,
+		//! ---------------- END OF NEW CODE -----------------		
 	}, nil
 }
 
@@ -109,6 +129,18 @@ func (hpf *historyRepositoryFactory) Create() (dblookupext.HistoryRepository, er
 		return nil, err
 	}
 
+	//! -------------------- NEW CODE --------------------
+	transactionStorer, err := hpf.store.GetStorer(dataRetriever.TransactionUnit)
+	if err != nil {
+		return nil, err
+	}
+
+	miniBlockStorer, err := hpf.store.GetStorer(dataRetriever.MiniBlockUnit)
+	if err != nil {
+		return nil, err
+	}	
+	//! ---------------- END OF NEW CODE -----------------		
+
 	historyRepArgs := dblookupext.HistoryRepositoryArguments{
 		SelfShardID:                 hpf.selfShardID,
 		Hasher:                      hpf.hasher,
@@ -120,6 +152,13 @@ func (hpf *historyRepositoryFactory) Create() (dblookupext.HistoryRepository, er
 		MiniblockHashByTxHashStorer: miniblockHashByTxHashStorer,
 		EventsHashesByTxHashStorer:  resultsHashesByTxHashStorer,
 		ESDTSuppliesHandler:         esdtSuppliesHandler,
+		//! -------------------- NEW CODE --------------------
+		TransactionStorer: 			 transactionStorer,
+		MiniBlockStorer: 			 miniBlockStorer,
+		ShardedTxPool: 				 hpf.shardedTxPool,
+		AccountsAdapter: 			 hpf.accountsAdapter,
+		ShardCoordinator: 			 hpf.shardCoordinator,
+		//! ---------------- END OF NEW CODE -----------------		
 	}
 	return dblookupext.NewHistoryRepository(historyRepArgs)
 }

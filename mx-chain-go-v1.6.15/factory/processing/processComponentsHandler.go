@@ -613,6 +613,20 @@ func (m *managedProcessComponents) TxsSenderHandler() process.TxsSenderHandler {
 	return m.processComponents.txsSender
 }
 
+//! -------------------- NEW CODE --------------------
+// QueuingTxsSenderHandler returns the transactions sender handler
+func (m *managedProcessComponents) QueuingTxsSenderHandler() process.TxsSenderHandler {
+	m.mutProcessComponents.RLock()
+	defer m.mutProcessComponents.RUnlock()
+
+	if m.processComponents == nil {
+		return nil
+	}
+
+	return m.processComponents.queuingTxsSender
+}
+//! ---------------- END OF NEW CODE -----------------
+
 // HardforkTrigger returns the hardfork trigger
 func (m *managedProcessComponents) HardforkTrigger() factory.HardforkTrigger {
 	m.mutProcessComponents.RLock()

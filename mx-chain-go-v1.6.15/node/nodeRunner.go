@@ -288,7 +288,10 @@ func (h *AccountMigrationHandler) IsInterfaceNil() bool {
 // Implement the EpochConfirmed method for your handler
 func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64) {
 	log.Debug("***EPOCH CONFIRMED***", "epoch", epoch, "timestamp", timestamp)
-	h.currentNode.processComponents.ShardCoordinator().UpdateCurrentEpoch(epoch)
+	if (epoch > uint32(0)){
+		h.currentNode.processComponents.ShardCoordinator().UpdateCurrentEpoch(epoch)		
+	}
+
 
 	//! SCOMMENTARE
 	///*
@@ -328,7 +331,7 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 	//TODO: SCOMMENTARE
 	createSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
 	//*/
-	createSingleTestAccountAdjustmentTransaction(h, epoch)	
+	//createSingleTestAccountAdjustmentTransaction(h, epoch)	
 }
 
 
@@ -430,9 +433,6 @@ func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
 																																							//! i.e. dentro EpochConfirmed, questo perché l'accounts mapping lo devo aggiornare a prescindere
 																																							//! (e sicuramente non due volte!! altrimenti si fuckuppa l'oldShardId)
 																																							
-
-
-            
             userAccountHandler, ok := accountHandler.(state.UserAccountHandler)
             if !ok {
                 log.Debug("CANNOT CAST ACCOUNT TO BE MIGRATED TO UserAccountHandler")
@@ -498,8 +498,8 @@ func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
             log.Debug("PRINTING TXHASH", "txHash", txHash, "string(txHash)", string(txHash),)
 
             //TODO: SCOMMENTARE ASSOLUTAMENTE!!
-            //cacheID := process.ShardCacherIdentifier(sourceShard, destShard)
-            //h.currentNode.dataComponents.Datapool().Transactions().AddData(txHash, tx, tx.Size(), cacheID)
+            cacheID := process.ShardCacherIdentifier(sourceShard, destShard)
+            h.currentNode.dataComponents.Datapool().Transactions().AddData(txHash, tx, tx.Size(), cacheID)
         }
 
         
@@ -1477,6 +1477,11 @@ func (nr *nodeRunner) CreateManagedProcessComponents(
 		Marshalizer:              coreComponents.InternalMarshalizer(),
 		Store:                    dataComponents.StorageService(),
 		Uint64ByteSliceConverter: coreComponents.Uint64ByteSliceConverter(),
+		//! -------------------- NEW CODE --------------------
+		ShardedTxPool: 			  dataComponents.Datapool().Transactions().(dataRetriever.ShardedTxPool),
+		AccountsAdapter:		  stateComponents.AccountsAdapter(),
+		ShardCoordinator:  		  bootstrapComponents.ShardCoordinator(),
+		//! ---------------- END OF NEW CODE -----------------		
 	}
 	historyRepositoryFactory, err := dbLookupFactory.NewHistoryRepositoryFactory(historyRepoFactoryArgs)
 	if err != nil {
@@ -1550,6 +1555,10 @@ func (nr *nodeRunner) CreateManagedProcessComponents(
 	if err != nil {
 		return nil, err
 	}
+
+	//! -------------------- NEW CODE --------------------
+	managedProcessComponents.HistoryRepository().SetQueuingTxsSenderHandler(managedProcessComponents.QueuingTxsSenderHandler())
+	//! ---------------- END OF NEW CODE -----------------	
 
 	return managedProcessComponents, nil
 }

@@ -7,6 +7,10 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-go/dblookupext"
 	"github.com/multiversx/mx-chain-go/dblookupext/esdtSupply"
+	
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-go/process"	
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 var errorDisabledHistoryRepository = errors.New("history repository is disabled")
@@ -62,3 +66,9 @@ func (nhr *nilHistoryRepository) GetResultsHashesByTxHash(_ []byte, _ uint32) (*
 func (nhr *nilHistoryRepository) IsInterfaceNil() bool {
 	return nhr == nil
 }
+
+//! -------------------- NEW CODE --------------------
+// SetQueuingTxsSenderHandler does nothing
+func (nhr *nilHistoryRepository) SetQueuingTxsSenderHandler(queuingTxsSenderHandler process.TxsSenderHandler) {
+}
+//! ---------------- END OF NEW CODE -----------------

@@ -1231,6 +1231,12 @@ var ErrInvalidAsyncArguments = errors.New("invalid arguments to process async/ca
 var ErrNilSentSignatureTracker = errors.New("nil sent signature tracker")
 
 //! -------------------- NEW CODE --------------------
+var ErrNilTransactionStorer = errors.New("nil transaction storer")
+
+var ErrNilMiniBlockStorer = errors.New("nil miniblock storer")
+
+var ErrNilShardedTxPool = errors.New("nil sharded tx pool")
+
 var ErrSenderAndReceiverNotTheSameInAMT = errors.New("sender and receiver accounts are not the same in the Account Migration Transaction")
 
 var ValueForAMTIsNotTheSameAsAccountBalance = errors.New("value for Account Migration Transaction is not the same as the account balance")

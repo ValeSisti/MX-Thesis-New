@@ -5,6 +5,9 @@ package dblookupext
 import (
 	"fmt"
 	"sync"
+	//! -------------------- NEW CODE --------------------
+	"sort"	
+	//! ---------------- END OF NEW CODE -----------------	
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -20,6 +23,14 @@ import (
 	"github.com/multiversx/mx-chain-go/storage"
 	"github.com/multiversx/mx-chain-go/storage/cache"
 	logger "github.com/multiversx/mx-chain-logger-go"
+
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-core-go/data/transaction"
+	"github.com/multiversx/mx-chain-go/dataRetriever"
+	"github.com/multiversx/mx-chain-go/sharding"
+	"github.com/multiversx/mx-chain-go/state"
+	"github.com/multiversx/mx-chain-go/storage/txcache"
+	//! ---------------- END OF NEW CODE -----------------	
 )
 
 var log = logger.GetOrCreate("dblookupext")
@@ -38,6 +49,13 @@ type HistoryRepositoryArguments struct {
 	Marshalizer                 marshal.Marshalizer
 	Hasher                      hashing.Hasher
 	ESDTSuppliesHandler         SuppliesHandler
+	//! -------------------- NEW CODE --------------------
+	TransactionStorer 			storage.Storer
+	MiniBlockStorer 			storage.Storer
+	ShardedTxPool 				dataRetriever.ShardedTxPool
+	AccountsAdapter 			state.AccountsAdapter
+	ShardCoordinator			sharding.Coordinator
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 type historyRepository struct {
@@ -64,6 +82,15 @@ type historyRepository struct {
 
 	recordBlockMutex                 sync.Mutex
 	consumePendingNotificationsMutex sync.Mutex
+
+	//! -------------------- NEW CODE --------------------
+	transactionStorer          storage.Storer
+	miniBlockStorer            storage.Storer
+	queuingTxsSenderHandler    process.TxsSenderHandler
+	shardedTxPool			   dataRetriever.ShardedTxPool
+	accountsAdapter 		   state.AccountsAdapter
+	shardCoordinator 		   sharding.Coordinator
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 type notarizedNotification struct {
@@ -97,6 +124,24 @@ func NewHistoryRepository(arguments HistoryRepositoryArguments) (*historyReposit
 	if check.IfNil(arguments.Uint64ByteSliceConverter) {
 		return nil, process.ErrNilUint64Converter
 	}
+	//! -------------------- NEW CODE --------------------
+	if check.IfNil(arguments.TransactionStorer) {
+		return nil, process.ErrNilTransactionStorer
+	}	
+	if check.IfNil(arguments.MiniBlockStorer) {
+		return nil, process.ErrNilMiniBlockStorer
+	}		
+	if check.IfNil(arguments.ShardedTxPool) {
+		return nil, process.ErrNilShardedTxPool
+	}		
+	if check.IfNil(arguments.AccountsAdapter) {
+		return nil, process.ErrNilAccountsAdapter
+	}
+	if check.IfNil(arguments.MiniBlockStorer) {
+		return nil, process.ErrNilShardCoordinator
+	}	
+	//! ---------------- END OF NEW CODE -----------------	
+					
 
 	hashToEpochIndex := newHashToEpochIndex(arguments.EpochByHashStorer, arguments.Marshalizer)
 	deduplicationCacheForInsertMiniblockMetadata, _ := cache.NewLRUCache(sizeOfDeduplicationCache)
@@ -118,6 +163,13 @@ func NewHistoryRepository(arguments HistoryRepositoryArguments) (*historyReposit
 		eventsHashesByTxHashIndex:                    eventsHashesToTxHashIndex,
 		esdtSuppliesHandler:                          arguments.ESDTSuppliesHandler,
 		uint64ByteSliceConverter:                     arguments.Uint64ByteSliceConverter,
+		//! -------------------- NEW CODE --------------------
+		transactionStorer:         			   arguments.TransactionStorer,
+		miniBlockStorer:          			   arguments.MiniBlockStorer,
+		shardedTxPool: 						   arguments.ShardedTxPool,
+		accountsAdapter: 					   arguments.AccountsAdapter,
+		shardCoordinator: 					   arguments.ShardCoordinator,
+		//! ---------------- END OF NEW CODE -----------------		
 	}, nil
 }
 
@@ -367,6 +419,18 @@ func (hr *historyRepository) onNotarizedMiniblock(metaBlockNonce uint64, metaBlo
 		"miniblock", miniblockHash,
 		"direction", fmt.Sprintf("[%d -> %d]", miniblockHeader.SenderShardID, miniblockHeader.ReceiverShardID),
 	)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***onNotarizedMiniblock()***",
+		"metaBlockNonce", metaBlockNonce,
+		"metaBlockHash", metaBlockHash,
+		"shardOfContainingBlock", shardOfContainingBlock,
+		"miniblock", miniblockHash,
+		"isNotarizedAtBoth", isNotarizedAtBoth,
+		"isNotarizedAtSource", isNotarizedAtSource,
+		"isNotarizedAtDestination", isNotarizedAtDestination,
+		"direction", fmt.Sprintf("[%d -> %d]", miniblockHeader.SenderShardID, miniblockHeader.ReceiverShardID),
+	)
+	//! ---------------- END OF NEW CODE -----------------	
 
 	if isNotarizedAtBoth {
 		hr.pendingNotarizedAtBothNotifications.Set(string(miniblockHash), &notarizedNotification{
@@ -383,10 +447,174 @@ func (hr *historyRepository) onNotarizedMiniblock(metaBlockNonce uint64, metaBlo
 			metaNonce: metaBlockNonce,
 			metaHash:  metaBlockHash,
 		})
+		//! -------------------- NEW CODE --------------------
+		//TODO: il nome va bene? Il comportamento in base allo shard sorgente/destinazione è diverso!!
+		sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr, miniblockHash)
+		//! ---------------- END OF NEW CODE -----------------		
 	} else {
 		log.Error("onNotarizedMiniblock(): unexpected condition, notification not understood")
 	}
 }
+
+
+//! -------------------- NEW CODE --------------------
+func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepository, miniblockHash []byte){
+	mbStorer := hr.miniBlockStorer
+	buff, err := mbStorer.Get(miniblockHash) //TODO: posso usare anche GetFromEpoch, che magari è più veloce (credo che l'epoca dovrei saperla dall'header del blocco, VEDI!)
+	if err != nil {
+		log.Debug("***Cannot get miniblock from storer inside historyRepository***", "mbHash", string(miniblockHash))
+	}
+
+	mb := &block.MiniBlock{}
+	err = hr.marshalizer.Unmarshal(mb, buff)
+	if err != nil {
+		log.Debug("***Cannot unmarshal miniblock inside historyRepository***")
+	}
+
+	log.Debug("***Miniblock type inside historyRepository***", "mb.GetType()", mb.GetType(), "isTxBlockType", mb.GetType() == block.TxBlock)
+
+	mbTxHashes := mb.TxHashes
+	for _, txHash := range mbTxHashes {
+		log.Debug("***Tx inside miniblock inside historyRepository***", "txHash", string(txHash))
+		txStorer := hr.transactionStorer
+		if err != nil {
+			log.Debug("***Error while retrieving the storer for transactions inside historyRepository***")
+		}
+
+		buff, err := txStorer.Get(txHash) //TODO: posso usare anche GetFromEpoch, che magari è più veloce (credo che l'epoca dovrei saperla dall'header del blocco, VEDI!)
+		if err != nil {
+			log.Debug("***Cannot get transaction from storer inside historyRepository***", "txHash", string(txHash))
+		}
+
+		tx := &transaction.Transaction{}
+		err = hr.marshalizer.Unmarshal(tx, buff)
+		if err != nil {
+			log.Debug("***Cannot unmarshal transaction inside historyRepository***")
+		}
+
+		// ! AAT CHECK OK 
+		isAccountMigrationTransaction := len(tx.SignerPubKey) > 0 && !(len(tx.OriginalMiniBlockHash) > 0 && len(tx.OriginalMiniBlockHash) > 0)
+		log.Debug("***isAccountMigrationTransaction inside historyRepository***", "txHash", txHash, "isAccountMigrationTransaction", isAccountMigrationTransaction)
+	
+		if(isAccountMigrationTransaction){
+			//? NOTA: ci sono solo i due casi in cui o io faccio parte del sender shard, oppure del destination shard,
+			//? perché altrimenti non sarei arrivata fino a qui, dal momento che già la funzione OnNotarizedMiniBlock
+			//? si occupa di controllare se il miniblocco mi interessa (e questo è il caso solo se il miniblocco è
+			//? "from me" oppure "to me", quindi se faccio parte o del sender o del destination shard)
+
+			if(hr.selfShardID == tx.SenderShard){ //Se faccio parte del sender shard
+
+				log.Debug("*** ----- ACCOUNT MIGRATION TRANSACTION FROM ME NOTARIZED ON DESTINATION ----- ****", "txHash", string(txHash), "migratedAccount", string(tx.SndAddr), "migrationNonce", tx.MigrationNonce)
+
+
+				//prendo tutte le txs di questo sender dalla cache
+				txsForSender := fetchTxsForSender(hr, string(tx.SndAddr), tx.SenderShard)
+
+				if len(txsForSender) > 0 {
+					log.Debug("*** Sending queuing transaction of migrated account ...***", "migratedAccount", string(tx.SndAddr), "amtxHash", string(txHash))
+					logTxsToBeSent(txsForSender)
+					
+					numTxs, err := hr.queuingTxsSenderHandler.SendBulkTransactions(txsForSender)
+					if err != nil{
+						log.Debug("*** Failed to send transactions through SendBulkTransactions ***", "err", err.Error())
+					}
+					log.Debug("*** Transactions sent through SendBulkTransactions ***", "numTxs", numTxs)					
+				}else{
+					log.Debug("*** No queuing transaction for migrated account. NOT calling SendBulkTransactions(queuingTxs)***", "migratedAccount", string(tx.SndAddr))
+				}
+				
+
+				
+				//TODO: capire se SendBulkTranasction è bloccante e, se sì, eliminare l'account tramite hr.accountsAdapter.RemoveAccount o quello che sia
+				log.Debug("*** Removing migrated account from source shard ***")
+				//hr.accountsAdapter.RemoveAccount(tx.SndAddr) //TODO: RIMETTERE
+			
+				
+			}else if (hr.selfShardID == tx.ReceiverShard){ //Altrimenti, se faccio parte del destination shard (andava bene anche solo else, visto che ci sono solo due casi possibili, ma per sicurezza ho messo else if)
+				hr.shardedTxPool.RemoveAccountFromMigratingAccounts(string(tx.SndAddr))
+				//TODO: set IsBeingMigrated to false (?)
+
+				log.Debug("*** Migrating Accounts map is now: ***", "migratingAccounts", hr.shardedTxPool.GetMigratingAccounts())
+
+
+				//is migrated account actually in my shard??? It should be. Here is the check:
+				accountHandler, err := hr.accountsAdapter.LoadAccount(tx.SndAddr)
+				if err != nil {
+					log.Debug("*** Migrated account has not been created in the destination shard r***")
+				}
+	
+				//faccio il cast a UserAccount così ho disponibili i metodi per il flag IsBeingMigrated
+				userAccountHandler, ok := accountHandler.(state.UserAccountHandler)
+				if !ok{
+					log.Debug("***Cannot cast accountHandler inside historyRepository")
+				}
+
+				log.Debug("*** Migrated account state inside destination shard: ***",
+					 		"nonce", userAccountHandler.GetNonce(), 
+							"balance", userAccountHandler.GetBalance().String(),
+							"migrationNonce", userAccountHandler.GetMigrationNonce(),
+							"username", userAccountHandler.GetUserName(),
+							"rootHash", string(userAccountHandler.GetRootHash()),
+				)
+
+				log.Debug("*** AccountsMapping is now: ***", "accountsMapping", hr.shardCoordinator.AccountsMapping(), "len", len(hr.shardCoordinator.AccountsShardInfo()))
+
+			}
+		}
+	}
+}
+
+
+
+func fetchTxsForSender(hr *historyRepository, sender string, senderShard uint32) []*transaction.Transaction {
+	cacheId := process.ShardCacherIdentifier(senderShard, senderShard)
+	cache := hr.shardedTxPool.ShardDataStore(cacheId)
+	txCache, ok := cache.(*txcache.TxCache)
+	if !ok {
+		log.Warn("fetchTxsForSender could not cast to TxCache")
+		return nil
+	}
+
+	wrappedTxsForSender := txCache.GetTransactionsPoolForSender(sender)
+
+	sort.Slice(wrappedTxsForSender, func(i, j int) bool {
+		return wrappedTxsForSender[i].Tx.GetNonce() < wrappedTxsForSender[j].Tx.GetNonce()
+	})
+	
+	txsForSender := convertWrappedTxsListToTransactionList(wrappedTxsForSender)
+
+	return txsForSender
+}
+
+
+
+func convertWrappedTxsListToTransactionList(wrappedTxsList []*txcache.WrappedTransaction) []*transaction.Transaction {
+	var txsList []*transaction.Transaction
+
+	for _, wtx := range wrappedTxsList {
+		if tx, ok := wtx.Tx.(*transaction.Transaction); ok {
+			txsList = append(txsList, tx)
+		}else{
+			log.Debug("***Cannot cast transaction inside convertWrappedTxsListToTransactionList of historyRepository***", "txHash", string(wtx.TxHash))
+		}
+	}
+
+	return txsList
+}
+
+func logTxsToBeSent(txsList []*transaction.Transaction) {
+	var txsStringList []string
+
+	for _, tx := range txsList {
+		txsStringList = append(txsStringList, tx.String())
+	}
+
+	log.Debug("***Transactions to be sent***", "txsStringList", txsStringList)
+}
+
+
+//! ---------------- END OF NEW CODE -----------------
+
 
 // Notifications are consumed within a critical section so that we don't have competing put() operations for the same miniblock metadata,
 // which could have resulted in mistakenly overriding the "notarization (hyperblock) coordinates".
@@ -492,3 +720,9 @@ func (hr *historyRepository) GetESDTSupply(token string) (*esdtSupply.SupplyESDT
 func (hr *historyRepository) IsInterfaceNil() bool {
 	return hr == nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (hr *historyRepository) SetQueuingTxsSenderHandler(queuingTxsSenderHandler process.TxsSenderHandler) {
+	hr.queuingTxsSenderHandler = queuingTxsSenderHandler
+}
+//! ---------------- END OF NEW CODE -----------------

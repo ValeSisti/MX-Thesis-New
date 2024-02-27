@@ -4,6 +4,9 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-go/dblookupext/esdtSupply"
+	//! -------------------- NEW CODE --------------------
+	"github.com/multiversx/mx-chain-go/process"
+	//! ---------------- END OF NEW CODE -----------------	
 )
 
 // HistoryRepositoryFactory can create new instances of HistoryRepository
@@ -29,6 +32,9 @@ type HistoryRepository interface {
 	GetESDTSupply(token string) (*esdtSupply.SupplyESDT, error)
 	IsEnabled() bool
 	IsInterfaceNil() bool
+	//! -------------------- NEW CODE --------------------
+	SetQueuingTxsSenderHandler(queuingTxsSenderHandler process.TxsSenderHandler)
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // BlockTracker defines the interface of the block tracker

@@ -336,7 +336,7 @@ func (cache *TxCache) RemoveTxByHash(txHash []byte) bool {
 		_, removed := cache.accountMigrationTxs.Remove(string(txHash))
 		if(removed){
 			cache.removedFromAccountMigrationTxs[string(txHash)] = true
-			log.Debug("*** Succesfully removed from accountAdjustmentTxs map! ***", "txHash", hex.EncodeToString(txHash))
+			log.Debug("*** Succesfully removed from accountMigrationTxs map! ***", "txHash", hex.EncodeToString(txHash))
 		}
 
 		return true
