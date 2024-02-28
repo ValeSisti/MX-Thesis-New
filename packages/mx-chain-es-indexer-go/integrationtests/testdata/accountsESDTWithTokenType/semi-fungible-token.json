@@ -1,0 +1,28 @@
+{
+  "name": "TTTT-token",
+  "ticker": "SEM",
+  "token": "TTTT-abcd",
+  "issuer": "erd1l29zsl2dqq988kvr2y0xlfv9ydgnvhzkatfd8ccalpag265pje8qn8lslf",
+  "currentOwner": "erd1l29zsl2dqq988kvr2y0xlfv9ydgnvhzkatfd8ccalpag265pje8qn8lslf",
+  "type": "SemiFungibleESDT",
+  "timestamp": 5040,
+  "ownersHistory": [
+    {
+      "address": "erd1l29zsl2dqq988kvr2y0xlfv9ydgnvhzkatfd8ccalpag265pje8qn8lslf",
+      "timestamp": 5040
+    }
+  ],
+  "properties": {
+    "canMint": false,
+    "canBurn": false,
+    "canUpgrade": false,
+    "canTransferNFTCreateRole": false,
+    "canAddSpecialRoles": false,
+    "canPause": false,
+    "canFreeze": false,
+    "canWipe": false,
+    "canChangeOwner": false,
+    "canCreateMultiShard": false
+  },
+  "numDecimals": 0
+}

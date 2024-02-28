@@ -1,0 +1,26 @@
+{
+  "identifier": "DESK-abcd-01",
+  "address": "erd1v7e552pz9py4hv6raan0c4jflez3e6csdmzcgrncg0qrnk4tywvsqx0h5j",
+  "balance": "1000",
+  "balanceNum": 1.0E-15,
+  "data": {
+    "creator": "creator",
+    "metadata": "QmZ2QqaGq4bqsEzs5JLTjRmmvR2GAR4qXJZBN8ibfDdaud",
+    "whiteListedStorage": false,
+    "attributes": "dGFnczpoZWxsbyxzb21ldGhpbmcsZG8sbXVzaWMsYXJ0LGdhbGxlcnk7bWV0YWRhdGE6UW1aMlFxYUdxNGJxc0V6czVKTFRqUm1tdlIyR0FSNHFYSlpCTjhpYmZEZGF1ZA==",
+    "nonEmptyURIs": false,
+    "tags": [
+      "hello",
+      "something",
+      "do",
+      "music",
+      "art",
+      "gallery"
+    ]
+  },
+  "tokenNonce": 1,
+  "properties": "3032",
+  "token": "DESK-abcd",
+  "timestamp": 5600,
+  "shardID": 2
+}

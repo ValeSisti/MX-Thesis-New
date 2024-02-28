@@ -1,0 +1,2 @@
+INFO [2024-02-28 13:33:40.660]   wsServer.initializeServer(): initializing WebSocket server url = 127.0.0.1:22111 path = /save 
+ERROR[2024-02-28 13:33:40.662]   could not initialize webserver           error = listen tcp 127.0.0.1:22111: bind: address already in use 

@@ -1,0 +1,18 @@
+{
+	"address": "erd1sqy2ywvswp09ef7qwjhv8zwr9kzz3xas6y2ye5nuryaz0wcnfzzsnq0am3",
+	"balance": "1000",
+	"balanceNum": 1e-15,
+	"token": "SEMI-abcd",
+	"identifier": "SEMI-abcd-02",
+	"tokenNonce": 2,
+	"properties": "3032",
+	"data": {
+		"creator": "creator",
+		"nonEmptyURIs": false,
+		"whiteListedStorage": false
+	},
+	"timestamp": 5600,
+	"type": "SemiFungibleESDT",
+	"currentOwner":"erd1sqy2ywvswp09ef7qwjhv8zwr9kzz3xas6y2ye5nuryaz0wcnfzzsnq0am3",
+	"shardID": 2
+}
