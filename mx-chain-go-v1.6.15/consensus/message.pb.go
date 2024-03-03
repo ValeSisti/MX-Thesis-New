@@ -26,28 +26,123 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+type ProblematicMBsForCurrentRound struct {
+	ProblematicMiniBlocks []*ProblematicMBInfo `protobuf:"bytes,1,rep,name=ProblematicMiniBlocks,proto3" json:"ProblematicMiniBlocks,omitempty"`
+}
+
+func (m *ProblematicMBsForCurrentRound) Reset()      { *m = ProblematicMBsForCurrentRound{} }
+func (*ProblematicMBsForCurrentRound) ProtoMessage() {}
+func (*ProblematicMBsForCurrentRound) Descriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{0}
+}
+func (m *ProblematicMBsForCurrentRound) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ProblematicMBsForCurrentRound) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *ProblematicMBsForCurrentRound) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProblematicMBsForCurrentRound.Merge(m, src)
+}
+func (m *ProblematicMBsForCurrentRound) XXX_Size() int {
+	return m.Size()
+}
+func (m *ProblematicMBsForCurrentRound) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProblematicMBsForCurrentRound.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProblematicMBsForCurrentRound proto.InternalMessageInfo
+
+func (m *ProblematicMBsForCurrentRound) GetProblematicMiniBlocks() []*ProblematicMBInfo {
+	if m != nil {
+		return m.ProblematicMiniBlocks
+	}
+	return nil
+}
+
+type ProblematicMBInfo struct {
+	ProblematicMBHash   string   `protobuf:"bytes,1,opt,name=ProblematicMBHash,proto3" json:"ProblematicMBHash,omitempty"`
+	ProblematicTxHashes []string `protobuf:"bytes,2,rep,name=ProblematicTxHashes,proto3" json:"ProblematicTxHashes,omitempty"`
+	AccAdjTxHashes      []string `protobuf:"bytes,3,rep,name=AccAdjTxHashes,proto3" json:"AccAdjTxHashes,omitempty"`
+}
+
+func (m *ProblematicMBInfo) Reset()      { *m = ProblematicMBInfo{} }
+func (*ProblematicMBInfo) ProtoMessage() {}
+func (*ProblematicMBInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{1}
+}
+func (m *ProblematicMBInfo) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ProblematicMBInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *ProblematicMBInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProblematicMBInfo.Merge(m, src)
+}
+func (m *ProblematicMBInfo) XXX_Size() int {
+	return m.Size()
+}
+func (m *ProblematicMBInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_ProblematicMBInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ProblematicMBInfo proto.InternalMessageInfo
+
+func (m *ProblematicMBInfo) GetProblematicMBHash() string {
+	if m != nil {
+		return m.ProblematicMBHash
+	}
+	return ""
+}
+
+func (m *ProblematicMBInfo) GetProblematicTxHashes() []string {
+	if m != nil {
+		return m.ProblematicTxHashes
+	}
+	return nil
+}
+
+func (m *ProblematicMBInfo) GetAccAdjTxHashes() []string {
+	if m != nil {
+		return m.AccAdjTxHashes
+	}
+	return nil
+}
+
 // Message defines the data needed by spos to communicate between nodes over network in all subrounds
 type Message struct {
-	BlockHeaderHash    []byte `protobuf:"bytes,1,opt,name=BlockHeaderHash,proto3" json:"BlockHeaderHash,omitempty"`
-	SignatureShare     []byte `protobuf:"bytes,2,opt,name=SignatureShare,proto3" json:"SignatureShare,omitempty"`
-	Body               []byte `protobuf:"bytes,3,opt,name=Body,proto3" json:"Body,omitempty"`
-	Header             []byte `protobuf:"bytes,4,opt,name=Header,proto3" json:"Header,omitempty"`
-	PubKey             []byte `protobuf:"bytes,5,opt,name=PubKey,proto3" json:"PubKey,omitempty"`
-	Signature          []byte `protobuf:"bytes,6,opt,name=Signature,proto3" json:"Signature,omitempty"`
-	MsgType            int64  `protobuf:"varint,7,opt,name=MsgType,proto3" json:"MsgType,omitempty"`
-	RoundIndex         int64  `protobuf:"varint,8,opt,name=RoundIndex,proto3" json:"RoundIndex,omitempty"`
-	ChainID            []byte `protobuf:"bytes,9,opt,name=ChainID,proto3" json:"ChainID,omitempty"`
-	PubKeysBitmap      []byte `protobuf:"bytes,10,opt,name=PubKeysBitmap,proto3" json:"PubKeysBitmap,omitempty"`
-	AggregateSignature []byte `protobuf:"bytes,11,opt,name=AggregateSignature,proto3" json:"AggregateSignature,omitempty"`
-	LeaderSignature    []byte `protobuf:"bytes,12,opt,name=LeaderSignature,proto3" json:"LeaderSignature,omitempty"`
-	OriginatorPid      []byte `protobuf:"bytes,13,opt,name=OriginatorPid,proto3" json:"OriginatorPid,omitempty"`
-	InvalidSigners     []byte `protobuf:"bytes,14,opt,name=InvalidSigners,proto3" json:"InvalidSigners,omitempty"`
+	BlockHeaderHash               []byte `protobuf:"bytes,1,opt,name=BlockHeaderHash,proto3" json:"BlockHeaderHash,omitempty"`
+	SignatureShare                []byte `protobuf:"bytes,2,opt,name=SignatureShare,proto3" json:"SignatureShare,omitempty"`
+	Body                          []byte `protobuf:"bytes,3,opt,name=Body,proto3" json:"Body,omitempty"`
+	Header                        []byte `protobuf:"bytes,4,opt,name=Header,proto3" json:"Header,omitempty"`
+	PubKey                        []byte `protobuf:"bytes,5,opt,name=PubKey,proto3" json:"PubKey,omitempty"`
+	Signature                     []byte `protobuf:"bytes,6,opt,name=Signature,proto3" json:"Signature,omitempty"`
+	MsgType                       int64  `protobuf:"varint,7,opt,name=MsgType,proto3" json:"MsgType,omitempty"`
+	RoundIndex                    int64  `protobuf:"varint,8,opt,name=RoundIndex,proto3" json:"RoundIndex,omitempty"`
+	ChainID                       []byte `protobuf:"bytes,9,opt,name=ChainID,proto3" json:"ChainID,omitempty"`
+	PubKeysBitmap                 []byte `protobuf:"bytes,10,opt,name=PubKeysBitmap,proto3" json:"PubKeysBitmap,omitempty"`
+	AggregateSignature            []byte `protobuf:"bytes,11,opt,name=AggregateSignature,proto3" json:"AggregateSignature,omitempty"`
+	LeaderSignature               []byte `protobuf:"bytes,12,opt,name=LeaderSignature,proto3" json:"LeaderSignature,omitempty"`
+	OriginatorPid                 []byte `protobuf:"bytes,13,opt,name=OriginatorPid,proto3" json:"OriginatorPid,omitempty"`
+	InvalidSigners                []byte `protobuf:"bytes,14,opt,name=InvalidSigners,proto3" json:"InvalidSigners,omitempty"`
+	ProblematicMBsForCurrentRound []byte `protobuf:"bytes,15,opt,name=ProblematicMBsForCurrentRound,proto3" json:"ProblematicMBsForCurrentRound,omitempty"`
 }
 
 func (m *Message) Reset()      { *m = Message{} }
 func (*Message) ProtoMessage() {}
 func (*Message) Descriptor() ([]byte, []int) {
-	return fileDescriptor_33c57e4bae7b9afd, []int{0}
+	return fileDescriptor_33c57e4bae7b9afd, []int{2}
 }
 func (m *Message) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -170,41 +265,126 @@ func (m *Message) GetInvalidSigners() []byte {
 	return nil
 }
 
+func (m *Message) GetProblematicMBsForCurrentRound() []byte {
+	if m != nil {
+		return m.ProblematicMBsForCurrentRound
+	}
+	return nil
+}
+
 func init() {
+	proto.RegisterType((*ProblematicMBsForCurrentRound)(nil), "proto.ProblematicMBsForCurrentRound")
+	proto.RegisterType((*ProblematicMBInfo)(nil), "proto.ProblematicMBInfo")
 	proto.RegisterType((*Message)(nil), "proto.Message")
 }
 
 func init() { proto.RegisterFile("message.proto", fileDescriptor_33c57e4bae7b9afd) }
 
 var fileDescriptor_33c57e4bae7b9afd = []byte{
-	// 391 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x92, 0xcf, 0xae, 0x12, 0x31,
-	0x14, 0xc6, 0xa7, 0xf2, 0x4f, 0x2a, 0x60, 0xd2, 0x85, 0x69, 0x8c, 0x69, 0x88, 0x31, 0x86, 0x8d,
-	0xb0, 0xf0, 0x09, 0x1c, 0x5c, 0x40, 0x94, 0x48, 0xc0, 0x95, 0xbb, 0x0e, 0x53, 0x3b, 0x8d, 0xd0,
-	0x92, 0x76, 0xc6, 0xc8, 0xce, 0x47, 0xf0, 0x31, 0x7c, 0x14, 0x97, 0x2c, 0xd9, 0x29, 0x65, 0xe3,
-	0x92, 0x47, 0xb8, 0x99, 0xd3, 0xcb, 0xe5, 0x42, 0xee, 0x6a, 0xfa, 0xfd, 0xbe, 0x73, 0xbe, 0x33,
-	0xd3, 0x33, 0xb8, 0xbd, 0x12, 0xce, 0x71, 0x29, 0xfa, 0x6b, 0x6b, 0x72, 0x43, 0x6a, 0xf0, 0x78,
-	0xfe, 0x46, 0xaa, 0x3c, 0x2b, 0x92, 0xfe, 0xc2, 0xac, 0x06, 0xd2, 0x48, 0x33, 0x00, 0x9c, 0x14,
-	0x5f, 0x41, 0x81, 0x80, 0x53, 0xe8, 0x7a, 0xf9, 0xb7, 0x82, 0x1b, 0x93, 0x90, 0x43, 0x7a, 0xf8,
-	0x69, 0xbc, 0x34, 0x8b, 0x6f, 0x23, 0xc1, 0x53, 0x61, 0x47, 0xdc, 0x65, 0x14, 0x75, 0x51, 0xaf,
-	0x35, 0xbb, 0xc6, 0xe4, 0x35, 0xee, 0xcc, 0x95, 0xd4, 0x3c, 0x2f, 0xac, 0x98, 0x67, 0xdc, 0x0a,
-	0xfa, 0x08, 0x0a, 0xaf, 0x28, 0x21, 0xb8, 0x1a, 0x9b, 0x74, 0x43, 0x2b, 0xe0, 0xc2, 0x99, 0x3c,
-	0xc3, 0xf5, 0x90, 0x44, 0xab, 0x40, 0x6f, 0x55, 0xc9, 0xa7, 0x45, 0xf2, 0x41, 0x6c, 0x68, 0x2d,
-	0xf0, 0xa0, 0xc8, 0x0b, 0xdc, 0xbc, 0x4b, 0xa5, 0x75, 0xb0, 0xce, 0x80, 0x50, 0xdc, 0x98, 0x38,
-	0xf9, 0x79, 0xb3, 0x16, 0xb4, 0xd1, 0x45, 0xbd, 0xca, 0xec, 0x24, 0x09, 0xc3, 0x78, 0x66, 0x0a,
-	0x9d, 0x8e, 0x75, 0x2a, 0x7e, 0xd0, 0xc7, 0x60, 0xde, 0x23, 0x65, 0xe7, 0x30, 0xe3, 0x4a, 0x8f,
-	0xdf, 0xd3, 0x26, 0xa4, 0x9e, 0x24, 0x79, 0x85, 0xdb, 0x61, 0xb6, 0x8b, 0x55, 0xbe, 0xe2, 0x6b,
-	0x8a, 0xc1, 0xbf, 0x84, 0xa4, 0x8f, 0xc9, 0x3b, 0x29, 0xad, 0x90, 0x3c, 0x17, 0xe7, 0x17, 0x7c,
-	0x02, 0xa5, 0x0f, 0x38, 0xe5, 0xed, 0x7e, 0x84, 0x2f, 0x3d, 0x17, 0xb7, 0xc2, 0xed, 0x5e, 0xe1,
-	0x72, 0xfe, 0x27, 0xab, 0xa4, 0xd2, 0x3c, 0x37, 0x76, 0xaa, 0x52, 0xda, 0x0e, 0xf3, 0x2f, 0x60,
-	0xb9, 0x83, 0xb1, 0xfe, 0xce, 0x97, 0x2a, 0x2d, 0x3b, 0x85, 0x75, 0xb4, 0x13, 0x76, 0x70, 0x49,
-	0xe3, 0xe1, 0x76, 0xcf, 0xa2, 0xdd, 0x9e, 0x45, 0xc7, 0x3d, 0x43, 0x3f, 0x3d, 0x43, 0xbf, 0x3d,
-	0x43, 0x7f, 0x3c, 0x43, 0x5b, 0xcf, 0xd0, 0xce, 0x33, 0xf4, 0xcf, 0x33, 0xf4, 0xdf, 0xb3, 0xe8,
-	0xe8, 0x19, 0xfa, 0x75, 0x60, 0xd1, 0xf6, 0xc0, 0xa2, 0xdd, 0x81, 0x45, 0x5f, 0x9a, 0x0b, 0xa3,
-	0x9d, 0xd0, 0xae, 0x70, 0x49, 0x1d, 0xfe, 0x96, 0xb7, 0x37, 0x01, 0x00, 0x00, 0xff, 0xff, 0xfa,
-	0x3a, 0x8a, 0xae, 0x74, 0x02, 0x00, 0x00,
+	// 506 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x93, 0x4f, 0x6f, 0xd3, 0x30,
+	0x18, 0xc6, 0xe3, 0xb5, 0x6b, 0xa9, 0xb7, 0x6e, 0xc2, 0x08, 0x64, 0x21, 0xb0, 0xaa, 0x0a, 0xa1,
+	0x1e, 0xa0, 0x43, 0xf0, 0x09, 0xda, 0x4e, 0x68, 0x15, 0x14, 0xaa, 0x6c, 0x27, 0x6e, 0x6e, 0xe2,
+	0xa5, 0x86, 0xd6, 0xae, 0xec, 0x04, 0xad, 0x37, 0x3e, 0x02, 0x77, 0xce, 0x48, 0x7c, 0x14, 0x8e,
+	0x3d, 0xf6, 0x48, 0xd3, 0x0b, 0xc7, 0x7d, 0x04, 0x94, 0xd7, 0xac, 0x7f, 0xb2, 0x0a, 0x4e, 0xf1,
+	0xfb, 0x7b, 0x9e, 0xf7, 0xb1, 0xe3, 0x37, 0xc1, 0xd5, 0xb1, 0xb0, 0x96, 0x47, 0xa2, 0x39, 0x31,
+	0x3a, 0xd6, 0x64, 0x1f, 0x1e, 0x0f, 0x9f, 0x47, 0x32, 0x1e, 0x26, 0x83, 0x66, 0xa0, 0xc7, 0x27,
+	0x91, 0x8e, 0xf4, 0x09, 0xe0, 0x41, 0x72, 0x09, 0x15, 0x14, 0xb0, 0x72, 0x5d, 0x75, 0x8d, 0x1f,
+	0xf7, 0x8d, 0x1e, 0x8c, 0xc4, 0x98, 0xc7, 0x32, 0xe8, 0xb5, 0xed, 0x6b, 0x6d, 0x3a, 0x89, 0x31,
+	0x42, 0xc5, 0xbe, 0x4e, 0x54, 0x48, 0xde, 0xe1, 0xfb, 0x9b, 0x06, 0xa9, 0x64, 0x7b, 0xa4, 0x83,
+	0x4f, 0x96, 0xa2, 0x5a, 0xa1, 0x71, 0xf0, 0x92, 0xba, 0x9c, 0xe6, 0x56, 0x48, 0x57, 0x5d, 0x6a,
+	0x7f, 0x77, 0x5b, 0xfd, 0x1b, 0xc2, 0x77, 0x6f, 0x99, 0xc9, 0xb3, 0x1c, 0x3c, 0xe3, 0x76, 0x48,
+	0x51, 0x0d, 0x35, 0x2a, 0xfe, 0x6d, 0x81, 0xbc, 0xc0, 0xf7, 0x36, 0xe0, 0xc5, 0x55, 0x06, 0x85,
+	0xa5, 0x7b, 0xb5, 0x42, 0xa3, 0xe2, 0xef, 0x92, 0xc8, 0x53, 0x7c, 0xd4, 0x0a, 0x82, 0x56, 0xf8,
+	0x71, 0x65, 0x2e, 0x80, 0x39, 0x47, 0xeb, 0xdf, 0x8b, 0xb8, 0xdc, 0x73, 0xd7, 0x4a, 0x1a, 0xf8,
+	0x18, 0xce, 0x7c, 0x26, 0x78, 0x28, 0xcc, 0xea, 0x44, 0x87, 0x7e, 0x1e, 0x67, 0xe9, 0xe7, 0x32,
+	0x52, 0x3c, 0x4e, 0x8c, 0x38, 0x1f, 0x72, 0x23, 0xe8, 0x1e, 0x18, 0x73, 0x94, 0x10, 0x5c, 0x6c,
+	0xeb, 0x70, 0x4a, 0x0b, 0xa0, 0xc2, 0x9a, 0x3c, 0xc0, 0x25, 0x97, 0x44, 0x8b, 0x40, 0xff, 0x56,
+	0x19, 0xef, 0x27, 0x83, 0x37, 0x62, 0x4a, 0xf7, 0x1d, 0x77, 0x15, 0x79, 0x84, 0x2b, 0xab, 0x54,
+	0x5a, 0x02, 0x69, 0x0d, 0x08, 0xc5, 0xe5, 0x9e, 0x8d, 0x2e, 0xa6, 0x13, 0x41, 0xcb, 0x35, 0xd4,
+	0x28, 0xf8, 0x37, 0x25, 0x61, 0x18, 0xc3, 0x40, 0xbb, 0x2a, 0x14, 0x57, 0xf4, 0x0e, 0x88, 0x1b,
+	0x24, 0xeb, 0xec, 0x0c, 0xb9, 0x54, 0xdd, 0x53, 0x5a, 0x81, 0xd4, 0x9b, 0x92, 0x3c, 0xc1, 0x55,
+	0xb7, 0xb7, 0x6d, 0xcb, 0x78, 0xcc, 0x27, 0x14, 0x83, 0xbe, 0x0d, 0x49, 0x13, 0x93, 0x56, 0x14,
+	0x19, 0x11, 0xf1, 0x58, 0xac, 0x0f, 0x78, 0x00, 0xd6, 0x1d, 0x4a, 0x76, 0xbb, 0x6f, 0xe1, 0x4d,
+	0xd7, 0xe6, 0x43, 0x77, 0xbb, 0x39, 0x9c, 0xed, 0xff, 0xde, 0xc8, 0x48, 0x2a, 0x1e, 0x6b, 0xd3,
+	0x97, 0x21, 0xad, 0xba, 0xfd, 0xb7, 0x60, 0x36, 0x83, 0xae, 0xfa, 0xcc, 0x47, 0x32, 0xcc, 0x3a,
+	0x85, 0xb1, 0xf4, 0xc8, 0xcd, 0x60, 0x9b, 0x92, 0xd3, 0xff, 0x7c, 0xf0, 0xf4, 0x18, 0xda, 0xfe,
+	0x6d, 0x6a, 0x77, 0x66, 0x0b, 0xe6, 0xcd, 0x17, 0xcc, 0xbb, 0x5e, 0x30, 0xf4, 0x25, 0x65, 0xe8,
+	0x47, 0xca, 0xd0, 0xcf, 0x94, 0xa1, 0x59, 0xca, 0xd0, 0x3c, 0x65, 0xe8, 0x57, 0xca, 0xd0, 0xef,
+	0x94, 0x79, 0xd7, 0x29, 0x43, 0x5f, 0x97, 0xcc, 0x9b, 0x2d, 0x99, 0x37, 0x5f, 0x32, 0xef, 0x43,
+	0x25, 0xd0, 0xca, 0x0a, 0x65, 0x13, 0x3b, 0x28, 0xc1, 0xaf, 0xf3, 0xea, 0x4f, 0x00, 0x00, 0x00,
+	0xff, 0xff, 0x8a, 0xbe, 0x45, 0xc2, 0xc9, 0x03, 0x00, 0x00,
 }
 
+func (this *ProblematicMBsForCurrentRound) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*ProblematicMBsForCurrentRound)
+	if !ok {
+		that2, ok := that.(ProblematicMBsForCurrentRound)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if len(this.ProblematicMiniBlocks) != len(that1.ProblematicMiniBlocks) {
+		return false
+	}
+	for i := range this.ProblematicMiniBlocks {
+		if !this.ProblematicMiniBlocks[i].Equal(that1.ProblematicMiniBlocks[i]) {
+			return false
+		}
+	}
+	return true
+}
+func (this *ProblematicMBInfo) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*ProblematicMBInfo)
+	if !ok {
+		that2, ok := that.(ProblematicMBInfo)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if this.ProblematicMBHash != that1.ProblematicMBHash {
+		return false
+	}
+	if len(this.ProblematicTxHashes) != len(that1.ProblematicTxHashes) {
+		return false
+	}
+	for i := range this.ProblematicTxHashes {
+		if this.ProblematicTxHashes[i] != that1.ProblematicTxHashes[i] {
+			return false
+		}
+	}
+	if len(this.AccAdjTxHashes) != len(that1.AccAdjTxHashes) {
+		return false
+	}
+	for i := range this.AccAdjTxHashes {
+		if this.AccAdjTxHashes[i] != that1.AccAdjTxHashes[i] {
+			return false
+		}
+	}
+	return true
+}
 func (this *Message) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -266,13 +446,40 @@ func (this *Message) Equal(that interface{}) bool {
 	if !bytes.Equal(this.InvalidSigners, that1.InvalidSigners) {
 		return false
 	}
+	if !bytes.Equal(this.ProblematicMBsForCurrentRound, that1.ProblematicMBsForCurrentRound) {
+		return false
+	}
 	return true
+}
+func (this *ProblematicMBsForCurrentRound) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&consensus.ProblematicMBsForCurrentRound{")
+	if this.ProblematicMiniBlocks != nil {
+		s = append(s, "ProblematicMiniBlocks: "+fmt.Sprintf("%#v", this.ProblematicMiniBlocks)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *ProblematicMBInfo) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 7)
+	s = append(s, "&consensus.ProblematicMBInfo{")
+	s = append(s, "ProblematicMBHash: "+fmt.Sprintf("%#v", this.ProblematicMBHash)+",\n")
+	s = append(s, "ProblematicTxHashes: "+fmt.Sprintf("%#v", this.ProblematicTxHashes)+",\n")
+	s = append(s, "AccAdjTxHashes: "+fmt.Sprintf("%#v", this.AccAdjTxHashes)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
 }
 func (this *Message) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 18)
+	s := make([]string, 0, 19)
 	s = append(s, "&consensus.Message{")
 	s = append(s, "BlockHeaderHash: "+fmt.Sprintf("%#v", this.BlockHeaderHash)+",\n")
 	s = append(s, "SignatureShare: "+fmt.Sprintf("%#v", this.SignatureShare)+",\n")
@@ -288,6 +495,7 @@ func (this *Message) GoString() string {
 	s = append(s, "LeaderSignature: "+fmt.Sprintf("%#v", this.LeaderSignature)+",\n")
 	s = append(s, "OriginatorPid: "+fmt.Sprintf("%#v", this.OriginatorPid)+",\n")
 	s = append(s, "InvalidSigners: "+fmt.Sprintf("%#v", this.InvalidSigners)+",\n")
+	s = append(s, "ProblematicMBsForCurrentRound: "+fmt.Sprintf("%#v", this.ProblematicMBsForCurrentRound)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -299,6 +507,91 @@ func valueToGoStringMessage(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
+func (m *ProblematicMBsForCurrentRound) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProblematicMBsForCurrentRound) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ProblematicMBsForCurrentRound) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ProblematicMiniBlocks) > 0 {
+		for iNdEx := len(m.ProblematicMiniBlocks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.ProblematicMiniBlocks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMessage(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ProblematicMBInfo) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProblematicMBInfo) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ProblematicMBInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.AccAdjTxHashes) > 0 {
+		for iNdEx := len(m.AccAdjTxHashes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.AccAdjTxHashes[iNdEx])
+			copy(dAtA[i:], m.AccAdjTxHashes[iNdEx])
+			i = encodeVarintMessage(dAtA, i, uint64(len(m.AccAdjTxHashes[iNdEx])))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.ProblematicTxHashes) > 0 {
+		for iNdEx := len(m.ProblematicTxHashes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ProblematicTxHashes[iNdEx])
+			copy(dAtA[i:], m.ProblematicTxHashes[iNdEx])
+			i = encodeVarintMessage(dAtA, i, uint64(len(m.ProblematicTxHashes[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.ProblematicMBHash) > 0 {
+		i -= len(m.ProblematicMBHash)
+		copy(dAtA[i:], m.ProblematicMBHash)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.ProblematicMBHash)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *Message) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -319,6 +612,13 @@ func (m *Message) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.ProblematicMBsForCurrentRound) > 0 {
+		i -= len(m.ProblematicMBsForCurrentRound)
+		copy(dAtA[i:], m.ProblematicMBsForCurrentRound)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.ProblematicMBsForCurrentRound)))
+		i--
+		dAtA[i] = 0x7a
+	}
 	if len(m.InvalidSigners) > 0 {
 		i -= len(m.InvalidSigners)
 		copy(dAtA[i:], m.InvalidSigners)
@@ -427,6 +727,46 @@ func encodeVarintMessage(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *ProblematicMBsForCurrentRound) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.ProblematicMiniBlocks) > 0 {
+		for _, e := range m.ProblematicMiniBlocks {
+			l = e.Size()
+			n += 1 + l + sovMessage(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *ProblematicMBInfo) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ProblematicMBHash)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
+	if len(m.ProblematicTxHashes) > 0 {
+		for _, s := range m.ProblematicTxHashes {
+			l = len(s)
+			n += 1 + l + sovMessage(uint64(l))
+		}
+	}
+	if len(m.AccAdjTxHashes) > 0 {
+		for _, s := range m.AccAdjTxHashes {
+			l = len(s)
+			n += 1 + l + sovMessage(uint64(l))
+		}
+	}
+	return n
+}
+
 func (m *Message) Size() (n int) {
 	if m == nil {
 		return 0
@@ -487,6 +827,10 @@ func (m *Message) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovMessage(uint64(l))
 	}
+	l = len(m.ProblematicMBsForCurrentRound)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
 	return n
 }
 
@@ -495,6 +839,33 @@ func sovMessage(x uint64) (n int) {
 }
 func sozMessage(x uint64) (n int) {
 	return sovMessage(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (this *ProblematicMBsForCurrentRound) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForProblematicMiniBlocks := "[]*ProblematicMBInfo{"
+	for _, f := range this.ProblematicMiniBlocks {
+		repeatedStringForProblematicMiniBlocks += strings.Replace(f.String(), "ProblematicMBInfo", "ProblematicMBInfo", 1) + ","
+	}
+	repeatedStringForProblematicMiniBlocks += "}"
+	s := strings.Join([]string{`&ProblematicMBsForCurrentRound{`,
+		`ProblematicMiniBlocks:` + repeatedStringForProblematicMiniBlocks + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ProblematicMBInfo) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ProblematicMBInfo{`,
+		`ProblematicMBHash:` + fmt.Sprintf("%v", this.ProblematicMBHash) + `,`,
+		`ProblematicTxHashes:` + fmt.Sprintf("%v", this.ProblematicTxHashes) + `,`,
+		`AccAdjTxHashes:` + fmt.Sprintf("%v", this.AccAdjTxHashes) + `,`,
+		`}`,
+	}, "")
+	return s
 }
 func (this *Message) String() string {
 	if this == nil {
@@ -515,6 +886,7 @@ func (this *Message) String() string {
 		`LeaderSignature:` + fmt.Sprintf("%v", this.LeaderSignature) + `,`,
 		`OriginatorPid:` + fmt.Sprintf("%v", this.OriginatorPid) + `,`,
 		`InvalidSigners:` + fmt.Sprintf("%v", this.InvalidSigners) + `,`,
+		`ProblematicMBsForCurrentRound:` + fmt.Sprintf("%v", this.ProblematicMBsForCurrentRound) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -526,6 +898,242 @@ func valueToStringMessage(v interface{}) string {
 	}
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("*%v", pv)
+}
+func (m *ProblematicMBsForCurrentRound) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMessage
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProblematicMBsForCurrentRound: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProblematicMBsForCurrentRound: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProblematicMiniBlocks", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ProblematicMiniBlocks = append(m.ProblematicMiniBlocks, &ProblematicMBInfo{})
+			if err := m.ProblematicMiniBlocks[len(m.ProblematicMiniBlocks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMessage(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ProblematicMBInfo) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMessage
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProblematicMBInfo: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProblematicMBInfo: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProblematicMBHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ProblematicMBHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProblematicTxHashes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ProblematicTxHashes = append(m.ProblematicTxHashes, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AccAdjTxHashes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AccAdjTxHashes = append(m.AccAdjTxHashes, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMessage(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *Message) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -1000,6 +1608,40 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 			m.InvalidSigners = append(m.InvalidSigners[:0], dAtA[iNdEx:postIndex]...)
 			if m.InvalidSigners == nil {
 				m.InvalidSigners = []byte{}
+			}
+			iNdEx = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProblematicMBsForCurrentRound", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ProblematicMBsForCurrentRound = append(m.ProblematicMBsForCurrentRound[:0], dAtA[iNdEx:postIndex]...)
+			if m.ProblematicMBsForCurrentRound == nil {
+				m.ProblematicMBsForCurrentRound = []byte{}
 			}
 			iNdEx = postIndex
 		default:

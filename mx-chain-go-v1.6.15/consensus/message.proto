@@ -7,6 +7,16 @@ option (gogoproto.stable_marshaler_all) = true;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
+message ProblematicMBsForCurrentRound {
+	repeated ProblematicMBInfo ProblematicMiniBlocks = 1;
+}
+
+message ProblematicMBInfo{
+	string ProblematicMBHash = 1;
+	repeated string ProblematicTxHashes = 2;
+	repeated string AccAdjTxHashes = 3;
+}
+
 // Message defines the data needed by spos to communicate between nodes over network in all subrounds
 message Message {
 	bytes    BlockHeaderHash    = 1;
@@ -23,4 +33,7 @@ message Message {
 	bytes    LeaderSignature    = 12;
 	bytes    OriginatorPid      = 13;
 	bytes    InvalidSigners     = 14;
+	bytes	 ProblematicMBsForCurrentRound = 15;
+	//map<string, ProblematicTxHashesList> PendingMiniBlocksForCurrentRound = 15; <- non si puo' fare!
+	//repeated PendingMiniBlock PendingMiniBlocksForCurrentRound = 15;	
 }
