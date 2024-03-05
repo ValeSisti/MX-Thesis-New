@@ -129,7 +129,15 @@ func (tp *TransactionProcessor) SendTransaction(tx *data.Transaction) (int, stri
 		return http.StatusInternalServerError, "", err
 	}
 
+
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
 	observers, err := tp.proc.GetObservers(shardID, data.AvailabilityRecent)
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------		
+	observers, err := tp.proc.GetAllObservers(data.AvailabilityRecent) //! MODIFIED CODE
 	if err != nil {
 		return http.StatusInternalServerError, "", err
 	}
