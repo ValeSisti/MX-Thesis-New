@@ -494,7 +494,13 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 		// ! AAT CHECK OK 
 		isAccountMigrationTransaction := len(tx.SignerPubKey) > 0 && !(len(tx.OriginalMiniBlockHash) > 0 && len(tx.OriginalMiniBlockHash) > 0)
-		log.Debug("***isAccountMigrationTransaction inside historyRepository***", "txHash", txHash, "isAccountMigrationTransaction", isAccountMigrationTransaction)
+		isAccountAdjustmentTransaction := len(tx.SignerPubKey) > 0 && (len(tx.OriginalMiniBlockHash) > 0 && len(tx.OriginalMiniBlockHash) > 0)
+		if isAccountMigrationTransaction {
+			log.Debug("***---------ACCOUNT MIGRATION TRANSACTION notarized dest-side inside historyRepository------------***", "txHash", txHash)			
+		}else if isAccountAdjustmentTransaction {
+			log.Debug("***---------ACCOUNT ADJUSTMENT TRANSACTION notarized dest-side inside historyRepository------------***", "txHash", txHash)			
+		}
+
 	
 		if(isAccountMigrationTransaction){
 			//? NOTA: ci sono solo i due casi in cui o io faccio parte del sender shard, oppure del destination shard,
@@ -567,6 +573,7 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 
 func fetchTxsForSender(hr *historyRepository, sender string, senderShard uint32) []*transaction.Transaction {
+	//? NOTA: codice preso e ispirato da "fetchTxsForSender" dell'apiTransactionProcessor nel file apiTransactionProcessor.go
 	cacheId := process.ShardCacherIdentifier(senderShard, senderShard)
 	cache := hr.shardedTxPool.ShardDataStore(cacheId)
 	txCache, ok := cache.(*txcache.TxCache)

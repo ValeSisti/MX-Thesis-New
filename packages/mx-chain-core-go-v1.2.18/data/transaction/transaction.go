@@ -7,7 +7,15 @@ import (
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/data"
+	//! -------------------- NEW CODE --------------------
+	logger "github.com/multiversx/mx-chain-logger-go"
+	//! ---------------- END OF NEW CODE -----------------
 )
+
+
+//! -------------------- NEW CODE --------------------
+var log = logger.GetOrCreate("transaction")
+//! ---------------- END OF NEW CODE -----------------
 
 var _ = data.TransactionHandler(&Transaction{})
 
@@ -178,6 +186,9 @@ func (tx *Transaction) GetDataForSigning(encoder data.Encoder, marshaller data.M
 
 	ftxBytes, err := marshaller.Marshal(ftx)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ERROR MARSHALING FTXBYTES***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------		
 		return nil, err
 	}
 

@@ -58,6 +58,9 @@ func NewHostDriver(args ArgsHostDriver) (*hostDriver, error) {
 
 // SaveBlock will handle the saving of block
 func (o *hostDriver) SaveBlock(outportBlock *outport.OutportBlock) error {
+	//! -------------------- NEW CODE --------------------
+	o.log.Debug("***SaveBlock called inside hostDriver***")
+	//! ---------------- END OF NEW CODE -----------------	
 	return o.handleAction(outportBlock, outport.TopicSaveBlock)
 }
 
@@ -68,6 +71,9 @@ func (o *hostDriver) RevertIndexedBlock(blockData *outport.BlockData) error {
 
 // SaveRoundsInfo will handle the saving of rounds
 func (o *hostDriver) SaveRoundsInfo(roundsInfos *outport.RoundsInfo) error {
+	//! -------------------- NEW CODE --------------------
+	o.log.Debug("***SaveRoundsInfo called inside hostDriver***")
+	//! ---------------- END OF NEW CODE -----------------		
 	return o.handleAction(roundsInfos, outport.TopicSaveRoundsInfo)
 }
 
@@ -83,11 +89,17 @@ func (o *hostDriver) SaveValidatorsRating(validatorsRating *outport.ValidatorsRa
 
 // SaveAccounts will handle the accounts' saving
 func (o *hostDriver) SaveAccounts(accounts *outport.Accounts) error {
+	//! -------------------- NEW CODE --------------------
+	o.log.Debug("***SaveAccounts called inside hostDriver***")
+	//! ---------------- END OF NEW CODE -----------------		
 	return o.handleAction(accounts, outport.TopicSaveAccounts)
 }
 
 // FinalizedBlock will handle the finalized block
 func (o *hostDriver) FinalizedBlock(finalizedBlock *outport.FinalizedBlock) error {
+	//! -------------------- NEW CODE --------------------
+	o.log.Debug("***FinalizedBlock called inside hostDriver***")
+	//! ---------------- END OF NEW CODE -----------------		
 	return o.handleAction(finalizedBlock, outport.TopicFinalizedBlock)
 }
 

@@ -293,6 +293,10 @@ func (tg *transactionGroup) simulateTransaction(c *gin.Context) {
 
 // sendTransaction will receive a transaction from the client and propagate it for processing
 func (tg *transactionGroup) sendTransaction(c *gin.Context) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***sendTransaction called inside transactionGroup.go (api). Probably this is an observer to which the proxy has sent the transaction to.***")
+	//! ---------------- END OF NEW CODE -----------------
+
 	var gtx = SendTxRequest{}
 	err := c.ShouldBindJSON(&gtx)
 	if err != nil {
@@ -343,6 +347,9 @@ func (tg *transactionGroup) sendTransaction(c *gin.Context) {
 	err = tg.getFacade().ValidateTransaction(tx)
 	logging.LogAPIActionDurationIfNeeded(start, "API call: ValidateTransaction")
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: TRANSACTION IS NOT VALID inside transactionGroup.go (api). Probably this is an observer to which the proxy has sent the transaction to.***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------				
 		c.JSON(
 			http.StatusBadRequest,
 			shared.GenericAPIResponse{

@@ -200,7 +200,7 @@ func (txProc *baseTxProcessor) getReceiverAccount(
 		//? Check if the receiver account cannot be found because it has been "recently" migrated from my shard
 		hasBeenMigrated := txProc.shardCoordinator.WasPreviouslyMineAddrBytes(adrDst)
 		if hasBeenMigrated{
-			log.Debug("***Account is not present because it has been migrated: SPECIAL CASE OF AATs! Returning process.ErrAccountNotFoundBecauseMigrated***",  "adrDst", adrDstString)
+			log.Debug("***Account is not present because it has been migrated: SPECIAL CASE OF AATs! Returning process.ErrAccountNotFoundBecauseMigrated*** ---------------------PROBLEM--------------------- (THIS SHOULD NEVER BE PRINTED, AS PROBLEMATICMBS (AND TXS) ARE CHECKED BEFORE TRYING TO PROCESS TRANSACTIONS DST SIDE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!)",  "adrDst", adrDstString)
 			return nil, nil, process.ErrAccountNotFoundBecauseMigrated
 		}
 		log.Debug("***Error: adrDst is not present is current shard (getReceiverAccount) while it should be (?)***", "adrDst", adrDstString)

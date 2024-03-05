@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
 	//! -------------------- NEW CODE --------------------
 	"encoding/hex"
 	//! ---------------- END OF NEW CODE -----------------
@@ -65,10 +66,11 @@ import (
 	trieStatistics "github.com/multiversx/mx-chain-go/trie/statistics"
 	"github.com/multiversx/mx-chain-go/update/trigger"
 	logger "github.com/multiversx/mx-chain-logger-go"
+
 	//! -------------------- NEW CODE --------------------
-	"github.com/multiversx/mx-chain-go/state"
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
-	//! ---------------- END OF NEW CODE -----------------	
+	"github.com/multiversx/mx-chain-go/state"
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 type nextOperationForNode int
