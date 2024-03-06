@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -384,7 +385,7 @@ func (tc *transactionCoordinator) RemoveBlockDataFromPool(body *block.Body) erro
 }
 
 // RemoveTxsFromPool deletes txs from pools
-func (tc *transactionCoordinator) RemoveTxsFromPool(body *block.Body) error {
+func (tc *transactionCoordinator) RemoveTxsFromPool(body *block.Body) error {  //
 	if check.IfNil(body) {
 		return nil
 	}
@@ -565,9 +566,14 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 	haveTime func() bool,
 	haveAdditionalTime func() bool,
 	scheduledMode bool,
-) (block.MiniBlockSlice, uint32, bool, error) {
+) (block.MiniBlockSlice, uint32, map[string][]string, bool, bool, error) { //! MODIFIED CODE
 
 	createMBDestMeExecutionInfo := initMiniBlockDestMeExecutionInfo()
+	//! -------------------- NEW CODE --------------------
+	//pendingMiniBlocksFromMetaBlock := make([]*data.MiniBlockInfo, 0)
+	pendingMiniBlocksHashesFromMetaBlock := make([]string, 0)
+	pendingTxsByMBForCurrentMetaBlock := make(map[string][]string)
+	//! ---------------- END OF NEW CODE -----------------	
 
 	if check.IfNil(hdr) {
 		log.Warn("transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMe header is nil")
@@ -575,7 +581,7 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 		// we return the nil error here as to allow the proposer execute as much as it can, even if it ends up in a
 		// totally unlikely situation in which it needs to process a nil block.
 
-		return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, false, nil
+		return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, nil, false, false, nil //! MODIFIED CODE
 	}
 
 	shouldSkipShard := make(map[uint32]bool)
@@ -587,7 +593,7 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 
 		// we return the nil error here as to allow the proposer execute as much as it can, even if it ends up in a
 		// totally unlikely situation in which it can not marshall a block.
-		return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, false, nil
+		return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, nil, false, false, nil //! MODIFIED CODE
 	}
 
 	tc.handleCreateMiniBlocksDestMeInit(headerHash)
@@ -685,7 +691,10 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 
 		preproc := tc.getPreProcessor(miniBlock.Type)
 		if check.IfNil(preproc) {
-			return nil, 0, false, fmt.Errorf("%w unknown block type %d", process.ErrNilPreProcessor, miniBlock.Type)
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***getPreProcessor returned nil inside CreateMbsAndProcessCrossShardTransactionsDstMe***")
+			//! ---------------- END OF NEW CODE -----------------
+			return nil, 0, nil, false, false, fmt.Errorf("%w unknown block type %d", process.ErrNilPreProcessor, miniBlock.Type) //! MODIFIED CODE
 		}
 
 		requestedTxs := preproc.RequestTransactionsForMiniBlock(miniBlock)
@@ -703,8 +712,16 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 
 		oldIndexOfLastTxProcessed := processedMbInfo.IndexOfLastTxProcessed
 
-		errProc := tc.processCompleteMiniBlock(preproc, miniBlock, miniBlockInfo.Hash, haveTime, haveAdditionalTime, scheduledMode, processedMbInfo)
+		isMiniBlockProblematic, problematicTxsFromMB, errProc := tc.processCompleteMiniBlock(preproc, miniBlock, miniBlockInfo.Hash, haveTime, haveAdditionalTime, scheduledMode, processedMbInfo) //! MODIFIED CODE
 		tc.handleProcessMiniBlockExecution(oldIndexOfLastTxProcessed, miniBlock, processedMbInfo, createMBDestMeExecutionInfo)
+		
+		//! -------------------- NEW CODE --------------------
+		if isMiniBlockProblematic{
+			pendingTxsByMBForCurrentMetaBlock[hex.EncodeToString(miniBlockInfo.Hash)] = problematicTxsFromMB
+			pendingMiniBlocksHashesFromMetaBlock = append(pendingMiniBlocksHashesFromMetaBlock, hex.EncodeToString(miniBlockInfo.Hash))
+		}
+		//! ---------------- END OF NEW CODE -----------------		
+		
 		if errProc != nil {
 			shouldSkipShard[miniBlockInfo.SenderShardID] = true
 			log.Debug("transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMe: processed complete mini block failed",
@@ -746,11 +763,19 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 
 	numTotalMiniBlocksProcessed := createMBDestMeExecutionInfo.numAlreadyMiniBlocksProcessed + createMBDestMeExecutionInfo.numNewMiniBlocksProcessed
 	allMBsProcessed := numTotalMiniBlocksProcessed == len(finalCrossMiniBlockInfos)
-	if !allMBsProcessed {
+	//! -------------------- NEW CODE --------------------
+	numProblematicMiniBlocks := len(pendingMiniBlocksHashesFromMetaBlock)
+	notAllMbsProcessedOnlyBecauseOfProblematic := numTotalMiniBlocksProcessed + numProblematicMiniBlocks == len(finalCrossMiniBlockInfos)
+	//! ---------------- END OF NEW CODE -----------------	
+	if (!allMBsProcessed && !notAllMbsProcessedOnlyBecauseOfProblematic){ //! MODIFIED CODE
+		//! -------------------- NEW CODE --------------------
+		//? Ovvero: Se NON è vero che tutti i miniblocchi (dst me del metablocco) sono stati processati E NON è vero che tutti i miniblocchi non sono stati processati solo perché gli unici miniblocchi che mancano sono quelli problematici!
+		log.Debug("***(!allMBsProcessed && !notAllMbsProcessedOnlyBecauseOfProblematic) returned true inside CreateMbsAndProcessCrossShardTransactionsDstMe. Calling reverIfNeeded()***")
+		//! ---------------- END OF NEW CODE -----------------		
 		tc.revertIfNeeded(createMBDestMeExecutionInfo, headerHash)
 	}
-
-	return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, allMBsProcessed, nil
+	//TODO: RITORNARE ANCHE pendingMiniBlocksFromMetaBlocks, cosicché IL CHIAMANTE possa generare le AAT corrispondenti! ("enhance" the struct with txs and so on)
+	return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, pendingTxsByMBForCurrentMetaBlock, allMBsProcessed, notAllMbsProcessedOnlyBecauseOfProblematic, nil //! MODIFIED CODE
 }
 
 func (tc *transactionCoordinator) requestMissingMiniBlocksAndTransactions(mbsInfo []*data.MiniBlockInfo) {
@@ -1190,7 +1215,7 @@ func (tc *transactionCoordinator) processCompleteMiniBlock(
 	haveAdditionalTime func() bool,
 	scheduledMode bool,
 	processedMbInfo *processedMb.ProcessedMiniBlockInfo,
-) error {
+) (bool, []string, error) { //isMiniBlockProblematic, problematicTxFromMB, err //! MODIFIED CODE
 
 	snapshot := tc.handleProcessMiniBlockInit(miniBlockHash)
 
@@ -1206,7 +1231,7 @@ func (tc *transactionCoordinator) processCompleteMiniBlock(
 		"total gas penalized", tc.gasHandler.TotalGasPenalized(),
 	)
 
-	txsToBeReverted, indexOfLastTxProcessed, shouldRevert, err := preproc.ProcessMiniBlock(
+	txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err := preproc.ProcessMiniBlock( //! MODIFIED CODE
 		miniBlock,
 		haveTime,
 		haveAdditionalTime,
@@ -1215,6 +1240,12 @@ func (tc *transactionCoordinator) processCompleteMiniBlock(
 		int(processedMbInfo.IndexOfLastTxProcessed),
 		tc,
 	)
+
+	//! -------------------- NEW CODE --------------------
+	if isMiniBlockProblematic{
+		return true, problematicTxsFromMB, nil
+	}
+	//! ---------------- END OF NEW CODE -----------------	
 
 	log.Debug("transactionsCoordinator.processCompleteMiniBlock: after processing",
 		"num all txs processed", indexOfLastTxProcessed+1,
@@ -1241,6 +1272,10 @@ func (tc *transactionCoordinator) processCompleteMiniBlock(
 			"error", err.Error(),
 		)
 
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***ProcessMiniBlock returned an error!***", "error", err.Error(), "shouldRevert", shouldRevert)
+		//! ---------------- END OF NEW CODE -----------------		
+
 		if shouldRevert {
 			tc.handleProcessTransactionError(snapshot, miniBlockHash, txsToBeReverted)
 		} else {
@@ -1250,13 +1285,13 @@ func (tc *transactionCoordinator) processCompleteMiniBlock(
 			}
 		}
 
-		return err
+		return false, nil, err //! MODIFIED CODE
 	}
 
 	processedMbInfo.IndexOfLastTxProcessed = int32(indexOfLastTxProcessed)
 	processedMbInfo.FullyProcessed = true
 
-	return nil
+	return false, nil, nil //! MODIFIED CODE
 }
 
 func (tc *transactionCoordinator) handleProcessMiniBlockInit(miniBlockHash []byte) int {

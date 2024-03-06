@@ -249,22 +249,22 @@ func (vip *validatorInfoPreprocessor) ProcessMiniBlock(
 	_ bool,
 	indexOfLastTxProcessed int,
 	_ process.PreProcessorExecutionInfoHandler,
-) ([][]byte, int, bool, error) {
+	) ([][]byte, int, bool, []string, bool, error) { //txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
 	if miniBlock.Type != block.PeerBlock {
-		return nil, indexOfLastTxProcessed, false, process.ErrWrongTypeInMiniBlock
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrWrongTypeInMiniBlock //! MODIFIED CODE
 	}
 	if miniBlock.SenderShardID != core.MetachainShardId {
-		return nil, indexOfLastTxProcessed, false, process.ErrValidatorInfoMiniBlockNotFromMeta
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrValidatorInfoMiniBlockNotFromMeta //! MODIFIED CODE
 	}
 
 	if vip.blockSizeComputation.IsMaxBlockSizeWithoutThrottleReached(1, len(miniBlock.TxHashes)) {
-		return nil, indexOfLastTxProcessed, false, process.ErrMaxBlockSizeReached
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrMaxBlockSizeReached //! MODIFIED CODE
 	}
 
 	vip.blockSizeComputation.AddNumMiniBlocks(1)
 	vip.blockSizeComputation.AddNumTxs(len(miniBlock.TxHashes))
 
-	return nil, len(miniBlock.TxHashes) - 1, false, nil
+	return nil, len(miniBlock.TxHashes) - 1, false, nil, false, nil //! MODIFIED CODE
 }
 
 // CreateMarshalledData does nothing

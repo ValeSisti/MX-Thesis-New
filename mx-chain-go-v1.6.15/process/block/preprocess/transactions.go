@@ -2,6 +2,7 @@ package preprocess
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -1599,10 +1600,10 @@ func (txs *transactions) ProcessMiniBlock(
 	partialMbExecutionMode bool,
 	indexOfLastTxProcessed int,
 	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
-) ([][]byte, int, bool, error) {
+	) ([][]byte, int, bool, []string, bool, error) { // txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
 
 	if miniBlock.Type != block.TxBlock {
-		return nil, indexOfLastTxProcessed, false, process.ErrWrongTypeInMiniBlock
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrWrongTypeInMiniBlock //! MODIFIED CODE
 	}
 
 	numTXsProcessed := 0
@@ -1614,16 +1615,16 @@ func (txs *transactions) ProcessMiniBlock(
 	indexOfFirstTxToBeProcessed := indexOfLastTxProcessed + 1
 	err = process.CheckIfIndexesAreOutOfBound(int32(indexOfFirstTxToBeProcessed), int32(len(miniBlock.TxHashes))-1, miniBlock)
 	if err != nil {
-		return nil, indexOfLastTxProcessed, false, err
+		return nil, indexOfLastTxProcessed, false, nil, false, err //! MODIFIED CODE
 	}
 
 	miniBlockTxs, miniBlockTxHashes, err := txs.getAllTxsFromMiniBlock(miniBlock, haveTime, haveAdditionalTime)
 	if err != nil {
-		return nil, indexOfLastTxProcessed, false, err
+		return nil, indexOfLastTxProcessed, false, nil, false, err //! MODIFIED CODE
 	}
 
 	if txs.blockSizeComputation.IsMaxBlockSizeWithoutThrottleReached(1, len(miniBlock.TxHashes)) {
-		return nil, indexOfLastTxProcessed, false, process.ErrMaxBlockSizeReached
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrMaxBlockSizeReached //! MODIFIED CODE
 	}
 
 	var totalGasConsumed uint64
@@ -1676,6 +1677,31 @@ func (txs *transactions) ProcessMiniBlock(
 	isIntra := miniBlock.SenderShardID == selfShardId && miniBlock.ReceiverShardID == selfShardId
 	isCrossFromMe := miniBlock.SenderShardID == selfShardId && !(miniBlock.ReceiverShardID == selfShardId)
 	isCrossDstMe := !(miniBlock.SenderShardID == selfShardId) && miniBlock.ReceiverShardID == selfShardId
+
+
+
+	maxLength := len(miniBlockTxHashes)
+	problematicTxHashesFromMb := make([]string, 0, maxLength)
+	isMiniBlockProblematic := false
+
+	for txIndex = indexOfFirstTxToBeProcessed; txIndex < len(miniBlockTxs); txIndex++ {
+		isTxProblematic := txs.isTxProblematic(miniBlockTxs[txIndex].GetRcvAddr())
+		if isTxProblematic{
+			if !isMiniBlockProblematic{
+				isMiniBlockProblematic = true
+			}
+			problematicTxHashesFromMb = append(problematicTxHashesFromMb, hex.EncodeToString(miniBlockTxHashes[txIndex]))
+			log.Debug("***-------------Found problematic tx when processing miniblock dst me. TxHash added to problematicTxHashesFromMb---------------***", "txHash", hex.EncodeToString(miniBlockTxHashes[txIndex])) // ? don't know how to get the mbHash in order to print it
+			continue
+		}
+	}
+
+	if isMiniBlockProblematic{
+		log.Debug("***--------------MiniBlock is problematic--------------***", "problematicTxHashes", problematicTxHashesFromMb)
+		return nil, 0, false, problematicTxHashesFromMb, isMiniBlockProblematic, nil
+	}
+
+	
 	//! ---------------- END OF NEW CODE -----------------		
 
 	for txIndex = indexOfFirstTxToBeProcessed; txIndex < len(miniBlockTxs); txIndex++ {
@@ -1751,7 +1777,7 @@ func (txs *transactions) ProcessMiniBlock(
 	}
 
 	if err != nil && !partialMbExecutionMode {
-		return processedTxHashes, txIndex - 1, true, err
+		return processedTxHashes, txIndex - 1, true, nil, false, err //! MODIFIED CODE
 	}
 
 	numOfCrtCrossInterMbs, numOfCrtCrossInterTxs := preProcessorExecutionInfoHandler.GetNumOfCrossInterMbsAndTxs()
@@ -1768,7 +1794,7 @@ func (txs *transactions) ProcessMiniBlock(
 	numMiniBlocks := 1 + numOfNewCrossInterMbs
 	numTxs := len(miniBlock.TxHashes) + numOfNewCrossInterTxs
 	if txs.blockSizeComputation.IsMaxBlockSizeWithoutThrottleReached(numMiniBlocks, numTxs) {
-		return processedTxHashes, txIndex - 1, true, process.ErrMaxBlockSizeReached
+		return processedTxHashes, txIndex - 1, true, nil, false, process.ErrMaxBlockSizeReached //! MODIFIED CODE
 	}
 
 	txShardInfoToSet := &txShardInfo{senderShardID: miniBlock.SenderShardID, receiverShardID: miniBlock.ReceiverShardID}
@@ -1788,8 +1814,16 @@ func (txs *transactions) ProcessMiniBlock(
 		}
 	}
 
-	return nil, txIndex - 1, false, err
+	return nil, txIndex - 1, false, nil, false, err //! MODIFIED CODE
 }
+
+
+//! -------------------- NEW CODE --------------------
+func (tx *transactions) isTxProblematic(rcvAddr []byte) bool{
+	return tx.shardCoordinator.WasPreviouslyMineAddrBytes(rcvAddr)
+}
+//! ---------------- END OF NEW CODE -----------------
+
 
 func (txs *transactions) processInNormalMode(
 	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,

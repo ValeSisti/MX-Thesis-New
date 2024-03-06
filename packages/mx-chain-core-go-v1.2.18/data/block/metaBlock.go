@@ -2,6 +2,9 @@
 package block
 
 import (
+	//! -------------------- NEW CODE --------------------
+	"encoding/hex"
+	//! ---------------- END OF NEW CODE -----------------
 	"fmt"
 	"math/big"
 	"sort"
@@ -292,6 +295,30 @@ func (m *MetaBlock) GetMiniBlockHeadersWithDst(destId uint32) map[string]uint32 
 
 	return hashDst
 }
+
+//! -------------------- NEW CODE --------------------
+// GetMiniBlockHeadersWithDst as a map of hashes and sender IDs
+func (m *MetaBlock) GetShardMiniBlockHeadersWithDstInHexString(destId uint32) map[string]string {
+	if m == nil {
+		return nil
+	}
+
+	hashDst := make(map[string]string)
+	for i := 0; i < len(m.ShardInfo); i++ {
+		if m.ShardInfo[i].ShardID == destId {
+			continue
+		}
+
+		for _, val := range m.ShardInfo[i].ShardMiniBlockHeaders {
+			if val.ReceiverShardID == destId && val.SenderShardID != destId {
+				hashDst[string(val.Hash)] = hex.EncodeToString(val.Hash)
+			}
+		}
+	}
+
+	return hashDst
+}
+//! ---------------- END OF NEW CODE -----------------
 
 // GetOrderedCrossMiniblocksWithDst gets all cross miniblocks with the given destination shard ID, ordered in a
 // chronological way, taking into consideration the round in which they were created/executed in the sender shard

@@ -467,31 +467,31 @@ func (rtp *rewardTxPreprocessor) ProcessMiniBlock(
 	partialMbExecutionMode bool,
 	indexOfLastTxProcessed int,
 	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
-) ([][]byte, int, bool, error) {
+	) ([][]byte, int, bool, []string, bool, error) { //txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
 
 	var err error
 	var txIndex int
 
 	if miniBlock.Type != block.RewardsBlock {
-		return nil, indexOfLastTxProcessed, false, process.ErrWrongTypeInMiniBlock
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrWrongTypeInMiniBlock //! MODIFIED CODE
 	}
 	if miniBlock.SenderShardID != core.MetachainShardId {
-		return nil, indexOfLastTxProcessed, false, process.ErrRewardMiniBlockNotFromMeta
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrRewardMiniBlockNotFromMeta //! MODIFIED CODE
 	}
 
 	indexOfFirstTxToBeProcessed := indexOfLastTxProcessed + 1
 	err = process.CheckIfIndexesAreOutOfBound(int32(indexOfFirstTxToBeProcessed), int32(len(miniBlock.TxHashes))-1, miniBlock)
 	if err != nil {
-		return nil, indexOfLastTxProcessed, false, err
+		return nil, indexOfLastTxProcessed, false, nil, false, err //! MODIFIED CODE
 	}
 
 	miniBlockRewardTxs, miniBlockTxHashes, err := rtp.getAllRewardTxsFromMiniBlock(miniBlock, haveTime)
 	if err != nil {
-		return nil, indexOfLastTxProcessed, false, err
+		return nil, indexOfLastTxProcessed, false, nil, false, err //! MODIFIED CODE
 	}
 
 	if rtp.blockSizeComputation.IsMaxBlockSizeWithoutThrottleReached(1, len(miniBlock.TxHashes)) {
-		return nil, indexOfLastTxProcessed, false, process.ErrMaxBlockSizeReached
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrMaxBlockSizeReached //! MODIFIED CODE
 	}
 
 	processedTxHashes := make([][]byte, 0)
@@ -519,7 +519,7 @@ func (rtp *rewardTxPreprocessor) ProcessMiniBlock(
 	}
 
 	if err != nil && !partialMbExecutionMode {
-		return processedTxHashes, txIndex - 1, true, err
+		return processedTxHashes, txIndex - 1, true, nil, false, err //! MODIFIED CODE
 	}
 
 	txShardData := &txShardInfo{senderShardID: miniBlock.SenderShardID, receiverShardID: miniBlock.ReceiverShardID}
@@ -533,7 +533,7 @@ func (rtp *rewardTxPreprocessor) ProcessMiniBlock(
 	rtp.blockSizeComputation.AddNumMiniBlocks(1)
 	rtp.blockSizeComputation.AddNumTxs(len(miniBlock.TxHashes))
 
-	return nil, txIndex - 1, false, err
+	return nil, txIndex - 1, false, nil, false, err //! MODIFIED CODE
 }
 
 // CreateMarshalledData marshals reward transactions hashes and saves them into a new structure

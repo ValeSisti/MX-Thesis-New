@@ -5,6 +5,7 @@ import (
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-go/state"
+	"github.com/multiversx/mx-chain-core-go/data"	
 	//! ---------------- END OF NEW CODE -----------------	
 )
 
@@ -37,6 +38,8 @@ type Coordinator interface {
 	WasPreviouslyMineAddrBytes(pubKeyBytes []byte) bool
 	WasPreviouslyMineAddrString(accountAddress string) bool
 	IsAddressStringInAccountsMapping(accountAddress string) bool
+	UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]AccountAjustmentTxsInfo
+	IsMbHashStringInWaitingMbsForAATsNotarization(mbHash string) bool 	
 	//! ---------------- END OF NEW CODE -----------------	
 }
 

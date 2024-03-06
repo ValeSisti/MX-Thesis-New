@@ -572,6 +572,9 @@ func (sr *subroundEndRound) createAndBroadcastHeaderFinalInfo() {
 		sr.Header.GetLeaderSignature(),
 		sr.GetAssociatedPid([]byte(leader)),
 		nil,
+		//! -------------------- NEW CODE --------------------
+		nil,
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 
 	err := sr.BroadcastMessenger().BroadcastConsensusMessage(cnsMsg)
@@ -613,6 +616,9 @@ func (sr *subroundEndRound) createAndBroadcastInvalidSigners(invalidSigners []by
 		nil,
 		sr.GetAssociatedPid([]byte(leader)),
 		invalidSigners,
+		//! -------------------- NEW CODE --------------------
+		nil,
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 
 	err := sr.BroadcastMessenger().BroadcastConsensusMessage(cnsMsg)

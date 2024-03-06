@@ -440,6 +440,12 @@ func (pcf *processComponentsFactory) newShardBlockProcessor(
 	}
 	arguments := block.ArgShardProcessor{
 		ArgBaseProcessor: argumentsBaseProcessor,
+		//! -------------------- NEW CODE --------------------
+		TxSingleSigner: pcf.crypto.TxSingleSigner(),
+		TxPrivateKey: pcf.crypto.TxPrivateKey(),
+		TxPublicKey: pcf.crypto.TxPublicKey(),
+		CoreComponents: pcf.coreData,
+		//! ---------------- END OF NEW CODE -----------------		
 	}
 
 	blockProcessor, err := block.NewShardProcessor(arguments)

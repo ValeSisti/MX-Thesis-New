@@ -18,10 +18,17 @@ import (
 	"github.com/multiversx/mx-chain-go/sharding"
 	"github.com/multiversx/mx-chain-go/sharding/nodesCoordinator"
 	"github.com/multiversx/mx-chain-go/state"
+	//! -------------------- NEW CODE --------------------
+	crypto "github.com/multiversx/mx-chain-crypto-go"
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 type coreComponentsHolder interface {
 	Hasher() hashing.Hasher
+	//! -------------------- NEW CODE --------------------
+	TxSignHasher() hashing.Hasher
+	TxMarshalizer() marshal.Marshalizer
+	//! ---------------- END OF NEW CODE -----------------	
 	InternalMarshalizer() marshal.Marshalizer
 	Uint64ByteSliceConverter() typeConverters.Uint64ByteSliceConverter
 	EpochNotifier() process.EpochNotifier
@@ -100,6 +107,12 @@ type ArgBaseProcessor struct {
 // new instances of shard processor
 type ArgShardProcessor struct {
 	ArgBaseProcessor
+	//! -------------------- NEW CODE --------------------
+	TxSingleSigner crypto.SingleSigner
+	TxPrivateKey crypto.PrivateKey
+	TxPublicKey crypto.PublicKey
+	CoreComponents coreComponentsHolder
+	//! ---------------- END OF NEW CODE -----------------		
 }
 
 // ArgMetaProcessor holds all dependencies required by the process data factory in order to create

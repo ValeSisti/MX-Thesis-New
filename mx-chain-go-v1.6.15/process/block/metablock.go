@@ -189,6 +189,9 @@ func (mp *metaProcessor) ProcessBlock(
 	headerHandler data.HeaderHandler,
 	bodyHandler data.BodyHandler,
 	haveTime func() time.Duration,
+	//! -------------------- NEW CODE --------------------
+	problematicMbsForCurrRound map[string]*data.ProblematicMBInfo,		
+	//! ---------------- END OF NEW CODE -----------------	
 ) error {
 	if haveTime == nil {
 		return process.ErrNilHaveTimeHandler
@@ -716,14 +719,14 @@ func (mp *metaProcessor) RestoreBlockIntoPools(headerHandler data.HeaderHandler,
 func (mp *metaProcessor) CreateBlock(
 	initialHdr data.HeaderHandler,
 	haveTime func() bool,
-) (data.HeaderHandler, data.BodyHandler, error) {
+) (data.HeaderHandler, data.BodyHandler, map[string]*data.ProblematicMBInfo, error) {
 	if check.IfNil(initialHdr) {
-		return nil, nil, process.ErrNilBlockHeader
+		return nil, nil, nil, process.ErrNilBlockHeader //! MODIFIED CODE
 	}
 
 	metaHdr, ok := initialHdr.(*block.MetaBlock)
 	if !ok {
-		return nil, nil, process.ErrWrongTypeAssertion
+		return nil, nil, nil, process.ErrWrongTypeAssertion //! MODIFIED CODE
 	}
 
 	mp.processStatusHandler.SetBusy("metaProcessor.CreateBlock")
@@ -737,39 +740,39 @@ func (mp *metaProcessor) CreateBlock(
 
 	if mp.accountsDB[state.UserAccountsState].JournalLen() != 0 {
 		log.Error("metaProcessor.CreateBlock first entry", "stack", string(mp.accountsDB[state.UserAccountsState].GetStackDebugFirstEntry()))
-		return nil, nil, process.ErrAccountStateDirty
+		return nil, nil, nil, process.ErrAccountStateDirty //! MODIFIED CODE
 	}
 
 	err := mp.processIfFirstBlockAfterEpochStart()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err //! MODIFIED CODE
 	}
 
 	if mp.epochStartTrigger.IsEpochStart() {
 		err = mp.updateEpochStartHeader(metaHdr)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err //! MODIFIED CODE
 		}
 
 		body, err = mp.createEpochStartBody(metaHdr)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err //! MODIFIED CODE
 		}
 	} else {
 		body, err = mp.createBlockBody(metaHdr, haveTime)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err //! MODIFIED CODE
 		}
 	}
 
 	body, err = mp.applyBodyToHeader(metaHdr, body)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err //! MODIFIED CODE
 	}
 
 	mp.requestHandler.SetEpoch(metaHdr.GetEpoch())
 
-	return metaHdr, body, nil
+	return metaHdr, body, nil, nil //! MODIFIED CODE
 }
 
 func (mp *metaProcessor) isPreviousBlockEpochStart() (uint32, bool) {
@@ -1087,7 +1090,8 @@ func (mp *metaProcessor) createAndProcessCrossMiniBlocksDstMe(
 		}
 
 		snapshot := mp.accountsDB[state.UserAccountsState].JournalLen()
-		currMBProcessed, currTxsAdded, hdrProcessFinished, createErr := mp.txCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMe(
+		//TODO: ATTENZIONE QUI. Non è che si creano problemi per le reward transactions? In teoria no, perché quelle sono per i NODI, NON per gli account!
+		currMBProcessed, currTxsAdded, _, hdrProcessFinished, _, createErr := mp.txCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMe( //! MODIFIED CODE
 			currShardHdr,
 			nil,
 			haveTime,

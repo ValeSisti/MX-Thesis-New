@@ -536,10 +536,10 @@ func (scr *smartContractResults) ProcessMiniBlock(
 	partialMbExecutionMode bool,
 	indexOfLastTxProcessed int,
 	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
-) ([][]byte, int, bool, error) {
+) ([][]byte, int, bool, []string, bool, error) { //! MODIFIED CODE
 
 	if miniBlock.Type != block.SmartContractResultBlock {
-		return nil, indexOfLastTxProcessed, false, process.ErrWrongTypeInMiniBlock
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrWrongTypeInMiniBlock //! MODIFIED CODE
 	}
 
 	numSCRsProcessed := 0
@@ -551,16 +551,16 @@ func (scr *smartContractResults) ProcessMiniBlock(
 	indexOfFirstTxToBeProcessed := indexOfLastTxProcessed + 1
 	err = process.CheckIfIndexesAreOutOfBound(int32(indexOfFirstTxToBeProcessed), int32(len(miniBlock.TxHashes))-1, miniBlock)
 	if err != nil {
-		return nil, indexOfLastTxProcessed, false, err
+		return nil, indexOfLastTxProcessed, false, nil, false, err //! MODIFIED CODE
 	}
 
 	miniBlockScrs, miniBlockTxHashes, err := scr.getAllScrsFromMiniBlock(miniBlock, haveTime)
 	if err != nil {
-		return nil, indexOfLastTxProcessed, false, err
+		return nil, indexOfLastTxProcessed, false, nil, false, err //! MODIFIED CODE
 	}
 
 	if scr.blockSizeComputation.IsMaxBlockSizeWithoutThrottleReached(1, len(miniBlock.TxHashes)) {
-		return nil, indexOfLastTxProcessed, false, process.ErrMaxBlockSizeReached
+		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrMaxBlockSizeReached //! MODIFIED CODE
 	}
 
 	gasInfo := gasConsumedInfo{
@@ -641,7 +641,7 @@ func (scr *smartContractResults) ProcessMiniBlock(
 	}
 
 	if err != nil && !partialMbExecutionMode {
-		return processedTxHashes, txIndex - 1, true, err
+		return processedTxHashes, txIndex - 1, true, nil, false, err //! MODIFIED CODE
 	}
 
 	txShardInfoToSet := &txShardInfo{senderShardID: miniBlock.SenderShardID, receiverShardID: miniBlock.ReceiverShardID}
@@ -655,7 +655,7 @@ func (scr *smartContractResults) ProcessMiniBlock(
 	scr.blockSizeComputation.AddNumMiniBlocks(1)
 	scr.blockSizeComputation.AddNumTxs(len(miniBlock.TxHashes))
 
-	return nil, txIndex - 1, false, err
+	return nil, txIndex - 1, false, nil, false, err //! MODIFIED CODE
 }
 
 // CreateMarshalledData marshals smart contract results hashes and saves them into a new structure

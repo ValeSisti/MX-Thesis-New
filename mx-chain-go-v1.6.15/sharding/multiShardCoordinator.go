@@ -8,6 +8,7 @@ import (
 	"github.com/multiversx/mx-chain-go/sharding/nodesCoordinator"
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-go/state"
+	"github.com/multiversx/mx-chain-core-go/data"
 	//! ---------------- END OF NEW CODE -----------------
 )
 
@@ -27,17 +28,17 @@ type AccountsMapping struct {
 
 type SingleAATInfo struct{
 	aatxHash string //the txHash that has been generated for the AAT
-	processed bool //if the AAT has been inserted in a block source side (?)
+	//processed bool //if the AAT has been inserted in a block source side //TODO: non serve a nulla, visto che una AAT qui dentro ce la metto se effettivamente è stata inserita in un blocco e dunque processata source side
 	notarizedOnDest bool //if the AAT has been notarized destination side
 }
 
 type AccountAjustmentTxsInfo struct { //single AAT accessed as AccountAdjustmentTxsInfo.AATsInfo[originalProblematicTxHash]
-	numAATs uint32
+	numAATs int
 	originalProblematicTxHashes []string
 	AATsInfo map[string]SingleAATInfo
 }
 
-type PendingMiniBlocks map[string]AccountAjustmentTxsInfo //accessed as PendingMiniBlocks[originalMBHash]
+type WaitingMbsForAATsNotarization map[string]AccountAjustmentTxsInfo //accessed as WaitingMbsForAATsNotarization[originalMBHash]
 //! ---------------- END OF NEW CODE -----------------	
 
 
@@ -53,6 +54,7 @@ type multiShardCoordinator struct {
 	accountsMapping AccountsMapping
 	addressPubKeyConverter core.PubkeyConverter
 	accountsAdapter state.AccountsAdapter
+	waitingMbsForAATsNotarization map[string]AccountAjustmentTxsInfo
 	//! ---------------- END OF NEW CODE -----------------		
 }
 
@@ -75,7 +77,8 @@ func NewMultiShardCoordinator(numberOfShards, selfId uint32, addressPubKeyConver
         currentEpoch:      0,                    // Assign a value to currentEpoch
         accountsShardInfo: make(map[string]ShardInfo), // Initialize accountsShardInfo map
     }
-	sr.addressPubKeyConverter = addressPubKeyConverter	
+	sr.addressPubKeyConverter = addressPubKeyConverter
+	sr.waitingMbsForAATsNotarization = make(map[string]AccountAjustmentTxsInfo)
 	//! ---------------- END OF NEW CODE -----------------	
 
 	return sr, nil
@@ -337,6 +340,29 @@ func (msc *multiShardCoordinator) WasPreviouslyMineAddrString(accountAddress str
 	}
 	
 	return false
+}
+
+
+func (msc *multiShardCoordinator) UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]AccountAjustmentTxsInfo{
+	for mbHash, mbInfo := range problematicsMBsForCurrRound{
+		aatsInfo := make(map[string]SingleAATInfo)
+		for _, aatHash := range mbInfo.AccAdjTxHashes{
+			aatInfo := SingleAATInfo{aatxHash: aatHash, /*processed: true,*/ notarizedOnDest: false} //TODO: processed non serve a nulla, visto che qui dentro una AAT ce la metto quando è stata effettivamente processata
+			aatsInfo[aatHash] = aatInfo
+		}
+		msc.waitingMbsForAATsNotarization[mbHash] = AccountAjustmentTxsInfo{numAATs: len(mbInfo.AccAdjTxHashes), originalProblematicTxHashes: mbInfo.ProblematicTxHashes, AATsInfo: aatsInfo}
+	}
+	return msc.waitingMbsForAATsNotarization
+}
+
+
+func (msc *multiShardCoordinator) IsMbHashStringInWaitingMbsForAATsNotarization(mbHash string) bool {
+	log.Debug("*** Checking if mbHash is in waitingMbsForAATsNotarization ***", "mbHash", mbHash)
+	log.Debug("*** Printing current msc.waitingMbsForAATNotarization *** ", "msc.waitingMbsForAATsNotarization", msc.waitingMbsForAATsNotarization)
+	
+	_, exists := msc.waitingMbsForAATsNotarization[mbHash]
+	log.Debug("*** returning if mbHash exists in msc.waitingMbsForAATNotarization*** ", "exists", exists)
+	return exists
 }
 
 //! ---------------- END OF NEW CODE -----------------	

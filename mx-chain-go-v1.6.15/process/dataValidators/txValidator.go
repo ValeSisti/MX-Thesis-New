@@ -73,13 +73,21 @@ func NewTxValidator(
 func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransactionHandler) error {
 	//! -------------------- NEW CODE --------------------
 	log.Debug("***CheckTxValidity called***")	
+
+
+	normalTransactionHandler, ok := interceptedTx.Transaction().(data.NormalTransactionHandler)
+	isAccountMigrationTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && !(len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+	isAccountAdjustmentTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && (len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+
+
 	//! ---------------- END OF NEW CODE -----------------			
 	interceptedData, ok := interceptedTx.(process.InterceptedData)
 	if ok {
 		//! -------------------- NEW CODE --------------------
 		log.Debug("***interceptedData, ok := interceptedTx.(process.InterceptedData) cast is ok***")	
 		//! ---------------- END OF NEW CODE -----------------				
-		if txv.whiteListHandler.IsWhiteListed(interceptedData) {
+		if txv.whiteListHandler.IsWhiteListed(interceptedData) && !(isAccountAdjustmentTransaction){ //! MODIFIED CODE -> risolve l'errore tale per cui quando una AAT ri-arriva ad un validator, 
+																									//! questo isWhiteListed ritorna true e quindi la AAT viene riaggiunta alla txPool, causandone il re-inserimento in un nuovo blocco, visto che skippa il controllo sotto (checkIfAATAlreadyInsertedInABlock)
 			//! -------------------- NEW CODE --------------------
 			log.Debug("***interceptedData is not whitelisted inside CheckTxValidity. Returning nil***", "interceptedTx", hex.EncodeToString(interceptedData.Hash()))	
 			//! ---------------- END OF NEW CODE -----------------					
@@ -103,14 +111,11 @@ func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransac
 	}
 	//! -------------------- NEW CODE --------------------
 	
-	normalTransactionHandler, ok := interceptedTx.Transaction().(data.NormalTransactionHandler)
-	isAccountMigrationTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && !(len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
-	isAccountAdjustmentTransaction := ok && len(normalTransactionHandler.GetSignerPubKey()) > 0  && (len(normalTransactionHandler.GetOriginalMiniBlockHash()) > 0 && len(normalTransactionHandler.GetOriginalTxHash()) > 0)
+
 	
 	if (isAccountAdjustmentTransaction){
-		//return txv.checkAccountForAAT(interceptedTx, accountHandler) //TODO: implement
+		return txv.checkIfAATAlreadyInsertedInABlock(interceptedTx, accountHandler) //TODO: implement
 		//TODO: ADD AAT LOGIC
-		return nil
 	}else if (isAccountMigrationTransaction) {
 		//! -------------------- NEW CODE --------------------
 		log.Debug("***isAccountMigrationTransaction = true inside CheckTxValidity. Calling txv.checkAccountForAMT***")	
@@ -313,10 +318,14 @@ func (txv *txValidator) checkMigrationNonce(interceptedTx process.InterceptedTra
 	log.Debug("***txMigrationNonce inside checkMigrationNonce***", "txMigrationNonce", string(txMigrationNonce))		
 	
 	lowerMigrationNonceInTx := txMigrationNonce < accountMigrationNonce
-	log.Debug("***lowerMigrationNonceInTx := txMigrationNonce < accountMigrationNonce***", "lowerMigrationNonceInTx", lowerMigrationNonceInTx, "txMigrationNonce", string(txMigrationNonce), "accountMigrationNonce", string(accountMigrationNonce))		
+	if lowerMigrationNonceInTx {
+		log.Debug("***lowerMigrationNonceInTx := txMigrationNonce < accountMigrationNonce***", "lowerMigrationNonceInTx", lowerMigrationNonceInTx, "txMigrationNonce", string(txMigrationNonce), "accountMigrationNonce", string(accountMigrationNonce))		
+	}
 	
 	veryHighMigrationNonceInTx := txMigrationNonce > accountMigrationNonce+uint64(txv.maxNonceDeltaAllowed)
-	log.Debug("***veryHighMigrationNonceInTx := txMigrationNonce > accountMigrationNonce+uint64(txv.maxNonceDeltaAllowed)***", "veryHighMigrationNonceInTx", veryHighMigrationNonceInTx)		
+	if veryHighMigrationNonceInTx{
+		log.Debug("***veryHighMigrationNonceInTx := txMigrationNonce > accountMigrationNonce+uint64(txv.maxNonceDeltaAllowed)***", "veryHighMigrationNonceInTx", veryHighMigrationNonceInTx)		
+	}
 	
 	if lowerMigrationNonceInTx || veryHighMigrationNonceInTx {
 		return fmt.Errorf("%w lowerMigrationNonceInTx: %v, veryHighMigrationNonceInTx: %v",
@@ -324,6 +333,19 @@ func (txv *txValidator) checkMigrationNonce(interceptedTx process.InterceptedTra
 			lowerMigrationNonceInTx,
 			veryHighMigrationNonceInTx,
 		)
+	}
+	return nil
+}
+
+
+func (txv *txValidator) checkIfAATAlreadyInsertedInABlock(interceptedTx process.InterceptedTransactionHandler, accountHandler vmcommon.AccountHandler) error{
+	//? check if AAT was removed before -> (implies) has been already inserted in a block
+	originalMbHashBytes := interceptedTx.Transaction().(data.NormalTransactionHandler).GetOriginalMiniBlockHash()
+	originalMbHashString := hex.EncodeToString(originalMbHashBytes)
+
+	if txv.shardCoordinator.IsMbHashStringInWaitingMbsForAATsNotarization(originalMbHashString) || txv.shardCoordinator.IsMbHashStringInWaitingMbsForAATsNotarization(string(originalMbHashBytes)){
+		log.Debug("***---------------AAT has already been inserted in a block and won't be processed again source side--------------- THIS SHOULD SOLVE THE PROBLEM OF AATs INSERTED MULTIPLE TIMES IN SUBSEQUENT BLOCKS***")
+		return process.ErrAATAlreadyProcessed
 	}
 	return nil
 }

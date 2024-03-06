@@ -133,6 +133,9 @@ func (sr *subroundSignature) createAndSendSignatureMessage(signatureShare []byte
 		nil,
 		sr.GetAssociatedPid(pkBytes),
 		nil,
+		//! -------------------- NEW CODE --------------------
+		nil,
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 
 	err := sr.BroadcastMessenger().BroadcastConsensusMessage(cnsMsg)

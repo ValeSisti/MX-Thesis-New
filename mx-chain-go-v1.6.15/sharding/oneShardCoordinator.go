@@ -4,6 +4,7 @@ import (
 	"github.com/multiversx/mx-chain-core-go/core"
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-go/state"
+	"github.com/multiversx/mx-chain-core-go/data"
 	//! ---------------- END OF NEW CODE -----------------
 )
 
@@ -59,27 +60,27 @@ func (osc *OneShardCoordinator) UpdateAccountsMappingEntryFromPubKeyBytes(pubKey
 	return AccountsMapping{}
 }
 
-func (msc *OneShardCoordinator) GetCurrentShardFromAddressString(accountAddress string) uint32 {
+func (osc *OneShardCoordinator) GetCurrentShardFromAddressString(accountAddress string) uint32 {
 	return 999
 }
 
-func (msc *OneShardCoordinator) GetCurrentShardFromAddressBytes(pubKeyBytes []byte) uint32 {
+func (osc *OneShardCoordinator) GetCurrentShardFromAddressBytes(pubKeyBytes []byte) uint32 {
 	return 999
 }
 
-func (msc *OneShardCoordinator) GetOldShardFromAddressString(accountAddress string) uint32 {
+func (osc *OneShardCoordinator) GetOldShardFromAddressString(accountAddress string) uint32 {
 	return 999
 }
 
-func (msc *OneShardCoordinator) GetOldShardFromAddressBytes(pubKeyBytes []byte) uint32 {
+func (osc *OneShardCoordinator) GetOldShardFromAddressBytes(pubKeyBytes []byte) uint32 {
 	return 999
 }
 
-func (msc *OneShardCoordinator) GetEpochOfUpdateFromAddressString(accountAddress string) uint32 {
+func (osc *OneShardCoordinator) GetEpochOfUpdateFromAddressString(accountAddress string) uint32 {
 	return 999
 }
 
-func (msc *OneShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes []byte) uint32 {
+func (osc *OneShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes []byte) uint32 {
 	return 999
 }
 
@@ -117,7 +118,15 @@ func (osc *OneShardCoordinator) WasPreviouslyMineAddrString(accountAddress strin
 	return false
 }
 
-func (msc *OneShardCoordinator) IsAddressStringInAccountsMapping(accountAddress string) bool {
+func (osc *OneShardCoordinator) IsAddressStringInAccountsMapping(accountAddress string) bool {
+	return false
+}
+
+func (osc *OneShardCoordinator) UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]AccountAjustmentTxsInfo{
+	return nil
+}
+
+func (osc *OneShardCoordinator) IsMbHashStringInWaitingMbsForAATsNotarization(mbHash string) bool {
 	return false
 }
 //! ---------------- END OF NEW CODE -----------------	

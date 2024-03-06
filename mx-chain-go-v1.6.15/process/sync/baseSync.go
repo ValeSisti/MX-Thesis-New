@@ -649,7 +649,7 @@ func (boot *baseBootstrap) syncBlock() error {
 	}
 
 	startProcessBlockTime := time.Now()
-	err = boot.blockProcessor.ProcessBlock(header, body, haveTime)
+	err = boot.blockProcessor.ProcessBlock(header, body, haveTime, make(map[string]*data.ProblematicMBInfo)) //! MODIFIED CODE
 	elapsedTime := time.Since(startProcessBlockTime)
 	log.Debug("elapsed time to process block",
 		"time [s]", elapsedTime,

@@ -45,7 +45,7 @@ import (
 	vmcommon "github.com/multiversx/mx-chain-vm-common-go"
 	//! ------------------- NEW CODE ---------------------
 	"github.com/multiversx/mx-chain-crypto-go"
-	//! ---------------- END OF NEW CODE -----------------		
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 const (
@@ -1533,6 +1533,7 @@ func (n *Node) CreateCustomTransaction(senderHex string, receiverHex string, val
 	}
 
     // Generate signature data
+	//? occhio: il marshalizer per GetDataForSigning deve essere il TxMarshalizer(), mentre quello per CalculateHash deve essere l'InternalMarshalizer
 	txSigningData, err := tx.GetDataForSigning(n.coreComponents.AddressPubKeyConverter(), n.coreComponents.TxMarshalizer(), n.coreComponents.TxSignHasher())
 	if err != nil {
 		return nil, nil, nil, errors.New("could not marshal transaction for signing")
@@ -1609,6 +1610,8 @@ func (n *Node) CreateAccountMigrationTransaction(
 		SenderShard: 	sourceShard,
 		ReceiverShard: 	destinationShard,
 		//SignerPubKey: 	publicKeyBytes,
+		OriginalTxHash:   []byte(""),
+		OriginalMiniBlockHash: []byte(""),
 	}
 
 	log.Debug("***PRINTING tx.SenderShard & txR.ReceiverShard inside CreateAccountMigrationTransaction", "tx.SenderShard", string(tx.SenderShard), "tx.ReceiverShard", string(tx.ReceiverShard))

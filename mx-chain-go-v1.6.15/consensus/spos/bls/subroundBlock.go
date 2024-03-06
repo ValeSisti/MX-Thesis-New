@@ -89,13 +89,13 @@ func (sr *subroundBlock) doBlockJob(ctx context.Context) bool {
 		return false
 	}
 
-	header, body, err := sr.createBlock(header)
+	header, body, problematicMiniBlocksForCurrentRound, err := sr.createBlock(header) //! MODIFIED CODE
 	if err != nil {
 		printLogMessage(ctx, "doBlockJob.createBlock", err)
 		return false
 	}
 
-	sentWithSuccess := sr.sendBlock(header, body)
+	sentWithSuccess := sr.sendBlock(header, body, problematicMiniBlocksForCurrentRound) //! MODIFIED CODE
 	if !sentWithSuccess {
 		return false
 	}
@@ -128,7 +128,7 @@ func printLogMessage(ctx context.Context, baseMessage string, err error) {
 	log.Debug(baseMessage, "error", err.Error())
 }
 
-func (sr *subroundBlock) sendBlock(header data.HeaderHandler, body data.BodyHandler) bool {
+func (sr *subroundBlock) sendBlock(header data.HeaderHandler, body data.BodyHandler, problematicMBsInfoForCurrentRound map[string]*data.ProblematicMBInfo) bool { //! MODIFIED CODE
 	marshalizedBody, err := sr.Marshalizer().Marshal(body)
 	if err != nil {
 		log.Debug("sendBlock.Marshal: body", "error", err.Error())
@@ -141,11 +141,20 @@ func (sr *subroundBlock) sendBlock(header data.HeaderHandler, body data.BodyHand
 		return false
 	}
 
+	//! -------------------- NEW CODE --------------------
+	marshalizableProblematicMBs := sr.getMarshalizableProblematicMBsInfo(problematicMBsInfoForCurrentRound)
+	marshalizedProblematicMBInfo, err := sr.Marshalizer().Marshal(marshalizableProblematicMBs)
+	if err != nil {
+		log.Debug("***ERROR WHEN MARSHALIZING problematicMBsInfoForCurrentRound***", "error", err.Error())
+		return false
+	}
+	//! ---------------- END OF NEW CODE -----------------	
+
 	if sr.couldBeSentTogether(marshalizedBody, marshalizedHeader) {
-		return sr.sendHeaderAndBlockBody(header, body, marshalizedBody, marshalizedHeader)
+		return sr.sendHeaderAndBlockBody(header, body, marshalizedBody, marshalizedHeader, marshalizedProblematicMBInfo) //! MODIFIED CODE
 	}
 
-	if !sr.sendBlockBody(body, marshalizedBody) || !sr.sendBlockHeader(header, marshalizedHeader) {
+	if !sr.sendBlockBody(body, marshalizedBody) || !sr.sendBlockHeader(header, marshalizedHeader, marshalizedProblematicMBInfo) {
 		return false
 	}
 
@@ -162,22 +171,22 @@ func (sr *subroundBlock) couldBeSentTogether(marshalizedBody []byte, marshalized
 	return bodyAndHeaderSize <= maxAllowedSizeInBytes
 }
 
-func (sr *subroundBlock) createBlock(header data.HeaderHandler) (data.HeaderHandler, data.BodyHandler, error) {
+func (sr *subroundBlock) createBlock(header data.HeaderHandler) (data.HeaderHandler, data.BodyHandler, map[string]*data.ProblematicMBInfo, error) { //! MODIFIED CODE
 	startTime := sr.RoundTimeStamp
 	maxTime := time.Duration(sr.EndTime())
 	haveTimeInCurrentSubround := func() bool {
 		return sr.RoundHandler().RemainingTime(startTime, maxTime) > 0
 	}
 
-	finalHeader, blockBody, err := sr.BlockProcessor().CreateBlock(
+	finalHeader, blockBody, problematicMiniBlocksForCurrentRound, err := sr.BlockProcessor().CreateBlock( //! MODIFIED CODE
 		header,
 		haveTimeInCurrentSubround,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err //! MODIFIED CODE
 	}
 
-	return finalHeader, blockBody, nil
+	return finalHeader, blockBody, problematicMiniBlocksForCurrentRound, nil //! MODIFIED CODE
 }
 
 // sendHeaderAndBlockBody method sends the proposed header and block body in the subround Block
@@ -186,6 +195,9 @@ func (sr *subroundBlock) sendHeaderAndBlockBody(
 	bodyHandler data.BodyHandler,
 	marshalizedBody []byte,
 	marshalizedHeader []byte,
+	//! -------------------- NEW CODE --------------------
+	marshalizedProblematicMBs []byte,
+	//! ---------------- END OF NEW CODE -----------------	
 ) bool {
 	headerHash := sr.Hasher().Compute(string(marshalizedHeader))
 
@@ -210,6 +222,9 @@ func (sr *subroundBlock) sendHeaderAndBlockBody(
 		nil,
 		sr.GetAssociatedPid([]byte(leader)),
 		nil,
+		//! -------------------- NEW CODE --------------------
+		marshalizedProblematicMBs,
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 
 	err := sr.BroadcastMessenger().BroadcastConsensusMessage(cnsMsg)
@@ -252,6 +267,9 @@ func (sr *subroundBlock) sendBlockBody(bodyHandler data.BodyHandler, marshalized
 		nil,
 		sr.GetAssociatedPid([]byte(leader)),
 		nil,
+		//! -------------------- NEW CODE --------------------
+		nil,
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 
 	err := sr.BroadcastMessenger().BroadcastConsensusMessage(cnsMsg)
@@ -268,7 +286,7 @@ func (sr *subroundBlock) sendBlockBody(bodyHandler data.BodyHandler, marshalized
 }
 
 // sendBlockHeader method sends the proposed block header in the subround Block
-func (sr *subroundBlock) sendBlockHeader(headerHandler data.HeaderHandler, marshalizedHeader []byte) bool {
+func (sr *subroundBlock) sendBlockHeader(headerHandler data.HeaderHandler, marshalizedHeader []byte,  marshalizedProblematicMBs []byte) bool { //! MODIFIED CODE
 	headerHash := sr.Hasher().Compute(string(marshalizedHeader))
 
 	leader, errGetLeader := sr.GetLeader()
@@ -292,6 +310,9 @@ func (sr *subroundBlock) sendBlockHeader(headerHandler data.HeaderHandler, marsh
 		nil,
 		sr.GetAssociatedPid([]byte(leader)),
 		nil,
+		//! -------------------- NEW CODE --------------------
+		marshalizedProblematicMBs,
+		//! ---------------- END OF NEW CODE -----------------		
 	)
 
 	err := sr.BroadcastMessenger().BroadcastConsensusMessage(cnsMsg)
@@ -569,10 +590,20 @@ func (sr *subroundBlock) processReceivedBlock(ctx context.Context, cnsDta *conse
 	metricStatTime := time.Now()
 	defer sr.computeSubroundProcessingMetric(metricStatTime, common.MetricProcessedProposedBlock)
 
+	//! -------------------- NEW CODE --------------------
+	problematicMBsForCurrentRound := sr.decodeAndTransformMarshaledProblematicMBsForCurrentRound(cnsDta.ProblematicMBsForCurrentRound)
+	logReceivedProblematicMBs(problematicMBsForCurrentRound)
+	//! ---------------- END OF NEW CODE -----------------		
+
 	err := sr.BlockProcessor().ProcessBlock(
 		sr.Header,
 		sr.Body,
 		remainingTimeInCurrentRound,
+		//! -------------------- NEW CODE --------------------
+		//TODO: RIPARTI DA QUI: add cnsDta.ProblematicMBsForCurrentRoiund (unmarshaled e trasformate in map[string]*data.ProblematicMBInfo???!!!!!!)
+		problematicMBsForCurrentRound,		
+		//! ---------------- END OF NEW CODE -----------------		
+
 	)
 
 	if cnsDta.RoundIndex < sr.RoundHandler().Index() {
@@ -683,3 +714,50 @@ func (sr *subroundBlock) getRoundInLastCommittedBlock() int64 {
 func (sr *subroundBlock) IsInterfaceNil() bool {
 	return sr == nil
 }
+
+
+//! -------------------- NEW CODE --------------------
+func (sr *subroundBlock) getMarshalizableProblematicMBsInfo(problematicMBsInfo map[string]*data.ProblematicMBInfo) *consensus.ProblematicMBsForCurrentRound {
+	marshalizableProblematicMBsInfo := &consensus.ProblematicMBsForCurrentRound{}
+	
+	for mbHash, mbInfo := range problematicMBsInfo {
+		problematicMBInfo := &consensus.ProblematicMBInfo{
+			ProblematicMBHash: mbHash,
+			ProblematicTxHashes: mbInfo.ProblematicTxHashes,
+			AccAdjTxHashes: mbInfo.AccAdjTxHashes,
+		}
+		marshalizableProblematicMBsInfo.ProblematicMiniBlocks = append(marshalizableProblematicMBsInfo.ProblematicMiniBlocks, problematicMBInfo)
+	}
+	
+	return marshalizableProblematicMBsInfo
+}
+
+
+func (sr *subroundBlock) decodeAndTransformMarshaledProblematicMBsForCurrentRound(marshalizedProblematicMBs []byte) map[string]*data.ProblematicMBInfo{
+	problematicMBsInfoMessage := &consensus.ProblematicMBsForCurrentRound{}
+	problematicMBsInfo := make(map[string]*data.ProblematicMBInfo)
+
+	err := sr.Marshalizer().Unmarshal(problematicMBsInfoMessage, marshalizedProblematicMBs)
+	if err != nil{
+		log.Debug("***Error: cannot unmarshal problematic MBs!", "err", err.Error())
+	}
+
+	for _, mbInfo := range problematicMBsInfoMessage.ProblematicMiniBlocks{
+		problematicMBsInfo[mbInfo.ProblematicMBHash] = &data.ProblematicMBInfo{ProblematicTxHashes: mbInfo.ProblematicTxHashes, AccAdjTxHashes: mbInfo.AccAdjTxHashes}
+	}
+	
+	return problematicMBsInfo
+}
+
+func logReceivedProblematicMBs(problematicMBsForCurrentRound map[string]*data.ProblematicMBInfo) {
+	if len(problematicMBsForCurrentRound) > 0 {
+		
+		log.Debug("***VALIDATOR RECEIVED non-empty ProblematicMBSForCurrentRound from leader***")		
+		
+		for mbHash, mbInfo := range problematicMBsForCurrentRound{
+			log.Debug("***MB info***", "mbHahs", mbHash, "problematicTxHashes", mbInfo.ProblematicTxHashes, "accAdjTxHashes", mbInfo.AccAdjTxHashes)
+		}
+	}	
+}
+//! ---------------- END OF NEW CODE -----------------
+
