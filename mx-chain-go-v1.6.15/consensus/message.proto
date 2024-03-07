@@ -15,6 +15,7 @@ message ProblematicMBInfo{
 	string ProblematicMBHash = 1;
 	repeated string ProblematicTxHashes = 2;
 	repeated string AccAdjTxHashes = 3;
+	uint32 SenderShardId = 4;
 }
 
 // Message defines the data needed by spos to communicate between nodes over network in all subrounds
