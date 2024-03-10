@@ -326,7 +326,7 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 	//! SCOMMENTARE
 	///*
 	//TODO: spostare dentro CreateSingleAccountMigrationClean
-	if (epoch == uint32(1)){
+	if (epoch == uint32(2)){
 		currentAccountsMapping := h.currentNode.processComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destinationShardId, epoch)		
 		log.Debug("***Current Accounts Mapping***", "accountsMapping", currentAccountsMapping)
 	}

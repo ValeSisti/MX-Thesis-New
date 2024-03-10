@@ -26,19 +26,21 @@ type AccountsMapping struct {
 	accountsShardInfo map[string]ShardInfo //TODO: should I put *ShardInfo instead???
 }
 
-type SingleAATInfo struct{
+/*type SingleAATInfo struct{
 	aatxHash string //the txHash that has been generated for the AAT
 	//processed bool //if the AAT has been inserted in a block source side //TODO: non serve a nulla, visto che una AAT qui dentro ce la metto se effettivamente è stata inserita in un blocco e dunque processata source side
 	notarizedOnDest bool //if the AAT has been notarized destination side
 }
 
+//TODO: rename in "ProblematicMBInfo"
 type AccountAjustmentTxsInfo struct { //single AAT accessed as AccountAdjustmentTxsInfo.AATsInfo[originalProblematicTxHash]
 	numAATs int
+	numNotarizedAATs int
 	originalProblematicTxHashes []string
-	AATsInfo map[string]SingleAATInfo
-}
+	AATsInfo map[string]*SingleAATInfo
+	senderShardId uint32
+}*/
 
-type WaitingMbsForAATsNotarization map[string]AccountAjustmentTxsInfo //accessed as WaitingMbsForAATsNotarization[originalMBHash]
 //! ---------------- END OF NEW CODE -----------------	
 
 
@@ -54,7 +56,7 @@ type multiShardCoordinator struct {
 	accountsMapping AccountsMapping
 	addressPubKeyConverter core.PubkeyConverter
 	accountsAdapter state.AccountsAdapter
-	waitingMbsForAATsNotarization map[string]AccountAjustmentTxsInfo
+	waitingMbsForAATsNotarization map[string]*data.AccountAjustmentTxsInfo
 	//! ---------------- END OF NEW CODE -----------------		
 }
 
@@ -78,7 +80,7 @@ func NewMultiShardCoordinator(numberOfShards, selfId uint32, addressPubKeyConver
         accountsShardInfo: make(map[string]ShardInfo), // Initialize accountsShardInfo map
     }
 	sr.addressPubKeyConverter = addressPubKeyConverter
-	sr.waitingMbsForAATsNotarization = make(map[string]AccountAjustmentTxsInfo)
+	sr.waitingMbsForAATsNotarization = make(map[string]*data.AccountAjustmentTxsInfo)
 	//! ---------------- END OF NEW CODE -----------------	
 
 	return sr, nil
@@ -265,6 +267,15 @@ func (msc *multiShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes [
 	return msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch
 }
 
+func (msc *multiShardCoordinator) HasBeenMigratedInCurrentEpochFromAddrBytes(pubKeyBytes []byte) bool {
+	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	return msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch == msc.accountsMapping.currentEpoch
+}
+
+func (msc *multiShardCoordinator) HasBeenMigratedInCurrentEpochFromAddrString(accountAddress string) bool {
+	return msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch == msc.accountsMapping.currentEpoch
+}
+
 func (msc *multiShardCoordinator) GetShardInfoFromAddressString(accountAddress string) ShardInfo {
 	return msc.accountsMapping.accountsShardInfo[accountAddress]
 }
@@ -343,14 +354,24 @@ func (msc *multiShardCoordinator) WasPreviouslyMineAddrString(accountAddress str
 }
 
 
-func (msc *multiShardCoordinator) UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]AccountAjustmentTxsInfo{
+func (msc *multiShardCoordinator) UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]*data.AccountAjustmentTxsInfo{
 	for mbHash, mbInfo := range problematicsMBsForCurrRound{
-		aatsInfo := make(map[string]SingleAATInfo)
+		aatsInfo := make(map[string]*data.SingleAATInfo)
 		for _, aatHash := range mbInfo.AccAdjTxHashes{
-			aatInfo := SingleAATInfo{aatxHash: aatHash, /*processed: true,*/ notarizedOnDest: false} //TODO: processed non serve a nulla, visto che qui dentro una AAT ce la metto quando è stata effettivamente processata
+			aatInfo := &data.SingleAATInfo{
+				AatxHash: aatHash,
+				NotarizedOnDest: false,
+			}
 			aatsInfo[aatHash] = aatInfo
 		}
-		msc.waitingMbsForAATsNotarization[mbHash] = AccountAjustmentTxsInfo{numAATs: len(mbInfo.AccAdjTxHashes), originalProblematicTxHashes: mbInfo.ProblematicTxHashes, AATsInfo: aatsInfo}
+		msc.waitingMbsForAATsNotarization[mbHash] = &data.AccountAjustmentTxsInfo{
+			NumAATs: len(mbInfo.AccAdjTxHashes), 
+			NumNotarizedAATs: 0, 
+			OriginalProblematicTxHashes: mbInfo.ProblematicTxHashes, 
+			AATsInfo: aatsInfo, 
+			SenderShardId: mbInfo.SenderShardID,
+			//IncludedInBlock: false,
+		}
 	}
 	return msc.waitingMbsForAATsNotarization
 }
@@ -365,6 +386,65 @@ func (msc *multiShardCoordinator) IsMbHashStringInWaitingMbsForAATsNotarization(
 	return exists
 }
 
+func (msc *multiShardCoordinator) SetNotarizedAATInWaitingMbsForAATsNotarization(aatHash string, mbHash string) (bool, int, int) {
+	aatsInfo, ok := msc.waitingMbsForAATsNotarization[mbHash]
+	if !ok {
+		log.Debug("*** Error: cannot find mbHash inside waitingMbsForAATsNotarization ***")
+		return false, 0, 0
+	}
+	aatInfo, ok := aatsInfo.AATsInfo[aatHash]
+	if !ok {
+		log.Debug("*** Error: cannot find aatHash inside waitingMbsForAATsNotarization[mbHash].AATsInfo ***")
+		return false, 0, 0
+	}
+	if !aatInfo.NotarizedOnDest{
+		aatInfo.NotarizedOnDest = true
+		aatsInfo.NumNotarizedAATs += 1
+		log.Debug("*** aatInfo.notarizedOnDest set true for AAT inside waitingMbs... ***", "aatHash", aatHash)
+		return true, aatsInfo.NumAATs, aatsInfo.NumNotarizedAATs
+	}
+	//msc.waitingMbsForAATsNotarization[mbHash].AATsInfo[aatHash].notarizedOnDest = true //? -> fatto direttamente così non worka
+	log.Debug("*** Error: (?) aatInfo.notarizedOnDest was already true inside waitingForAATsNtoarization[mbHash] ***")
+	return false, 0, 0
+}
+
+func (msc *multiShardCoordinator) GetMbsWithAllAATsNotarizedFromWaitingMBs() map[string]*data.AccountAjustmentTxsInfo {
+	log.Debug("*** GetMbsWithAllAATsNotarizedFromWaitingMBs called ***")
+	mbsWithAllAAtsNotarized := make(map[string]*data.AccountAjustmentTxsInfo)
+
+	for mbHash, aatsInfo := range msc.waitingMbsForAATsNotarization{
+		log.Debug("*** checking if mb is ready to be processed inside waitingMbsForAATsNotarization", "numAAts", aatsInfo.NumAATs, "numNotarizedAAts", aatsInfo.NumNotarizedAATs)
+		if aatsInfo.NumNotarizedAATs == aatsInfo.NumAATs{
+			log.Debug("*** Found mb ready to be processed inside waitingMbsForAATsNotarization ***", "mbHash", mbHash)
+			mbsWithAllAAtsNotarized[mbHash]= aatsInfo
+		}
+	}
+
+	log.Debug("*** Returning mbs with ALL aats notarized from waiting mbs: ***", "mbsWithAllAATsNotarized", mbsWithAllAAtsNotarized)
+
+	return mbsWithAllAAtsNotarized
+}
+
+func (msc *multiShardCoordinator) IsProblematicMBReadyToBeProcessed(mbHash string) bool {
+	log.Debug("*** IsProblematicMBReadyToBeProcessed called ***", "mbHash", mbHash)
+	log.Debug("*** Current msc.waitingMbsForAATsNotarization ***", "msc.waitingMbsForAATsNotarization", msc.waitingMbsForAATsNotarization)
+
+	mbInfo, found := msc.waitingMbsForAATsNotarization[mbHash]
+	if found {
+		if mbInfo.NumAATs == mbInfo.NumNotarizedAATs{
+			return true
+		}
+	}
+	return false
+}
+
+func (msc *multiShardCoordinator) RemoveReadyMbsInsertedInCurrentRoundFromWaitingMbs(readyMbsIncludedInCurrentBlock map[string]bool) map[string]*data.AccountAjustmentTxsInfo{
+	for mbHash, _ := range readyMbsIncludedInCurrentBlock{
+		delete(msc.waitingMbsForAATsNotarization, mbHash)
+		log.Debug("*** ready mb inserted in current round removed from waitingMbsForAATsNotarization ***", "mbHash", mbHash)
+	}
+	return msc.waitingMbsForAATsNotarization
+}
 //! ---------------- END OF NEW CODE -----------------	
 
 // IsInterfaceNil returns true if there is no value under the interface

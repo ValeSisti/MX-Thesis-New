@@ -611,8 +611,28 @@ func (bp *baseProcessor) sortHeadersForCurrentBlockByNonce(usedInBlock bool) map
 func (bp *baseProcessor) sortHeaderHashesForCurrentBlockByNonce(usedInBlock bool) map[uint32][][]byte {
 	hdrsForCurrentBlockInfo := make(map[uint32][]*nonceAndHashInfo)
 
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** --------- CHECKING NIL VALUES --------- ***",
+		"bp.hdrsForCurrBlock == nil ", bp.hdrsForCurrBlock == nil,
+	)
+	//! ---------------- END OF NEW CODE -----------------		
 	bp.hdrsForCurrBlock.mutHdrsForBlock.RLock()
+
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** --------- CHECKING NIL VALUES --------- ***",
+		"bp.hdrsForCurrBlock.hdrHashAndInfo == nil ", bp.hdrsForCurrBlock.hdrHashAndInfo == nil,
+		"len(bp.hdrsForCurrBlock.hdrHashAndInfo)", len(bp.hdrsForCurrBlock.hdrHashAndInfo),
+	)
+	//! ---------------- END OF NEW CODE -----------------	
+
 	for metaBlockHash, headerInfo := range bp.hdrsForCurrBlock.hdrHashAndInfo {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** --------- CHECKING NIL VALUES --------- ***",
+			"headerInfo == nil ", headerInfo == nil,
+			"headerInfo.hdr == nil", headerInfo.hdr == nil,
+			"metaBlockHash", metaBlockHash,
+		)
+		//! ---------------- END OF NEW CODE -----------------		
 		if headerInfo.usedInBlock != usedInBlock {
 			continue
 		}

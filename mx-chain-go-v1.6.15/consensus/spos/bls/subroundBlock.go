@@ -718,13 +718,14 @@ func (sr *subroundBlock) IsInterfaceNil() bool {
 
 //! -------------------- NEW CODE --------------------
 func (sr *subroundBlock) getMarshalizableProblematicMBsInfo(problematicMBsInfo map[string]*data.ProblematicMBInfo) *consensus.ProblematicMBsForCurrentRound {
-	marshalizableProblematicMBsInfo := &consensus.ProblematicMBsForCurrentRound{}
+	marshalizableProblematicMBsInfo := &consensus.ProblematicMBsForCurrentRound{ProblematicMiniBlocks: make([]*consensus.ProblematicMBInfo, 0)}
 	
 	for mbHash, mbInfo := range problematicMBsInfo {
 		problematicMBInfo := &consensus.ProblematicMBInfo{
 			ProblematicMBHash: mbHash,
 			ProblematicTxHashes: mbInfo.ProblematicTxHashes,
 			AccAdjTxHashes: mbInfo.AccAdjTxHashes,
+			SenderShardId: mbInfo.SenderShardID,
 		}
 		marshalizableProblematicMBsInfo.ProblematicMiniBlocks = append(marshalizableProblematicMBsInfo.ProblematicMiniBlocks, problematicMBInfo)
 	}
@@ -743,7 +744,7 @@ func (sr *subroundBlock) decodeAndTransformMarshaledProblematicMBsForCurrentRoun
 	}
 
 	for _, mbInfo := range problematicMBsInfoMessage.ProblematicMiniBlocks{
-		problematicMBsInfo[mbInfo.ProblematicMBHash] = &data.ProblematicMBInfo{ProblematicTxHashes: mbInfo.ProblematicTxHashes, AccAdjTxHashes: mbInfo.AccAdjTxHashes}
+		problematicMBsInfo[mbInfo.ProblematicMBHash] = &data.ProblematicMBInfo{ProblematicTxHashes: mbInfo.ProblematicTxHashes, AccAdjTxHashes: mbInfo.AccAdjTxHashes, SenderShardID: mbInfo.SenderShardId}
 	}
 	
 	return problematicMBsInfo

@@ -536,6 +536,10 @@ func (scr *smartContractResults) ProcessMiniBlock(
 	partialMbExecutionMode bool,
 	indexOfLastTxProcessed int,
 	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
+	//! -------------------- NEW CODE --------------------
+	calledForReadyMbs bool,
+	readyMbInfo *data.AccountAjustmentTxsInfo,
+	//! ---------------- END OF NEW CODE -----------------		
 ) ([][]byte, int, bool, []string, bool, error) { //! MODIFIED CODE
 
 	if miniBlock.Type != block.SmartContractResultBlock {

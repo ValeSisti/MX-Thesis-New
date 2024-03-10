@@ -2,16 +2,27 @@
 package block
 
 import (
+	//! -------------------- NEW CODE --------------------
+	"encoding/hex"
+	//! ---------------- END OF NEW CODE -----------------	
 	"fmt"
 	"math/big"
 
 	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/headerVersionData"
+	//! -------------------- NEW CODE --------------------
+	logger "github.com/multiversx/mx-chain-logger-go"
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 // TODO: add access protection through wrappers
 var _ = data.HeaderHandler(&Header{})
 var _ = data.ShardHeaderHandler(&Header{})
+
+
+//! -------------------- NEW CODE --------------------
+var log = logger.GetOrCreate("block/block")
+//! ---------------- END OF NEW CODE -----------------
 
 // MiniBlockSlice should be used when referring to subset of mini blocks that is not
 //  necessarily representing a full block body
@@ -208,6 +219,9 @@ func (h *Header) SetShardID(shId uint32) error {
 
 // GetMiniBlockHeadersWithDst as a map of hashes and sender IDs
 func (h *Header) GetMiniBlockHeadersWithDst(destId uint32) map[string]uint32 {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** GetMiniBlockHeadersWithDst called inside block ***")
+	//! ---------------- END OF NEW CODE -----------------			
 	if h == nil {
 		return nil
 	}
@@ -220,6 +234,26 @@ func (h *Header) GetMiniBlockHeadersWithDst(destId uint32) map[string]uint32 {
 	}
 	return hashDst
 }
+
+//! -------------------- NEW CODE --------------------
+// GetMiniBlockHeadersWithDst as a map of hashes and sender IDs
+func (h *Header) GetMiniBlockHeadersWithDstInHexString(destId uint32) map[string]string {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** GetMiniBlockHeadersWithDstInHexString called inside block ***")
+	//! ---------------- END OF NEW CODE -----------------			
+	if h == nil {
+		return nil
+	}
+
+	hashDst := make(map[string]string)
+	for _, val := range h.MiniBlockHeaders {
+		if val.ReceiverShardID == destId && val.SenderShardID != destId {
+			hashDst[string(val.Hash)] = hex.EncodeToString(val.Hash)
+		}
+	}
+	return hashDst
+}
+//! ---------------- END OF NEW CODE -----------------
 
 // GetOrderedCrossMiniblocksWithDst gets all cross miniblocks with the given destination shard ID, ordered in a
 // chronological way, taking into consideration the round in which they were created/executed in the sender shard

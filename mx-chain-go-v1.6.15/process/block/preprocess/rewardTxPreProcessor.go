@@ -467,7 +467,11 @@ func (rtp *rewardTxPreprocessor) ProcessMiniBlock(
 	partialMbExecutionMode bool,
 	indexOfLastTxProcessed int,
 	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
-	) ([][]byte, int, bool, []string, bool, error) { //txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
+	//! -------------------- NEW CODE --------------------
+	calledForReadyMbs bool,
+	readyMbInfo *data.AccountAjustmentTxsInfo,
+	//! ---------------- END OF NEW CODE -----------------	
+) ([][]byte, int, bool, []string, bool, error) { //txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
 
 	var err error
 	var txIndex int

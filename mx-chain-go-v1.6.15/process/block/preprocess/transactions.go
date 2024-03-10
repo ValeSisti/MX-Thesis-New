@@ -1600,7 +1600,11 @@ func (txs *transactions) ProcessMiniBlock(
 	partialMbExecutionMode bool,
 	indexOfLastTxProcessed int,
 	preProcessorExecutionInfoHandler process.PreProcessorExecutionInfoHandler,
-	) ([][]byte, int, bool, []string, bool, error) { // txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
+	//! -------------------- NEW CODE --------------------
+	calledForReadyMbs bool,
+	readyMbInfo *data.AccountAjustmentTxsInfo,
+	//! ---------------- END OF NEW CODE -----------------		
+) ([][]byte, int, bool, []string, bool, error) { // txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
 
 	if miniBlock.Type != block.TxBlock {
 		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrWrongTypeInMiniBlock //! MODIFIED CODE
@@ -1679,32 +1683,43 @@ func (txs *transactions) ProcessMiniBlock(
 	isCrossDstMe := !(miniBlock.SenderShardID == selfShardId) && miniBlock.ReceiverShardID == selfShardId
 
 
+	if !calledForReadyMbs{ //? then check for problematicTxs
+		maxLength := len(miniBlockTxHashes)
+		problematicTxHashesFromMb := make([]string, 0, maxLength)
+		isMiniBlockProblematic := false
 
-	maxLength := len(miniBlockTxHashes)
-	problematicTxHashesFromMb := make([]string, 0, maxLength)
-	isMiniBlockProblematic := false
-
-	for txIndex = indexOfFirstTxToBeProcessed; txIndex < len(miniBlockTxs); txIndex++ {
-		isTxProblematic := txs.isTxProblematic(miniBlockTxs[txIndex].GetRcvAddr())
-		if isTxProblematic{
-			if !isMiniBlockProblematic{
-				isMiniBlockProblematic = true
+		for txIndex = indexOfFirstTxToBeProcessed; txIndex < len(miniBlockTxs); txIndex++ {
+			isTxProblematic := txs.isTxProblematic(miniBlockTxs[txIndex].GetRcvAddr())
+			if isTxProblematic{
+				if !isMiniBlockProblematic{
+					isMiniBlockProblematic = true
+				}
+				problematicTxHashesFromMb = append(problematicTxHashesFromMb, hex.EncodeToString(miniBlockTxHashes[txIndex]))
+				log.Debug("***-------------Found problematic tx when processing miniblock dst me. TxHash added to problematicTxHashesFromMb---------------***", "txHash", hex.EncodeToString(miniBlockTxHashes[txIndex])) // ? don't know how to get the mbHash in order to print it
+				continue
 			}
-			problematicTxHashesFromMb = append(problematicTxHashesFromMb, hex.EncodeToString(miniBlockTxHashes[txIndex]))
-			log.Debug("***-------------Found problematic tx when processing miniblock dst me. TxHash added to problematicTxHashesFromMb---------------***", "txHash", hex.EncodeToString(miniBlockTxHashes[txIndex])) // ? don't know how to get the mbHash in order to print it
-			continue
 		}
-	}
 
-	if isMiniBlockProblematic{
-		log.Debug("***--------------MiniBlock is problematic--------------***", "problematicTxHashes", problematicTxHashesFromMb)
-		return nil, 0, false, problematicTxHashesFromMb, isMiniBlockProblematic, nil
+		if isMiniBlockProblematic{
+			log.Debug("***--------------MiniBlock is problematic--------------***", "problematicTxHashes", problematicTxHashesFromMb)
+			return nil, 0, false, problematicTxHashesFromMb, isMiniBlockProblematic, nil
+		}
 	}
 
 	
 	//! ---------------- END OF NEW CODE -----------------		
 
 	for txIndex = indexOfFirstTxToBeProcessed; txIndex < len(miniBlockTxs); txIndex++ {
+		//! -------------------- NEW CODE --------------------
+		if calledForReadyMbs && txs.isTxHashInProblematicTxHashesOfReadyMb(hex.EncodeToString(miniBlockTxHashes[txIndex]), readyMbInfo.OriginalProblematicTxHashes){
+			log.Debug("*** ----- Tx was previously a problematic tx and was handled through an AAT, skipping its processing ----- ***")
+			processedTxHashes = append(processedTxHashes, miniBlockTxHashes[txIndex])
+			numTXsProcessed++
+			continue 
+		}
+		//! ---------------- END OF NEW CODE -----------------	
+
+
 		if !haveTime() && !haveAdditionalTime() {
 			err = process.ErrTimeIsOut
 			break
@@ -1821,6 +1836,15 @@ func (txs *transactions) ProcessMiniBlock(
 //! -------------------- NEW CODE --------------------
 func (tx *transactions) isTxProblematic(rcvAddr []byte) bool{
 	return tx.shardCoordinator.WasPreviouslyMineAddrBytes(rcvAddr)
+}
+
+func (tx *transactions) isTxHashInProblematicTxHashesOfReadyMb(txHash string, problematicTxHashes []string) bool{
+    for _, v := range problematicTxHashes {
+        if v == txHash {
+            return true
+        }
+    }
+    return false
 }
 //! ---------------- END OF NEW CODE -----------------
 

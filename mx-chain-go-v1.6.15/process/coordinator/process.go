@@ -566,13 +566,13 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 	haveTime func() bool,
 	haveAdditionalTime func() bool,
 	scheduledMode bool,
-) (block.MiniBlockSlice, uint32, map[string][]string, bool, bool, error) { //! MODIFIED CODE
+) (block.MiniBlockSlice, uint32, map[string]*data.MbInfo, bool, bool, error) { //! MODIFIED CODE
 
 	createMBDestMeExecutionInfo := initMiniBlockDestMeExecutionInfo()
 	//! -------------------- NEW CODE --------------------
 	//pendingMiniBlocksFromMetaBlock := make([]*data.MiniBlockInfo, 0)
 	pendingMiniBlocksHashesFromMetaBlock := make([]string, 0)
-	pendingTxsByMBForCurrentMetaBlock := make(map[string][]string)
+	pendingTxsByMBForCurrentMetaBlock := make(map[string]*data.MbInfo)
 	//! ---------------- END OF NEW CODE -----------------	
 
 	if check.IfNil(hdr) {
@@ -712,12 +712,12 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 
 		oldIndexOfLastTxProcessed := processedMbInfo.IndexOfLastTxProcessed
 
-		isMiniBlockProblematic, problematicTxsFromMB, errProc := tc.processCompleteMiniBlock(preproc, miniBlock, miniBlockInfo.Hash, haveTime, haveAdditionalTime, scheduledMode, processedMbInfo) //! MODIFIED CODE
+		isMiniBlockProblematic, problematicTxsFromMB, errProc := tc.processCompleteMiniBlock(preproc, miniBlock, miniBlockInfo.Hash, haveTime, haveAdditionalTime, scheduledMode, processedMbInfo, false, nil) //! MODIFIED CODE
 		tc.handleProcessMiniBlockExecution(oldIndexOfLastTxProcessed, miniBlock, processedMbInfo, createMBDestMeExecutionInfo)
 		
 		//! -------------------- NEW CODE --------------------
 		if isMiniBlockProblematic{
-			pendingTxsByMBForCurrentMetaBlock[hex.EncodeToString(miniBlockInfo.Hash)] = problematicTxsFromMB
+			pendingTxsByMBForCurrentMetaBlock[hex.EncodeToString(miniBlockInfo.Hash)] = &data.MbInfo{SenderShardId: miniBlockInfo.SenderShardID, ProblematicTxHashes: problematicTxsFromMB}
 			pendingMiniBlocksHashesFromMetaBlock = append(pendingMiniBlocksHashesFromMetaBlock, hex.EncodeToString(miniBlockInfo.Hash))
 		}
 		//! ---------------- END OF NEW CODE -----------------		
@@ -770,13 +770,285 @@ func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMe
 	if (!allMBsProcessed && !notAllMbsProcessedOnlyBecauseOfProblematic){ //! MODIFIED CODE
 		//! -------------------- NEW CODE --------------------
 		//? Ovvero: Se NON è vero che tutti i miniblocchi (dst me del metablocco) sono stati processati E NON è vero che tutti i miniblocchi non sono stati processati solo perché gli unici miniblocchi che mancano sono quelli problematici!
-		log.Debug("***(!allMBsProcessed && !notAllMbsProcessedOnlyBecauseOfProblematic) returned true inside CreateMbsAndProcessCrossShardTransactionsDstMe. Calling reverIfNeeded()***")
+		log.Debug("***(!allMBsProcessed && !notAllMbsProcessedOnlyBecauseOfProblematic) returned true inside CreateMbsAndProcessCrossShardTransactionsDstMe. Calling revertIfNeeded()***")
 		//! ---------------- END OF NEW CODE -----------------		
 		tc.revertIfNeeded(createMBDestMeExecutionInfo, headerHash)
 	}
 	//TODO: RITORNARE ANCHE pendingMiniBlocksFromMetaBlocks, cosicché IL CHIAMANTE possa generare le AAT corrispondenti! ("enhance" the struct with txs and so on)
 	return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, pendingTxsByMBForCurrentMetaBlock, allMBsProcessed, notAllMbsProcessedOnlyBecauseOfProblematic, nil //! MODIFIED CODE
 }
+
+//! -------------------- NEW CODE --------------------
+// CreateMbsAndProcessCrossShardTransactionsDstMe creates miniblocks and processes cross shard transaction
+// with destination of current shard
+func (tc *transactionCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting(
+	readyMbsInfo map[string]*data.AccountAjustmentTxsInfo,
+	processedMiniBlocksInfo map[string]*processedMb.ProcessedMiniBlockInfo,
+	haveTime func() bool,
+	haveAdditionalTime func() bool,
+	scheduledMode bool,
+) (block.MiniBlockSlice, uint32, map[string]*data.MbInfo, bool, bool, error) { //! MODIFIED CODE
+
+	createMBDestMeExecutionInfo := initMiniBlockDestMeExecutionInfo()
+	//! -------------------- NEW CODE --------------------
+	/*pendingMiniBlocksHashesFromMetaBlock := make([]string, 0)
+	pendingTxsByMBForCurrentMetaBlock := make(map[string]*data.MbInfo)*/
+	//! ---------------- END OF NEW CODE -----------------	
+
+	/*if check.IfNil(hdr) {
+		log.Warn("transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMe header is nil")
+
+		// we return the nil error here as to allow the proposer execute as much as it can, even if it ends up in a
+		// totally unlikely situation in which it needs to process a nil block.
+
+		return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, nil, false, false, nil //! MODIFIED CODE
+	}
+
+	shouldSkipShard := make(map[uint32]bool)
+
+	headerHash, err := core.CalculateHash(tc.marshalizer, tc.hasher, hdr)
+	if err != nil {
+		log.Warn("transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMe CalculateHash error",
+			"error", err)
+
+		// we return the nil error here as to allow the proposer execute as much as it can, even if it ends up in a
+		// totally unlikely situation in which it can not marshall a block.
+		return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, nil, false, false, nil //! MODIFIED CODE
+	}
+
+	tc.handleCreateMiniBlocksDestMeInit(headerHash) --> vale solo per la metachain a quanto pare
+
+	finalCrossMiniBlockInfos := tc.getFinalCrossMiniBlockInfos(hdr.GetOrderedCrossMiniblocksWithDst(tc.shardCoordinator.SelfId()), hdr)
+	*/
+
+	defer func() {
+		log.Debug("***transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: gas provided, refunded and penalized info***",
+			"header round", "***NO ROUND***",
+			"header nonce", "***NO NONCE***",
+			"num mini blocks to be processed", len(readyMbsInfo),
+			"num already mini blocks processed", createMBDestMeExecutionInfo.numAlreadyMiniBlocksProcessed,
+			"num new mini blocks processed", createMBDestMeExecutionInfo.numNewMiniBlocksProcessed,
+			"total gas provided", tc.gasHandler.TotalGasProvided(),
+			"total gas provided as scheduled", tc.gasHandler.TotalGasProvidedAsScheduled(),
+			"total gas refunded", tc.gasHandler.TotalGasRefunded(),
+			"total gas penalized", tc.gasHandler.TotalGasPenalized())
+	}()
+
+	tc.requestMissingMiniBlocksAndTransactionsForReadyMbs(readyMbsInfo)
+
+	for mbHash, mbInfo := range readyMbsInfo {
+		if !haveTime() && !haveAdditionalTime() {
+			log.Debug("CreateMbsAndProcessCrossShardTransactionsDstMe",
+				"scheduled mode", scheduledMode,
+				"stop creating", "time is out")
+			break
+		}
+
+		if tc.blockSizeComputation.IsMaxBlockSizeReached(0, 0) {
+			log.Debug("CreateMbsAndProcessCrossShardTransactionsDstMe",
+				"scheduled mode", scheduledMode,
+				"stop creating", "max block size has been reached")
+			break
+		}
+
+		/*if shouldSkipShard[miniBlockInfo.SenderShardID] {
+			log.Trace("transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMe: should skip shard",
+				"scheduled mode", scheduledMode,
+				"sender shard", miniBlockInfo.SenderShardID,
+				"hash", miniBlockInfo.Hash,
+				"round", miniBlockInfo.Round,
+			)
+			continue
+		}*/
+
+		mbHashBytes, err := hex.DecodeString(mbHash)
+		if err != nil{
+			log.Debug("***Error: cannot decode mbHash string inside requestMissingMiniBlocksAndTransactionsForReadyMbs***", "mbHash", mbHash)
+		}
+
+		processedMbInfo := getProcessedMiniBlockInfo(processedMiniBlocksInfo, mbHashBytes)
+		if processedMbInfo.FullyProcessed {
+			createMBDestMeExecutionInfo.numAlreadyMiniBlocksProcessed++
+			log.Trace("***transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: mini block already processed",
+				"scheduled mode", scheduledMode,
+				"sender shard", mbInfo.SenderShardId,
+				"hash", mbHash,
+				//"round", "*** NO ROUND ***",
+			)
+			continue
+		}
+
+		miniVal, _ := tc.miniBlockPool.Peek(mbHashBytes)
+		if miniVal == nil {
+			//shouldSkipShard[miniBlockInfo.SenderShardID] = true
+			log.Trace("transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: mini block not found and was requested",
+				"scheduled mode", scheduledMode,
+				"sender shard", mbInfo.SenderShardId,
+				"hash", mbHash,
+				//"round", miniBlockInfo.Round,
+			)
+			continue
+		}
+
+		miniBlock, ok := miniVal.(*block.MiniBlock)
+		if !ok {
+			//shouldSkipShard[miniBlockInfo.SenderShardID] = true
+			log.Error("***transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: mini block assertion type failed",
+				"scheduled mode", scheduledMode,
+				"sender shard", mbInfo.SenderShardId,
+				"hash", mbHash,
+				//"round", miniBlockInfo.Round,
+			)
+			continue
+		}
+
+		if scheduledMode && (miniBlock.Type != block.TxBlock || processedMbInfo.IndexOfLastTxProcessed > -1) {
+			//shouldSkipShard[miniBlockInfo.SenderShardID] = true
+			log.Debug("***transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: mini block can not be processed in scheduled mode",
+				"scheduled mode", scheduledMode,
+				"type", miniBlock.Type,
+				"sender shard", mbInfo.SenderShardId,
+				"hash", mbHash,
+				//"round", miniBlockInfo.Round,
+				"index of last tx processed", processedMbInfo.IndexOfLastTxProcessed,
+			)
+			continue
+		}
+
+		preproc := tc.getPreProcessor(miniBlock.Type)
+		if check.IfNil(preproc) {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***getPreProcessor returned nil inside CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting***")
+			//! ---------------- END OF NEW CODE -----------------
+			return nil, 0, nil, false, false, fmt.Errorf("%w unknown block type %d", process.ErrNilPreProcessor, miniBlock.Type) //! MODIFIED CODE
+		}
+
+		requestedTxs := preproc.RequestTransactionsForMiniBlock(miniBlock)
+		if requestedTxs > 0 {
+			//shouldSkipShard[miniBlockInfo.SenderShardID] = true
+			log.Trace("***transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: transactions not found and were requested",
+				"scheduled mode", scheduledMode,
+				"sender shard", mbInfo.SenderShardId,
+				"hash", mbHash,
+				//"round", miniBlockInfo.Round,
+				"requested txs", requestedTxs,
+			)
+			continue
+		}
+
+		oldIndexOfLastTxProcessed := processedMbInfo.IndexOfLastTxProcessed
+
+		_, _, errProc := tc.processCompleteMiniBlock(preproc, miniBlock, mbHashBytes, haveTime, haveAdditionalTime, scheduledMode, processedMbInfo, true, readyMbsInfo[mbHash]) //! MODIFIED CODE
+		tc.handleProcessMiniBlockExecution(oldIndexOfLastTxProcessed, miniBlock, processedMbInfo, createMBDestMeExecutionInfo)
+		
+		//! -------------------- NEW CODE --------------------
+		/*if isMiniBlockProblematic{
+			pendingTxsByMBForCurrentMetaBlock[hex.EncodeToString(mbHashBytes)] = &data.MbInfo{SenderShardId: mbInfo.SenderShardId, ProblematicTxHashes: problematicTxsFromMB}
+			pendingMiniBlocksHashesFromMetaBlock = append(pendingMiniBlocksHashesFromMetaBlock, hex.EncodeToString(mbHashBytes))
+		}*/
+		//! ---------------- END OF NEW CODE -----------------		
+		
+		if errProc != nil {
+			//shouldSkipShard[miniBlockInfo.SenderShardID] = true
+			log.Debug("***transactionCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: processed complete mini block failed",
+				"scheduled mode", scheduledMode,
+				"sender shard", mbInfo.SenderShardId,
+				"hash", mbHash,
+				"type", miniBlock.Type,
+				//"round", miniBlockInfo.Round,
+				"num txs", len(miniBlock.TxHashes),
+				"num all txs processed", processedMbInfo.IndexOfLastTxProcessed+1,
+				"num current txs processed", processedMbInfo.IndexOfLastTxProcessed-oldIndexOfLastTxProcessed,
+				"fully processed", processedMbInfo.FullyProcessed,
+				"total gas provided", tc.gasHandler.TotalGasProvided(),
+				"total gas provided as scheduled", tc.gasHandler.TotalGasProvidedAsScheduled(),
+				"total gas refunded", tc.gasHandler.TotalGasRefunded(),
+				"total gas penalized", tc.gasHandler.TotalGasPenalized(),
+				"error", errProc,
+			)
+
+			continue
+		}
+
+		log.Debug("***transactionsCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting: processed complete mini block succeeded",
+			"scheduled mode", scheduledMode,
+			"sender shard", mbInfo.SenderShardId,
+			"hash", mbHash,
+			"type", miniBlock.Type,
+			//"round", miniBlockInfo.Round,
+			"num txs", len(miniBlock.TxHashes),
+			"num all txs processed", processedMbInfo.IndexOfLastTxProcessed+1,
+			"num current txs processed", processedMbInfo.IndexOfLastTxProcessed-oldIndexOfLastTxProcessed,
+			"fully processed", processedMbInfo.FullyProcessed,
+			"total gas provided", tc.gasHandler.TotalGasProvided(),
+			"total gas provided as scheduled", tc.gasHandler.TotalGasProvidedAsScheduled(),
+			"total gas refunded", tc.gasHandler.TotalGasRefunded(),
+			"total gas penalized", tc.gasHandler.TotalGasPenalized(),
+		)
+	}
+
+	numTotalMiniBlocksProcessed := createMBDestMeExecutionInfo.numAlreadyMiniBlocksProcessed + createMBDestMeExecutionInfo.numNewMiniBlocksProcessed
+	allMBsProcessed := numTotalMiniBlocksProcessed == len(readyMbsInfo)
+	//! -------------------- NEW CODE --------------------
+	//numProblematicMiniBlocks := len(pendingMiniBlocksHashesFromMetaBlock)
+	//notAllMbsProcessedOnlyBecauseOfProblematic := numTotalMiniBlocksProcessed + numProblematicMiniBlocks == len(readyMbsInfo)
+	//! ---------------- END OF NEW CODE -----------------	
+	if (!allMBsProcessed){ //! MODIFIED CODE
+		//! -------------------- NEW CODE --------------------
+		//? Ovvero: Se NON è vero che tutti i miniblocchi (dst me del metablocco) sono stati processati E NON è vero che tutti i miniblocchi non sono stati processati solo perché gli unici miniblocchi che mancano sono quelli problematici!
+		log.Debug("***(!allMBsProcessed && !notAllMbsProcessedOnlyBecauseOfProblematic) returned true inside CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting. Calling revertIfNeeded()***")
+		//! ---------------- END OF NEW CODE -----------------		
+		//tc.revertIfNeeded(createMBDestMeExecutionInfo, headerHash)
+	}
+	//TODO: RITORNARE ANCHE pendingMiniBlocksFromMetaBlocks, cosicché IL CHIAMANTE possa generare le AAT corrispondenti! ("enhance" the struct with txs and so on)
+	return createMBDestMeExecutionInfo.miniBlocks, createMBDestMeExecutionInfo.numTxAdded, nil, allMBsProcessed, false, nil //! MODIFIED CODE
+}
+
+
+func (tc *transactionCoordinator) requestMissingMiniBlocksAndTransactionsForReadyMbs(readyMbsHashes map[string]*data.AccountAjustmentTxsInfo) {
+	mapMissingMiniBlocksPerShard := make(map[uint32][][]byte)
+
+	tc.requestedItemsHandler.Sweep()
+
+	for mbHash, mbInfo := range readyMbsHashes {
+		mbHashBytes, err := hex.DecodeString(mbHash)
+		if err != nil{
+			log.Debug("***Error: cannot decode mbHash string inside requestMissingMiniBlocksAndTransactionsForReadyMbs***", "mbHash", mbHash)
+		}
+		object, isMiniBlockFound := tc.miniBlockPool.Peek(mbHashBytes)
+		if !isMiniBlockFound {
+			log.Debug("***transactionCoordinator.requestMissingMiniBlocksAndTransactions: mini block not found and was requested",
+				"mbHash", mbHash,
+			)
+			mapMissingMiniBlocksPerShard[mbInfo.SenderShardId] = append(mapMissingMiniBlocksPerShard[mbInfo.SenderShardId], mbHashBytes)
+			_ = tc.requestedItemsHandler.Add(mbHash)
+			continue
+		}
+
+		miniBlock, isMiniBlock := object.(*block.MiniBlock)
+		if !isMiniBlock {
+			log.Warn("transactionCoordinator.requestMissingMiniBlocksAndTransactions", "mb hash", mbHash, "error", process.ErrWrongTypeAssertion)
+			continue
+		}
+
+		preproc := tc.getPreProcessor(miniBlock.Type)
+		if check.IfNil(preproc) {
+			log.Warn("transactionCoordinator.requestMissingMiniBlocksAndTransactions: getPreProcessor", "mb type", miniBlock.Type, "error", process.ErrNilPreProcessor)
+			continue
+		}
+
+		numTxsRequested := preproc.RequestTransactionsForMiniBlock(miniBlock)
+		if numTxsRequested > 0 {
+			log.Debug("transactionCoordinator.requestMissingMiniBlocksAndTransactions: RequestTransactionsForMiniBlock", "mb hash", mbHash,
+				"num txs requested", numTxsRequested)
+		}
+	}
+
+	for senderShardID, mbsHashes := range mapMissingMiniBlocksPerShard {
+		go tc.onRequestMiniBlocks(senderShardID, mbsHashes)
+	}
+}
+//! ---------------- END OF NEW CODE -----------------
 
 func (tc *transactionCoordinator) requestMissingMiniBlocksAndTransactions(mbsInfo []*data.MiniBlockInfo) {
 	mapMissingMiniBlocksPerShard := make(map[uint32][][]byte)
@@ -1215,6 +1487,10 @@ func (tc *transactionCoordinator) processCompleteMiniBlock(
 	haveAdditionalTime func() bool,
 	scheduledMode bool,
 	processedMbInfo *processedMb.ProcessedMiniBlockInfo,
+	//! -------------------- NEW CODE --------------------
+	calledForReadyMbs bool,
+	readyMbInfo *data.AccountAjustmentTxsInfo,
+	//! ---------------- END OF NEW CODE -----------------	
 ) (bool, []string, error) { //isMiniBlockProblematic, problematicTxFromMB, err //! MODIFIED CODE
 
 	snapshot := tc.handleProcessMiniBlockInit(miniBlockHash)
@@ -1239,6 +1515,10 @@ func (tc *transactionCoordinator) processCompleteMiniBlock(
 		tc.enableEpochsHandler.IsMiniBlockPartialExecutionFlagEnabled(),
 		int(processedMbInfo.IndexOfLastTxProcessed),
 		tc,
+		//! -------------------- NEW CODE --------------------
+		calledForReadyMbs,
+		readyMbInfo,
+		//! ---------------- END OF NEW CODE -----------------			
 	)
 
 	//! -------------------- NEW CODE --------------------
@@ -1912,6 +2192,18 @@ func (tc *transactionCoordinator) AddTransactions(txs []data.TransactionHandler,
 
 	preProc.AddTransactions(txs)
 }
+
+//! -------------------- NEW CODE --------------------
+func (tc *transactionCoordinator) GetMiniBlockFromPool(mbHash []byte) (interface{}, bool) {
+	log.Debug("*** GetMiniBlockFromPool called", "mbHash", hex.EncodeToString(mbHash))
+	miniVal, found := tc.miniBlockPool.Peek(mbHash)
+	if !found{
+		log.Debug("***Error: miniblock NOT found inside GetMiniBlockFromPool***", "mbHash", hex.EncodeToString(mbHash))
+	}
+	return miniVal, found
+}
+//! ---------------- END OF NEW CODE -----------------
+
 
 // IsInterfaceNil returns true if there is no value under the interface
 func (tc *transactionCoordinator) IsInterfaceNil() bool {

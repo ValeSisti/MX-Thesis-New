@@ -76,7 +76,7 @@ func (txCoordinator *TxCoordinator) CreateMbsAndProcessCrossShardTransactionsDst
 	_ func() bool,
 	_ func() bool,
 	_ bool,
-) (block.MiniBlockSlice, uint32, map[string][]string, bool, bool, error) { //! MODIFIED CODE
+) (block.MiniBlockSlice, uint32, map[string]*data.MbInfo, bool, bool, error) { //! MODIFIED CODE
 	return make(block.MiniBlockSlice, 0), 0, nil, false, false, nil //! MODIFIED CODE
 }
 
@@ -132,6 +132,23 @@ func (txCoordinator *TxCoordinator) AddTransactions(_ []data.TransactionHandler,
 func (txCoordinator *TxCoordinator) GetAllCurrentLogs() []*data.LogData {
 	return make([]*data.LogData, 0)
 }
+
+//! -------------------- NEW CODE --------------------
+func (txCoordinator *TxCoordinator) GetMiniBlockFromPool(mbHash []byte) (interface{}, bool) {
+	return nil, false
+}
+
+// CreateMbsAndProcessCrossShardTransactionsDstMe does nothing as it is disabled
+func (txCoordinator *TxCoordinator) CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting(
+	_ map[string]*data.AccountAjustmentTxsInfo,
+	_ map[string]*processedMb.ProcessedMiniBlockInfo,
+	_ func() bool,
+	_ func() bool,
+	_ bool,
+) (block.MiniBlockSlice, uint32, map[string]*data.MbInfo, bool, bool, error) { //! MODIFIED CODE
+	return make(block.MiniBlockSlice, 0), 0, nil, false, false, nil //! MODIFIED CODE
+}
+//! ---------------- END OF NEW CODE -----------------
 
 // IsInterfaceNil returns true if there is no value under the interface
 func (txCoordinator *TxCoordinator) IsInterfaceNil() bool {

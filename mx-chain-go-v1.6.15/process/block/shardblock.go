@@ -47,7 +47,7 @@ type createAndProcessMiniBlocksDestMeInfo struct {
 	numHdrsAdded                uint32
 	scheduledMode               bool
 	//! -------------------- NEW CODE --------------------
-	problematicMiniBlocksForCurrentRoundTxHashes map[string][]string
+	problematicMiniBlocksForCurrentRoundTxHashes map[string]*data.MbInfo
 	problematicMiniBlocksForCurrentRoundFullInfo map[string]*data.ProblematicMBInfo //TODO: inviare insieme al blocco (consensus message) e svuotare una volta che il blocco viene committato
 	//! ---------------- END OF NEW CODE -----------------	
 }
@@ -77,9 +77,8 @@ type shardProcessor struct {
 	txPrivateKey crypto.PrivateKey
 	txPublicKey crypto.PublicKey
 	coreComponents coreComponentsHolder
-	pendingMiniBlocksFromMetaBlock map[string]*data.MiniBlockInfo //TODO: CANCELLARE (con relativi metodi che lo referenziano)
-	finalPendingMiniBlocksWaitingForAATs map[string]*WaitingMiniBlockInfo //TODO: aggiornare quando un blocco viene committato. Se un nodo rimane indietro, come tiene aggiornata questa struct??
 	problematicMiniBlocksForCurrentRound map[string]*data.ProblematicMBInfo //TODO: inviare insieme al blocco (consensus message) e svuotare una volta che il blocco viene committato
+	readyMbsInsertedInCurrentBlock map[string]bool
 	//! ---------------- END OF NEW CODE -----------------	
 }
 
@@ -191,9 +190,8 @@ func NewShardProcessor(arguments ArgShardProcessor) (*shardProcessor, error) {
 	sp.txPublicKey = arguments.TxPublicKey
 	sp.coreComponents = arguments.CoreComponents
 	
-	sp.pendingMiniBlocksFromMetaBlock = make(map[string]*data.MiniBlockInfo)
-	sp.finalPendingMiniBlocksWaitingForAATs = make(map[string]*WaitingMiniBlockInfo)
 	sp.problematicMiniBlocksForCurrentRound = make(map[string]*data.ProblematicMBInfo)
+	sp.readyMbsInsertedInCurrentBlock = make(map[string]bool)
 	//! ---------------- END OF NEW CODE -----------------	
 
 	return &sp, nil
@@ -957,11 +955,13 @@ func (sp *shardProcessor) CommitBlock(
 		} else {
 			//TODO: se non c'è stato nessun errore, allora mi copio le info dei problematic miniblocks dentro "waitingMbsForAATsNotarization"
 			sp.updateWaitingMbsForAATsNotarization()
+			sp.removeReadyMbsInsertedInCurrentRoundFromWaitingMbs()
 		//! ---------------- END OF NEW CODE -----------------		
 		}
 		//! -------------------- NEW CODE --------------------
 		//? a prescindere che il miniblocco sia stato committato o "reverted", comunque faccio il clean dei problematic mbs for current round, visto che il current round è finito
 		sp.cleanProblematicMiniBlocksForCurrentRound()
+		sp.cleanReadyMbsInsertedInCurrentRoundInShardProcessor()
 		//! ---------------- END OF NEW CODE -----------------			
 		sp.processStatusHandler.SetIdle()
 	}()
@@ -1875,7 +1875,7 @@ func (sp *shardProcessor) verifyCrossShardMiniBlockDstMe(header data.ShardHeader
 	//TODO: Sembra che questa funzione si vada a prendere tutti gli hash dei miniblocchi per tutti i "metahash" presenti all'interno del blocco
 	//TODO: (infatti miniBlockMetaHashes si accede come miniBlockMetaHashes[miniblockHash] = metaBlockHash)
 	//TODO: Successivamente, si prende tutti i miniblocchi inseriti all'interno del blocco
-	//TODO: e infine, nel for, controlla che per ogni miniblocco inseriti all'interno del blocco
+	//TODO: e infine, nel for, controlla che per ogni miniblocco inserito all'interno del blocco
 	//TODO: quel miniblocco sia effettivamente presente dentro miniBlockMetaHashes.
 	//TODO: Allora il mio dubbio è che: ok che controlla che tutti i miniblocchi all'interno di un blocco siano parte di un metablocco
 	//TODO: ma quello che non controlla è se effettivamente TUTTI i miniblocchi in quel metablocco siano stati inseriti effettivamente nel blocco
@@ -1889,13 +1889,25 @@ func (sp *shardProcessor) verifyCrossShardMiniBlockDstMe(header data.ShardHeader
 		return err
 	}
 
-	crossMiniBlockHashes := header.GetMiniBlockHeadersWithDst(sp.shardCoordinator.SelfId())
-	for hash := range crossMiniBlockHashes {
+	crossMiniBlockHashes := header.GetMiniBlockHeadersWithDstInHexString(sp.shardCoordinator.SelfId()) //! MODIFIED CODE: GetMiniBlockHeadersWithDst -> GetMiniBlockHeadersWithDstInHexString  
+	for hash, hashStringHex := range crossMiniBlockHashes { //! MODIFIED CODE
 		if _, ok := miniBlockMetaHashes[hash]; !ok {
 			//! -------------------- NEW CODE --------------------
-			log.Debug("***Error inside verifyCrossShardMiniBlockDstMe***", "err", process.ErrCrossShardMBWithoutConfirmationFromMeta)
-			//! ---------------- END OF NEW CODE -----------------					
-			return process.ErrCrossShardMBWithoutConfirmationFromMeta
+			//? se il miniblocco non è presente dentro miniBlockMetaHashes, devo controllare che questo non sia perché
+			//? quel miniblocco è stato "processato SENZA meta header", cosa che avviene quando vado a processare ed inserire nel blocco
+			//? dei miniblocchi che precedentemente erano problematici e adesso li ho trovati "ready".
+			//? Quindi, se un miniblocco non è presente dentro miniBlockMetaHashes, prima controllo che non sia presente 
+			//? dentro waitingMBsForAATsNotarization e, solo se non è nemmeno lì dentro, allora lancio l'errore
+			if !sp.shardCoordinator.IsProblematicMBReadyToBeProcessed(hashStringHex){
+				log.Debug("***Error inside verifyCrossShardMiniBlockDstMe***", "err", process.ErrCrossShardMBWithoutConfirmationFromMeta)
+			//! ---------------- END OF NEW CODE -----------------						
+				return process.ErrCrossShardMBWithoutConfirmationFromMeta		
+			//! -------------------- NEW CODE --------------------
+			}else{
+				log.Debug("*** Everything good: ErrCrossShardMBWithoutConfirmationFromMeta will NOT be returned for MB, as MB 'IsProblematicMBReadyToBeProcessed'", "mbHash", hash)
+				sp.readyMbsInsertedInCurrentBlock[hashStringHex] = true
+			}
+			//! ---------------- END OF NEW CODE -----------------
 		}
 	}
 
@@ -1975,14 +1987,56 @@ func (sp *shardProcessor) createAndProcessMiniBlocksDstMe(haveTime func() bool) 
 		numHdrsAdded:               uint32(0),
 		scheduledMode:              false,
 		//! -------------------- NEW CODE --------------------
-		problematicMiniBlocksForCurrentRoundTxHashes: make(map[string][]string),
+		problematicMiniBlocksForCurrentRoundTxHashes: make(map[string]*data.MbInfo),
 		problematicMiniBlocksForCurrentRoundFullInfo: make(map[string]*data.ProblematicMBInfo),
 		//! ---------------- END OF NEW CODE -----------------		
 	}
 
 
 	//! -------------------- NEW CODE --------------------
-	//problematicMiniBlocksForCurrentRound := make(map[string]*data.ProblematicMBInfo)
+	// TODO: prima ancora di processare i metablocchi, vado a vedere innanzitutto se ci sono dei miniblocchi, dentro waitingMBsForAATNotarization,
+	// TODO: che possono essere processati perché hanno ricevuto la notarizzazione dest-side di TUTTE le AAT che avevano associate
+
+	//? per il momento, me li faccio solo stampare e vedo se riesco a prelevarli dalla pool dei miniblocchi:
+	readyMbsHashes := sp.shardCoordinator.GetMbsWithAllAATsNotarizedFromWaitingMBs()
+	if len(readyMbsHashes) > 0 {
+		log.Debug("*** ---- MBS READY TO BE PROCESSED ---- ***", "numMbs", len(readyMbsHashes), "mbsHashes", readyMbsHashes)
+		
+		
+		//TODO: -----------------------------> TOGLIERE createAndProcessInfo da createMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting, crea problemi <-------------------------------------------------- THIS!!!!!!!!!!!!!!!!!!!!!!!
+		_, errCreated := sp.createMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting(createAndProcessInfo, readyMbsHashes)
+		
+		if errCreated != nil {
+			log.Debug("***Error: inside sp.createMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting. ---- THIS SHOULD NOT HAPPEN I THINK --- ***", "err", errCreated)
+			return nil, errCreated
+		}else{
+			for mbHash, _ := range readyMbsHashes{
+				sp.readyMbsInsertedInCurrentBlock[mbHash] = true
+			}
+		}
+		//TODO: spostare nel "chiamato"
+
+		/*for _, mbHash := range readyMbsHashes{
+			//miniVal, _ := sp.txCoordinator.miniBlockPool.Peek(miniBlockInfo.Hash)
+			mbHashBytes, err := hex.DecodeString(mbHash)
+			if err != nil {
+				log.Debug("***Error: cannot decode mbHash from readyMbsHashes***", "mbHash", mbHash)
+			}
+			miniVal, found := sp.txCoordinator.GetMiniBlockFromPool(mbHashBytes)
+			if found {
+				miniBlock, ok := miniVal.(*block.MiniBlock)
+				if !ok {
+					log.Debug("***Error: cannot cast miniVal in *block.MiniBlock type for ready miniblock ***", "mbHash", mbHash)
+				}else{
+					log.Debug("*** MiniBlock cast successful ***", "mbHash", mbHash, "receiverShardId", miniBlock.ReceiverShardID, "senderShardId", miniBlock.SenderShardID)
+				}				
+			}else{
+				log.Debug("***Error: ------ READY PROBLEMATIC MINIBLOCK NOT FOUND IN MINIBLOCKS POOL ---------", "mbHash", mbHash)
+			}
+		}*/
+	}
+	
+
 	//! ---------------- END OF NEW CODE -----------------
 
 
@@ -2049,8 +2103,8 @@ func (sp *shardProcessor) createAndProcessMiniBlocksDstMe(haveTime func() bool) 
 	}
 
 	//! -------------------- NEW CODE --------------------
-	for mbHash, problematicTxHashes := range createAndProcessInfo.problematicMiniBlocksForCurrentRoundTxHashes{
-		problematicMbInfo := sp.generateAATsForProblematicTxs(problematicTxHashes, mbHash) //TODO: mi faccio ritornare queste info al subroundBlock (?), in modo che una volta che il blocco verrà effettivamente committato le andrò a "salvare permanentemente" 
+	for mbHash, problematicMbInfo := range createAndProcessInfo.problematicMiniBlocksForCurrentRoundTxHashes{
+		problematicMbInfo := sp.generateAATsForProblematicTxs(problematicMbInfo, mbHash) //TODO: mi faccio ritornare queste info al subroundBlock (?), in modo che una volta che il blocco verrà effettivamente committato le andrò a "salvare permanentemente" 
 		
 		log.Debug("***ProblematicMbInfo (added inside sp.problematicMiniBlocksForCurrentRound***", 
 			"mbHash", mbHash,
@@ -2110,8 +2164,8 @@ func (sp *shardProcessor) createMbsAndProcessCrossShardTransactionsDstMe(
 	/*if len(pendingMiniBlocksFromMetaBlock) > 0 {
 		sp.createAndBroadcastAATsForPendingMiniBlocksFromMetaBlock(pendingMiniBlocksFromMetaBlock)
 	}*/
-	for mbHash, problematicTxHashes := range pendingMiniBlocksFromMetaBlock{
-		createAndProcessInfo.problematicMiniBlocksForCurrentRoundTxHashes[mbHash] = problematicTxHashes //TODO: consider adding the metablock hash too!!
+	for mbHash, problematicMbInfo := range pendingMiniBlocksFromMetaBlock{
+		createAndProcessInfo.problematicMiniBlocksForCurrentRoundTxHashes[mbHash] = problematicMbInfo //TODO: consider adding the metablock hash too!!
 	}
 	//! ---------------- END OF NEW CODE -----------------	
 
@@ -2142,6 +2196,77 @@ func (sp *shardProcessor) createMbsAndProcessCrossShardTransactionsDstMe(
 
 	return true, nil
 }
+
+
+//! -------------------- NEW CODE --------------------
+func (sp *shardProcessor) createMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting(
+	createAndProcessInfo *createAndProcessMiniBlocksDestMeInfo,
+	readyMbsHashes map[string]*data.AccountAjustmentTxsInfo,
+) (bool, error) {
+	currMiniBlocksAdded, currNumTxsAdded, _, hdrProcessFinished, _, errCreated := sp.txCoordinator.CreateMbsAndProcessCrossShardTransactionsDstMeForReadyMbsPreviouslyWaiting(
+		readyMbsHashes,
+		createAndProcessInfo.currProcessedMiniBlocksInfo,
+		createAndProcessInfo.haveTime,
+		createAndProcessInfo.haveAdditionalTime,
+		createAndProcessInfo.scheduledMode)
+	if errCreated != nil {
+		return false, errCreated
+	}
+
+	for miniBlockHash, processedMiniBlockInfo := range createAndProcessInfo.currProcessedMiniBlocksInfo {
+		createAndProcessInfo.allProcessedMiniBlocksInfo[miniBlockHash] = &processedMb.ProcessedMiniBlockInfo{
+			FullyProcessed:         processedMiniBlockInfo.FullyProcessed,
+			IndexOfLastTxProcessed: processedMiniBlockInfo.IndexOfLastTxProcessed,
+		}
+	}
+
+	// all txs processed, add to processed miniblocks
+	createAndProcessInfo.miniBlocks = append(createAndProcessInfo.miniBlocks, currMiniBlocksAdded...)
+	createAndProcessInfo.numTxsAdded += currNumTxsAdded
+
+	//if !createAndProcessInfo.hdrAdded && (currNumTxsAdded > 0 || hdrProcessFinishedWithProblematicMiniBlocks) { //! MODIFIED CODE -> SENZA QUESTO CONTROLLO IL SE IL METABLOCCO CONTIENE SOLO MINIBLOCCHI PROBLEMATICI, NON VERRA' AGGIUNTO AL ROUNDBLOCK PERCHE' currNumTxsAdded > 0 NON E' SODDISFATTO
+	/*if !createAndProcessInfo.hdrAdded && currNumTxsAdded > 0 {
+		sp.hdrsForCurrBlock.hdrHashAndInfo[string(createAndProcessInfo.currMetaHdrHash)] = &hdrInfo{hdr: createAndProcessInfo.currMetaHdr, usedInBlock: true}
+		createAndProcessInfo.numHdrsAdded++
+		createAndProcessInfo.hdrAdded = true
+	}*/ //? LASCIARE COMMENTATO -> si riferisce al "currMetaHdrHash", ma qui non stiamo processando nessun meta header!!!!!!!
+	//! -------------------- NEW CODE --------------------
+	/*for mbHash, problematicTxHashes := range pendingMiniBlocksFromMetaBlock{
+		createAndProcessInfo.problematicMiniBlocksForCurrentRoundTxHashes[mbHash] = problematicTxHashes //TODO: consider adding the metablock hash too!!
+	}*/
+	//! ---------------- END OF NEW CODE -----------------	
+
+	//if !hdrProcessFinished && !hdrProcessFinishedWithProblematicMiniBlocks{ //! MODIFIED CODE
+	if !hdrProcessFinished {
+		log.Debug("meta block cannot be fully processed",
+			"scheduled mode", createAndProcessInfo.scheduledMode,
+			"round", createAndProcessInfo.currMetaHdr.GetRound(),
+			"nonce", createAndProcessInfo.currMetaHdr.GetNonce(),
+			"hash", createAndProcessInfo.currMetaHdrHash,
+			"num mbs added", len(currMiniBlocksAdded),
+			"num txs added", currNumTxsAdded)
+
+		//! -------------------- NEW CODE --------------------
+		//TODO: CONTROLLARE SE TOGLIERE LA POSSIBILITà DI ESEGUIRE IL MINIBLOCCO DST ME IN SCHEDULED MODE CREA PROBLEMI
+		/*
+		//! ---------------- END OF NEW CODE -----------------		
+		if sp.enableEpochsHandler.IsScheduledMiniBlocksFlagEnabled() && !createAndProcessInfo.scheduledMode {
+			createAndProcessInfo.scheduledMode = true
+			createAndProcessInfo.haveAdditionalTime = process.HaveAdditionalTime()
+			return sp.createMbsAndProcessCrossShardTransactionsDstMe(createAndProcessInfo)
+		}
+		//! -------------------- NEW CODE --------------------	
+		*/
+		//! ---------------- END OF NEW CODE -----------------				
+
+		return false, nil
+	}
+
+	return true, nil
+}
+//! ---------------- END OF NEW CODE -----------------
+
+
 
 func (sp *shardProcessor) requestMetaHeadersIfNeeded(hdrsAdded uint32, lastMetaHdr data.HeaderHandler) {
 	log.Debug("meta headers added",
@@ -2518,9 +2643,9 @@ func (sp *shardProcessor) DecodeBlockHeader(dta []byte) data.HeaderHandler {
 
 
 //! -------------------- NEW CODE --------------------
-func (sp *shardProcessor) generateAATsForProblematicTxs(problematicTxs []string, mbHash string) *data.ProblematicMBInfo {
+func (sp *shardProcessor) generateAATsForProblematicTxs(problematicMbInfo *data.MbInfo, mbHash string) *data.ProblematicMBInfo {
 	accAdjTxs := make([]string, 0)
-	for _, txHash := range problematicTxs {
+	for _, txHash := range problematicMbInfo.ProblematicTxHashes {
 		_, aatHash, err := sp.generateAATForProblematicTxInMiniBlock(txHash, mbHash)
 		if err != nil {
 			log.Debug("***Error: CRITICAL. THIS SHOULDN'T HAPPEN (inside generateAATsForProblematicTxs***", "err", err.Error())
@@ -2528,11 +2653,11 @@ func (sp *shardProcessor) generateAATsForProblematicTxs(problematicTxs []string,
 		accAdjTxs = append(accAdjTxs, hex.EncodeToString(aatHash)) //TODO: CAMBIARE ASSOLUTAMENTE
 	}
 
-	if !(len(problematicTxs) == len(accAdjTxs)) {
+	if !(len(problematicMbInfo.ProblematicTxHashes) == len(accAdjTxs)) {
 		log.Debug("***Error: Problem inside generateAATsForProblematicTxs: len(problematicTxs) != len(accAdjTxs). This shouldn't happen!!!!")
 	}
 
-	return &data.ProblematicMBInfo{ProblematicTxHashes: problematicTxs, AccAdjTxHashes: accAdjTxs} //allo stesso indice corrisponde la stessa tx (cioè l'hash della AAT di problematicsTxs[txIndex] è salvato dentro accAdjTxs[txIndex]
+	return &data.ProblematicMBInfo{ProblematicTxHashes: problematicMbInfo.ProblematicTxHashes, AccAdjTxHashes: accAdjTxs, SenderShardID: problematicMbInfo.SenderShardId } //allo stesso indice corrisponde la stessa tx (cioè l'hash della AAT di problematicsTxs[txIndex] è salvato dentro accAdjTxs[txIndex]
 }
 
 
@@ -2727,10 +2852,23 @@ func (sp *shardProcessor) cleanProblematicMiniBlocksForCurrentRound() {
 	log.Debug("***sp.problematicMiniBlocksForCurrentRound cleaned****", "sp.problematicMiniBlocksForCurrentRound", sp.problematicMiniBlocksForCurrentRound)
 }
 
+func (sp *shardProcessor) cleanReadyMbsInsertedInCurrentRoundInShardProcessor()() {
+	sp.readyMbsInsertedInCurrentBlock = make(map[string]bool) //? lo ri-inizializzo ad un empy map di quel tipo, visto che il current round è finito
+	log.Debug("***sp.readyMbsInsertedInCurrentBlock cleaned****", "sp.readyMbsInsertedInCurrentBlock", sp.readyMbsInsertedInCurrentBlock)
+}
+
 func (sp *shardProcessor) updateWaitingMbsForAATsNotarization() {
 	if len(sp.problematicMiniBlocksForCurrentRound) > 0 {
 		log.Debug("***problematicMiniBlocksForCurrentRound is NOT empty: updating waitingMBsForAATsNotarization***")
 		waitingMbsForAATsNotarization := sp.shardCoordinator.UpdateWaitingMbsForAATsNotarization(sp.problematicMiniBlocksForCurrentRound)
+		log.Debug("***Printing updated waitingMBsForAATsNotarization***", "waitingMBsForAATsNotarization", waitingMbsForAATsNotarization)
+	}
+}
+
+func (sp *shardProcessor) removeReadyMbsInsertedInCurrentRoundFromWaitingMbs() {
+	if len(sp.readyMbsInsertedInCurrentBlock) > 0 {
+		log.Debug("***readyMbsInsertedInCurrentBlock is NOT empty: updating waitingMBsForAATsNotarization***")
+		waitingMbsForAATsNotarization := sp.shardCoordinator.RemoveReadyMbsInsertedInCurrentRoundFromWaitingMbs(sp.readyMbsInsertedInCurrentBlock)
 		log.Debug("***Printing updated waitingMBsForAATsNotarization***", "waitingMBsForAATsNotarization", waitingMbsForAATsNotarization)
 	}
 }

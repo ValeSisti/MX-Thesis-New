@@ -353,12 +353,30 @@ func (hv2 *HeaderV2) SetShardID(shId uint32) error {
 
 // GetMiniBlockHeadersWithDst as a map of hashes and sender IDs
 func (hv2 *HeaderV2) GetMiniBlockHeadersWithDst(destId uint32) map[string]uint32 {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** GetMiniBlockHeadersWithDst called inside blockV2 ***")
+	//! ---------------- END OF NEW CODE -----------------	
 	if hv2 == nil {
 		return nil
 	}
 
 	return hv2.Header.GetMiniBlockHeadersWithDst(destId)
 }
+
+
+//! -------------------- NEW CODE --------------------
+// GetMiniBlockHeadersWithDst as a map of hashes and sender IDs
+func (hv2 *HeaderV2) GetMiniBlockHeadersWithDstInHexString(destId uint32) map[string]string {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** GetMiniBlockHeadersWithDstInHexString called inside blockV2 ***")
+	//! ---------------- END OF NEW CODE -----------------	
+	if hv2 == nil {
+		return nil
+	}
+
+	return hv2.Header.GetMiniBlockHeadersWithDstInHexString(destId)
+}
+//! ---------------- END OF NEW CODE -----------------
 
 // GetOrderedCrossMiniblocksWithDst gets all cross miniblocks with the given destination shard ID, ordered in a
 // chronological way, taking into consideration the round in which they were created/executed in the sender shard

@@ -31,6 +31,8 @@ type Coordinator interface {
 	GetOldShardFromAddressBytes(pubKeyBytes []byte) uint32
 	GetEpochOfUpdateFromAddressString(accountAddress string) uint32
 	GetEpochOfUpdateFromAddressBytes(pubKeyBytes []byte) uint32
+	HasBeenMigratedInCurrentEpochFromAddrBytes(pubKeyBytes []byte) bool	
+	HasBeenMigratedInCurrentEpochFromAddrString(accountAddress string) bool	
 	AccountsMapping() AccountsMapping
 	AccountsShardInfo() map[string]ShardInfo
 	CurrentEpoch() uint32
@@ -38,8 +40,12 @@ type Coordinator interface {
 	WasPreviouslyMineAddrBytes(pubKeyBytes []byte) bool
 	WasPreviouslyMineAddrString(accountAddress string) bool
 	IsAddressStringInAccountsMapping(accountAddress string) bool
-	UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]AccountAjustmentTxsInfo
+	UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]*data.AccountAjustmentTxsInfo
 	IsMbHashStringInWaitingMbsForAATsNotarization(mbHash string) bool 	
+	SetNotarizedAATInWaitingMbsForAATsNotarization(aatHash string, mbHash string) (bool, int, int)
+	GetMbsWithAllAATsNotarizedFromWaitingMBs() map[string]*data.AccountAjustmentTxsInfo
+	IsProblematicMBReadyToBeProcessed(mbHash string) bool 
+	RemoveReadyMbsInsertedInCurrentRoundFromWaitingMbs(readyMbsIncludedInCurrentBlock map[string]bool) map[string]*data.AccountAjustmentTxsInfo
 	//! ---------------- END OF NEW CODE -----------------	
 }
 

@@ -116,7 +116,7 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 	err := mdi.preProcessMesage(message, fromConnectedPeer)
 	if err != nil {
  		//! ------------------- NEW CODE ---------------------
-		 log.Debug("***mdi.preProcessMesage(message, fromConnectedPeer) returned an error inside MultiDataInterceptor.ProcessReceivedMessage***", "err", err.Error())
+		 log.Debug("***mdi.preProcessMessage(message, fromConnectedPeer) returned an error inside MultiDataInterceptor.ProcessReceivedMessage***", "err", err.Error())
 		 //! ---------------- END OF NEW CODE -----------------			
 		return err
 	}

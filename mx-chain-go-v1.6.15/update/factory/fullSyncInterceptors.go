@@ -540,6 +540,9 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneTxInterceptor(topic s
 	argProcessor := &processor.ArgTxInterceptorProcessor{
 		ShardedDataCache: ficf.dataPool.Transactions(),
 		TxValidator:      txValidator,
+		//! -------------------- NEW CODE --------------------
+		ShardCoordinator: ficf.shardCoordinator,
+		//! ---------------- END OF NEW CODE -----------------			
 	}
 	txProcessor, err := processor.NewTxInterceptorProcessor(argProcessor)
 	if err != nil {
@@ -578,6 +581,9 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneUnsignedTxInterceptor
 	argProcessor := &processor.ArgTxInterceptorProcessor{
 		ShardedDataCache: ficf.dataPool.UnsignedTransactions(),
 		TxValidator:      dataValidators.NewDisabledTxValidator(),
+		//! -------------------- NEW CODE --------------------
+		ShardCoordinator: ficf.shardCoordinator,
+		//! ---------------- END OF NEW CODE -----------------			
 	}
 	txProcessor, err := processor.NewTxInterceptorProcessor(argProcessor)
 	if err != nil {
@@ -616,6 +622,9 @@ func (ficf *fullSyncInterceptorsContainerFactory) createOneRewardTxInterceptor(t
 	argProcessor := &processor.ArgTxInterceptorProcessor{
 		ShardedDataCache: ficf.dataPool.RewardTransactions(),
 		TxValidator:      dataValidators.NewDisabledTxValidator(),
+		//! -------------------- NEW CODE --------------------
+		ShardCoordinator: ficf.shardCoordinator,
+		//! ---------------- END OF NEW CODE -----------------			
 	}
 	txProcessor, err := processor.NewTxInterceptorProcessor(argProcessor)
 	if err != nil {

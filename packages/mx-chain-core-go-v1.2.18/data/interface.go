@@ -10,6 +10,28 @@ import (
 type ProblematicMBInfo struct {
 	ProblematicTxHashes []string
 	AccAdjTxHashes []string
+	SenderShardID uint32
+}
+
+type MbInfo struct {
+	SenderShardId uint32
+	ProblematicTxHashes []string
+}
+
+type SingleAATInfo struct{
+	AatxHash string //the txHash that has been generated for the AAT
+	//processed bool //if the AAT has been inserted in a block source side //TODO: non serve a nulla, visto che una AAT qui dentro ce la metto se effettivamente è stata inserita in un blocco e dunque processata source side
+	NotarizedOnDest bool //if the AAT has been notarized destination side
+}
+
+//TODO: rename in "ProblematicMBInfo"
+type AccountAjustmentTxsInfo struct { //single AAT accessed as AccountAdjustmentTxsInfo.AATsInfo[originalProblematicTxHash]
+	NumAATs int
+	NumNotarizedAATs int
+	OriginalProblematicTxHashes []string
+	AATsInfo map[string]*SingleAATInfo
+	SenderShardId uint32
+	//IncludedInBlock bool
 }
 //! ---------------- END OF NEW CODE -----------------
 
@@ -102,6 +124,9 @@ type ShardHeaderHandler interface {
 	GetBlockBodyTypeInt32() int32
 	SetMetaBlockHashes(hashes [][]byte) error
 	MapMiniBlockHashesToShards() map[string]uint32
+	//! -------------------- NEW CODE --------------------
+	GetMiniBlockHeadersWithDstInHexString(destId uint32) map[string]string	
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // MetaHeaderHandler defines getters and setters for the meta block header

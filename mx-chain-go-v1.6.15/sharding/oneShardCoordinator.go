@@ -84,6 +84,13 @@ func (osc *OneShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes []b
 	return 999
 }
 
+func (osc *OneShardCoordinator)	HasBeenMigratedInCurrentEpochFromAddrBytes(pubKeyBytes []byte) bool {
+	return false
+}
+
+func (osc *OneShardCoordinator)	HasBeenMigratedInCurrentEpochFromAddrString(accountAddress string) bool {
+	return false
+}
 
 /*func (osc *OneShardCoordinator) GetShardInfoFromAddressString(accountAddress string) ShardInfo {
 	return ShardInfo{}
@@ -92,7 +99,6 @@ func (osc *OneShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes []b
 func (osc *OneShardCoordinator) GetShardInfoFromAddressBytes(pubKeyBytes []byte) ShardInfo{
 	return ShardInfo{}
 }*/
-
 
 func (osc *OneShardCoordinator) AccountsMapping() AccountsMapping {
 	return AccountsMapping{}
@@ -122,11 +128,27 @@ func (osc *OneShardCoordinator) IsAddressStringInAccountsMapping(accountAddress 
 	return false
 }
 
-func (osc *OneShardCoordinator) UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]AccountAjustmentTxsInfo{
+func (osc *OneShardCoordinator) UpdateWaitingMbsForAATsNotarization(problematicsMBsForCurrRound map[string]*data.ProblematicMBInfo) map[string]*data.AccountAjustmentTxsInfo{
 	return nil
 }
 
 func (osc *OneShardCoordinator) IsMbHashStringInWaitingMbsForAATsNotarization(mbHash string) bool {
 	return false
+}
+
+func (osc *OneShardCoordinator) SetNotarizedAATInWaitingMbsForAATsNotarization(aatHash string, mbHash string) (bool, int, int) {
+	return false, 0, 0
+}
+
+func (osc *OneShardCoordinator) GetMbsWithAllAATsNotarizedFromWaitingMBs() map[string]*data.AccountAjustmentTxsInfo {
+	return nil
+}
+
+func (osc *OneShardCoordinator) IsProblematicMBReadyToBeProcessed(mbHash string) bool {
+	return false
+}
+
+func (osc *OneShardCoordinator) RemoveReadyMbsInsertedInCurrentRoundFromWaitingMbs(readyMbsIncludedInCurrentBlock map[string]bool) map[string]*data.AccountAjustmentTxsInfo{
+	return nil
 }
 //! ---------------- END OF NEW CODE -----------------	

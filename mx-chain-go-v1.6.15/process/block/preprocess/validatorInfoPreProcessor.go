@@ -249,7 +249,11 @@ func (vip *validatorInfoPreprocessor) ProcessMiniBlock(
 	_ bool,
 	indexOfLastTxProcessed int,
 	_ process.PreProcessorExecutionInfoHandler,
-	) ([][]byte, int, bool, []string, bool, error) { //txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
+	//! -------------------- NEW CODE --------------------
+	calledForReadyMbs bool,
+	readyMbInfo *data.AccountAjustmentTxsInfo,
+	//! ---------------- END OF NEW CODE -----------------		
+) ([][]byte, int, bool, []string, bool, error) { //txsToBeReverted, indexOfLastTxProcessed, shouldRevert, problematicTxsFromMB, isMiniBlockProblematic, err //! MODIFIED CODE
 	if miniBlock.Type != block.PeerBlock {
 		return nil, indexOfLastTxProcessed, false, nil, false, process.ErrWrongTypeInMiniBlock //! MODIFIED CODE
 	}

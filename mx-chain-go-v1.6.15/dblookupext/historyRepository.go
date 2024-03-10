@@ -3,11 +3,13 @@
 package dblookupext
 
 import (
+	"encoding/hex"
 	"fmt"
 	"sync"
+
 	//! -------------------- NEW CODE --------------------
-	"sort"	
-	//! ---------------- END OF NEW CODE -----------------	
+	"sort"
+	//! ---------------- END OF NEW CODE -----------------
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -30,7 +32,7 @@ import (
 	"github.com/multiversx/mx-chain-go/sharding"
 	"github.com/multiversx/mx-chain-go/state"
 	"github.com/multiversx/mx-chain-go/storage/txcache"
-	//! ---------------- END OF NEW CODE -----------------	
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 var log = logger.GetOrCreate("dblookupext")
@@ -565,6 +567,13 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 				log.Debug("*** AccountsMapping is now: ***", "accountsMapping", hr.shardCoordinator.AccountsMapping(), "len", len(hr.shardCoordinator.AccountsShardInfo()))
 
+			}
+		}else if isAccountAdjustmentTransaction {
+			updated, numTotalAATs, numNotarizedAATs := hr.shardCoordinator.SetNotarizedAATInWaitingMbsForAATsNotarization(hex.EncodeToString(txHash), hex.EncodeToString(tx.OriginalMiniBlockHash)) //TODO: CONTROLLARE
+			if updated {
+				log.Debug("*** ---- AAT saved as notarized inside waitingMBsForAATsNotarization ---- ***", "aatHash", string(txHash), "problematicMBHash", hex.EncodeToString(tx.OriginalMiniBlockHash), "numTotalAATsForMB", numTotalAATs, "numNotarizedAATsForMb", numNotarizedAATs)
+			}else{
+				log.Debug("***Error: couldn't update AAT's notarization inside waitingMBsForAATsNotarization. -------- THIS SHOULDN'T HAPPEN --------", "aatHash", string(txHash))
 			}
 		}
 	}
