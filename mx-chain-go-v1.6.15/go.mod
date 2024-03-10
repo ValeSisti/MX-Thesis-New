@@ -197,4 +197,6 @@ replace github.com/multiversx/mx-chain-vm-v1_2-go => ../packages/mx-chain-vm-v1_
 
 replace github.com/multiversx/mx-chain-storage-go => ../packages/mx-chain-storage-go-v1.0.14
 
+replace github.com/multiversx/mx-chain-es-indexer-go => ../packages/mx-chain-es-indexer-go-v1.4.18
+
 //replace github.com/multiversx/mx-chain-p2p-go => ../mx-chain-p2p-go-v1.0.18 //! non c'è qui
