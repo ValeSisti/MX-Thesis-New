@@ -392,7 +392,20 @@ func getTxs(txs map[string]data.TransactionHandler) (map[string]*outportcore.TxI
 	ret := make(map[string]*outportcore.TxInfo, len(txs))
 
 	for txHash, txHandler := range txs {
-		tx, castOk := txHandler.(*transaction.Transaction)
+		//! -------------------- NEW CODE --------------------
+		var tx *transaction.Transaction
+		var castOk bool
+		normalTxHandler, ok := txHandler.(data.NormalTransactionHandler)
+
+		if ok {
+			log.Debug("*** Cast ok for normalTxHandler inside outportDataProvider ***", "txHash", txHash)
+			tx, castOk = normalTxHandler.(*transaction.Transaction)
+		}else{
+		//! ---------------- END OF NEW CODE -----------------
+			tx, castOk = txHandler.(*transaction.Transaction)
+		//! -------------------- NEW CODE --------------------
+		}
+		//! ---------------- END OF NEW CODE -----------------	
 		txHashHex := getHexEncodedHash(txHash)
 		if !castOk {
 			return nil, fmt.Errorf("%w, hash: %s", errCannotCastTransaction, txHashHex)

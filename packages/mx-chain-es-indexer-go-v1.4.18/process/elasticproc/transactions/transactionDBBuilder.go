@@ -44,6 +44,11 @@ func (dtb *dbTransactionBuilder) prepareTransaction(
 	txStatus string,
 	numOfShards uint32,
 ) *data.Transaction {
+
+	//! -------------------- NEW CODE --------------------
+	//log.Info("*** prepareTransaction called ***", "txHash", hex.EncodeToString(txHash))
+	//! ---------------- END OF NEW CODE -----------------
+
 	tx := txInfo.Transaction
 
 	isScCall := core.IsSmartContractAddress(tx.RcvAddr)
@@ -87,6 +92,19 @@ func (dtb *dbTransactionBuilder) prepareTransaction(
 
 	senderUserName := converters.TruncateFieldIfExceedsMaxLengthBase64(string(tx.SndUserName))
 	receiverUserName := converters.TruncateFieldIfExceedsMaxLengthBase64(string(tx.RcvUserName))
+	
+
+	//! -------------------- NEW CODE --------------------
+	log.Info("*** data.Transaction info: ***", 
+		"TxHash", hex.EncodeToString(txHash),
+		"MBHash", hex.EncodeToString(mbHash),
+		"MigrationNonce", tx.MigrationNonce,
+		"SignerPubKey", tx.SignerPubKey,
+		"OriginalTxHash", tx.OriginalTxHash,
+		"OriginalMbHash", tx.OriginalMiniBlockHash,
+	)	
+	//! ---------------- END OF NEW CODE -----------------
+	
 	return &data.Transaction{
 		Hash:              hex.EncodeToString(txHash),
 		MBHash:            hex.EncodeToString(mbHash),
@@ -122,6 +140,12 @@ func (dtb *dbTransactionBuilder) prepareTransaction(
 		Version:           tx.Version,
 		GuardianAddress:   guardianAddress,
 		GuardianSignature: hex.EncodeToString(tx.GuardianSignature),
+		//! -------------------- NEW CODE --------------------
+		MigrationNonce:    tx.MigrationNonce,
+		SignerPubKey: 	   tx.SignerPubKey,
+		OriginalTxHash:    hex.EncodeToString(tx.OriginalTxHash),
+		OriginalMiniBlockHash: hex.EncodeToString(tx.OriginalMiniBlockHash),
+		//! ---------------- END OF NEW CODE -----------------
 	}
 }
 

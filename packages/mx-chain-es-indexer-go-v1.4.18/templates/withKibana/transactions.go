@@ -136,6 +136,20 @@ var Transactions = Object{
 				"index": "false",
 				"type":  "keyword",
 			},
+			//! -------------------- NEW CODE --------------------
+			"migrationNonce": Object{
+				"type":  "double",
+			},
+			"signerPubKey": Object{
+				"type":  "keyword",
+			},
+			"originalTxHash": Object{
+				"type":  "keyword",
+			},
+			"originalMiniBlockHash": Object{
+				"type":  "keyword",
+			},
+			//! ---------------- END OF NEW CODE -----------------			
 		},
 	},
 }

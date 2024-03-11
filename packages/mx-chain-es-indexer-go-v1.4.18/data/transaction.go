@@ -52,6 +52,15 @@ type Transaction struct {
 	Hash                 string        `json:"-"`
 	BlockHash            string        `json:"-"`
 	HadRefund            bool          `json:"-"`
+	//! -------------------- NEW CODE --------------------
+    MigrationNonce        uint64        `json:"migrationNonce,omitempty"`
+    //SenderShard           uint32        `protobuf:"varint,17,opt,name=SenderShard,proto3" json:"senderShard,omitempty"`
+    //ReceiverShard         uint32        `protobuf:"varint,18,opt,name=ReceiverShard,proto3" json:"receiverShard,omitempty"`
+    SignerPubKey          []byte       `json:"signerPubKey,omitempty"`
+    OriginalTxHash        string       `json:"originalTxHash,omitempty"`
+    OriginalMiniBlockHash string       `json:"originalMiniBlockHash,omitempty"`
+	//! ---------------- END OF NEW CODE -----------------
+
 }
 
 // Receipt is a structure containing all the fields that need to be safe for a Receipt

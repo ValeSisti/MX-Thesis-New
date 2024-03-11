@@ -71,6 +71,7 @@ func main() {
 		},
 	}
 
+	
 	app.Version = version
 	app.Action = startIndexer
 
@@ -82,6 +83,10 @@ func main() {
 }
 
 func startIndexer(ctx *cli.Context) error {
+	//! -------------------- NEW CODE --------------------
+	log.Info("*** Starting indexer ***")
+	//! ---------------- END OF NEW CODE -----------------	
+
 	cfg, err := loadMainConfig(ctx.GlobalString(configurationFile.Name))
 	if err != nil {
 		return fmt.Errorf("%w while loading the config file", err)

@@ -535,6 +535,9 @@ func (ei *elasticProcessor) indexScDeploys(deployData map[string]*data.ScDeployI
 }
 
 func (ei *elasticProcessor) indexTransactions(txs []*data.Transaction, txHashStatusInfo map[string]*outport.StatusInfo, header coreData.HeaderHandler, bytesBuff *data.BufferSlice) error {
+	//! -------------------- NEW CODE --------------------
+	log.Info("*** indexTransactions called ***")
+	//! ---------------- END OF NEW CODE -----------------	
 	if !ei.isIndexEnabled(elasticIndexer.TransactionsIndex) {
 		return nil
 	}

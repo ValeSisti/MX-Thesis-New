@@ -60,6 +60,23 @@ func NewHostDriver(args ArgsHostDriver) (*hostDriver, error) {
 func (o *hostDriver) SaveBlock(outportBlock *outport.OutportBlock) error {
 	//! -------------------- NEW CODE --------------------
 	o.log.Debug("***SaveBlock called inside hostDriver***")
+	transactions := outportBlock.GetTransactionPool().GetTransactions()
+	for txHash, txInfo := range transactions{
+		o.log.Debug("*** Tx Info ***",
+			"txHash", txHash,
+			"migrationNonce", txInfo.Transaction.GetMigrationNonce(),
+			"originalMbHash", txInfo.Transaction.GetOriginalMiniBlockHash(),
+			"originalTxHash", txInfo.Transaction.GetOriginalTxHash(),
+		)	
+	}
+
+	mbsFromBlock := outportBlock.GetBlockData().GetBody().GetMiniBlocks()
+	for _, mbInfo := range mbsFromBlock{
+		o.log.Debug("*** Mb from block info ***",
+			"mbTxHashes", mbInfo.GetTxHashes(),
+		)	
+	}
+
 	//! ---------------- END OF NEW CODE -----------------	
 	return o.handleAction(outportBlock, outport.TopicSaveBlock)
 }
