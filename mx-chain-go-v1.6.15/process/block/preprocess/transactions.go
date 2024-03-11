@@ -435,8 +435,19 @@ func (txs *transactions) computeTxsFromMiniBlock(
 
 	txsFromMiniBlock := make([]*txcache.WrappedTransaction, 0, len(miniBlock.TxHashes))
 
+	//! -------------------- NEW CODE --------------------
+	miniBlockHash, err := txs.computeMiniBlockHash(miniBlock)
+	if err != nil {
+		log.Debug("***Error: couldn't compute mini block hash ---- this shouldn't happen --- ****")
+	}
+	miniBlockHashHexString := hex.EncodeToString(miniBlockHash)
+
+	readyMbsHashes := txs.shardCoordinator.GetMbsWithAllAATsNotarizedFromWaitingMBs()
+	readyMbInfo, isMiniBlockInReadyMbs := readyMbsHashes[miniBlockHashHexString]
+	//! ---------------- END OF NEW CODE -----------------	
+
 	indexOfFirstTxToBeProcessed := pi.indexOfLastTxProcessed + 1
-	err := process.CheckIfIndexesAreOutOfBound(indexOfFirstTxToBeProcessed, pi.indexOfLastTxProcessedByProposer, miniBlock)
+	err = process.CheckIfIndexesAreOutOfBound(indexOfFirstTxToBeProcessed, pi.indexOfLastTxProcessedByProposer, miniBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -451,6 +462,17 @@ func (txs *transactions) computeTxsFromMiniBlock(
 			log.Warn("missing transaction in computeTxsFromMiniBlock", "type", miniBlock.Type, "txHash", txHash)
 			return nil, process.ErrMissingTransaction
 		}
+
+		//! -------------------- NEW CODE --------------------
+		if isMiniBlockInReadyMbs{
+			log.Debug("*** MiniBlock is a ready miniblock: its problematic transactions should NOT be executed ***", "mbHash", miniBlockHashHexString)
+			txHashHexString := hex.EncodeToString(txHash)
+			if txs.isTxHashInProblematicTxHashesOfReadyMb(txHashHexString, readyMbInfo.OriginalProblematicTxHashes){
+				log.Debug("*** ----- Tx was previously a problematic tx and was handled through an AAT. It will NOT be inserted inside txsFromMiniBlock, in order to skip its processing validator-side (leader-side this is checked in another part of the code)  ----- ***", "txHash", txHashHexString)
+				continue
+			}			
+		}
+		//! ---------------- END OF NEW CODE -----------------		
 
 		tx, ok := txInfoFromMap.tx.(*transaction.Transaction)
 		if !ok {

@@ -549,3 +549,9 @@ func (bpp *basePreProcess) getIndexesOfLastTxProcessed(
 
 	return pi, nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (bpp *basePreProcess) computeMiniBlockHash(miniBlock *block.MiniBlock,) ([]byte, error) {
+	return core.CalculateHash(bpp.marshalizer, bpp.hasher, miniBlock)
+}
+//! ---------------- END OF NEW CODE -----------------
