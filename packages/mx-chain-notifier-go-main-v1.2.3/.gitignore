@@ -1,0 +1,31 @@
+# Binaries, plugins, libs
+*.dll
+*.dylib
+*.exe
+*.exe~
+*.so
+
+# Testing
+*.test
+*.tmp
+
+# User specific
+.idea
+.idea/*
+
+# Env variables
+/.env
+/.env.dev
+/.env.testing
+
+.env
+.env.dev
+.env.testing
+
+logs
+vendor
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
