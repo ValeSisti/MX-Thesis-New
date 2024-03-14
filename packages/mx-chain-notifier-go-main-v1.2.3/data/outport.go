@@ -31,6 +31,9 @@ type BlockEvents struct {
 	ShardID   uint32  `json:"shardId"`
 	TimeStamp uint64  `json:"timestamp"`
 	Events    []Event `json:"events"`
+	//! -------------------- NEW CODE --------------------
+	IsEpochStartBlock  bool `json:"isEpochStartBlock"`
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // RevertBlock holds revert event data

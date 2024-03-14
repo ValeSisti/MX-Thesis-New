@@ -16,10 +16,19 @@ func CreatePublisher(
 	marshaller marshal.Marshalizer,
 	commonHub dispatcher.Hub,
 ) (process.Publisher, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** CreatePublisher called***")
+	//! ---------------- END OF NEW CODE -----------------	
 	switch apiType {
 	case common.MessageQueuePublisherType:
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** case common.MessageQueuePublisherType ***")
+		//! ---------------- END OF NEW CODE -----------------		
 		return createRabbitMqPublisher(config.RabbitMQ, marshaller)
 	case common.WSPublisherType:
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** case common.MessageQueuePublisherType ***")
+		//! ---------------- END OF NEW CODE -----------------				
 		return createWSPublisher(commonHub)
 	default:
 		return nil, common.ErrInvalidAPIType
@@ -27,6 +36,9 @@ func CreatePublisher(
 }
 
 func createRabbitMqPublisher(config config.RabbitMQConfig, marshaller marshal.Marshalizer) (rabbitmq.PublisherService, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***createRabbitMqPublisher called***")
+	//! ---------------- END OF NEW CODE -----------------		
 	rabbitClient, err := rabbitmq.NewRabbitMQClient(config.Url)
 	if err != nil {
 		return nil, err
@@ -39,6 +51,9 @@ func createRabbitMqPublisher(config config.RabbitMQConfig, marshaller marshal.Ma
 	}
 	rabbitPublisher, err := rabbitmq.NewRabbitMqPublisher(rabbitMqPublisherArgs)
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: during NewRabbitMqPublisher***")
+		//! ---------------- END OF NEW CODE -----------------		
 		return nil, err
 	}
 

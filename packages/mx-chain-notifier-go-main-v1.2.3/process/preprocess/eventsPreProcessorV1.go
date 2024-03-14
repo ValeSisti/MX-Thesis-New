@@ -115,6 +115,9 @@ func (d *eventsPreProcessorV1) RevertIndexedBlock(marshalledData []byte) error {
 
 // FinalizedBlock will handle the finalized block event
 func (d *eventsPreProcessorV1) FinalizedBlock(marshalledData []byte) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** eventsPreProcessorV1.FinalizedBlock ***")
+	//! ---------------- END OF NEW CODE -----------------	
 	finalizedBlock := &outport.FinalizedBlock{}
 	err := d.marshaller.Unmarshal(finalizedBlock, marshalledData)
 	if err != nil {

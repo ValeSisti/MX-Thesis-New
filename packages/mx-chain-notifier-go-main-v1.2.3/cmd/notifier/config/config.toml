@@ -19,7 +19,7 @@
 
 [WebSocketConnector]
     # Enabled will determine if websocket connector will be enabled or not
-    Enabled = false
+    Enabled = true
 
     # URL for the WebSocket client/server connection
     # This value represents the IP address and port number that the WebSocket client or server will use to establish a connection.
@@ -29,7 +29,7 @@
     Mode = "server"
 
     # Possible values: json, gogo protobuf. Should be compatible with mx-chain-node outport driver config
-    DataMarshallerType = "gogo protobuf"
+    DataMarshallerType = "json"
 
     # Retry duration (receive/send ack signal) in seconds
     RetryDurationInSec = 5
@@ -50,7 +50,7 @@
     # Enabled will determine if http connector will be enabled or not.
     # It will determine if http connector endpoints will be created.
     # If set to false, the web server will still be created for other endpoints (for metrics, or for WS if needed)
-    Enabled = true
+    Enabled = false
 
     # The address on which the events notifier listens for subscriptions
     # It can be specified as "localhost:5000" or only as "5000"
@@ -75,7 +75,7 @@
     # The redis connection type. Options: | instance | sentinel |
     # instance - it will try to connect to a single redis instance
     # sentinel - it will try to connect to redis setup with master, slave and sentinel instances
-    ConnectionType = "sentinel"
+    ConnectionType = "instance"
 
     # Time to live (in minutes) for redis lock entry
     TTL = 30

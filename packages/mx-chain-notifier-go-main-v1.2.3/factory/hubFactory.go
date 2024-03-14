@@ -10,6 +10,9 @@ import (
 
 // CreateHub creates a common hub component
 func CreateHub(apiType string) (dispatcher.Hub, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** CreateHub called ***")
+	//! ---------------- END OF NEW CODE -----------------			
 	switch apiType {
 	case common.MessageQueuePublisherType:
 		return &disabled.Hub{}, nil

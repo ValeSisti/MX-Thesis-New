@@ -14,6 +14,7 @@ FROM ubuntu:20.04
 COPY --from=builder /multiversx/cmd/notifier /multiversx
 
 EXPOSE 8080
+EXPOSE 22111
 
 WORKDIR /multiversx
 

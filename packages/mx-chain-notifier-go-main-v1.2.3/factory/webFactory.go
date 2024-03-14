@@ -9,6 +9,9 @@ import (
 
 // CreateWebServerHandler will create a new web server handler component
 func CreateWebServerHandler(facade shared.FacadeHandler, configs config.Configs) (shared.WebServerHandler, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** CreatePublisher called***")
+	//! ---------------- END OF NEW CODE -----------------	
 	marshaller, err := marshalFactory.NewMarshalizer(marshalFactory.JsonMarshalizer)
 	if err != nil {
 		return nil, err

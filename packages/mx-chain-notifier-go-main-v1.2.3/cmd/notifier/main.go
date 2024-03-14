@@ -44,7 +44,7 @@ VERSION:
 	logLevel = cli.StringFlag{
 		Name:  "log-level",
 		Usage: "This flag specifies the log level. Options: *:NONE | ERROR | WARN | INFO | DEBUG | TRACE",
-		Value: fmt.Sprintf("*:%s", logger.LogInfo.String()),
+		Value: fmt.Sprintf("*:%s", logger.LogDebug.String()),
 	}
 
 	logSaveFile = cli.BoolFlag{
@@ -130,6 +130,9 @@ func main() {
 }
 
 func startEventNotifierProxy(ctx *cli.Context) error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** PROVA -------------- ***")
+	//! ---------------- END OF NEW CODE -----------------	
 	log.Info("starting eventNotifier proxy...")
 
 	cfgs, err := readConfigs(ctx)
@@ -149,6 +152,9 @@ func startEventNotifierProxy(ctx *cli.Context) error {
 
 	err = notifierRunner.Start()
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** Start returned an error -------------- ***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------	
 		return err
 	}
 

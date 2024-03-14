@@ -93,6 +93,9 @@ func (eh *eventsHandler) HandleSaveBlockEvents(allEvents data.ArgsSaveBlockData)
 		ShardID:   eventsData.Header.GetShardID(),
 		TimeStamp: eventsData.Header.GetTimeStamp(),
 		Events:    eventsData.LogEvents,
+		//! -------------------- NEW CODE --------------------
+		IsEpochStartBlock: eventsData.Header.IsStartOfEpochBlock(),
+		//! ---------------- END OF NEW CODE -----------------		
 	}
 	err = eh.handlePushEvents(pushEvents)
 	if err != nil {

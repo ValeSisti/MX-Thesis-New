@@ -12,6 +12,9 @@ var log = logger.GetOrCreate("redis")
 
 // CreateSimpleClient will create a redis client for a redis setup with one instance
 func CreateSimpleClient(cfg config.RedisConfig) (RedLockClient, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** CreateSimpleClient ***")
+	//! ---------------- END OF NEW CODE -----------------		
 	opt, err := redis.ParseURL(cfg.Url)
 	if err != nil {
 		return nil, err
@@ -31,6 +34,9 @@ func CreateSimpleClient(cfg config.RedisConfig) (RedLockClient, error) {
 
 // CreateFailoverClient will create a redis client for a redis setup with sentinel
 func CreateFailoverClient(cfg config.RedisConfig) (RedLockClient, error) {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** CreateFailoverClient ***")
+	//! ---------------- END OF NEW CODE -----------------		
 	client := redis.NewFailoverClient(&redis.FailoverOptions{
 		MasterName:    cfg.MasterName,
 		SentinelAddrs: []string{cfg.SentinelUrl},

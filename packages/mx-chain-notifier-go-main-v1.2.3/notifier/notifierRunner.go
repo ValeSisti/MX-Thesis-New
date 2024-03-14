@@ -34,30 +34,69 @@ func NewNotifierRunner(cfgs *config.Configs) (*notifierRunner, error) {
 
 // Start will trigger the notifier service
 func (nr *notifierRunner) Start() error {
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***Start called ***")
+	//! ---------------- END OF NEW CODE -----------------		
 	publisherType := nr.configs.Flags.PublisherType
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** PRINTING ***", "publisherType", publisherType)
+	//! ---------------- END OF NEW CODE -----------------		
 
 	externalMarshaller, err := marshalFactory.NewMarshalizer(nr.configs.MainConfig.General.ExternalMarshaller.Type)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***is error nil?? NM ***", "err == nil???", err == nil)
+	//! ---------------- END OF NEW CODE -----------------		
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: during NewMarshalizer ***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** BEFORE CALLS ***", "err == nil???", err == nil)
+	//! ---------------- END OF NEW CODE -----------------		
+
 	lockService, err := factory.CreateLockService(nr.configs.MainConfig.General.CheckDuplicates, nr.configs.MainConfig.Redis)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***is error nil?? CL ***", "err == nil???", err == nil)
+	//! ---------------- END OF NEW CODE -----------------		
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: during CreateLockService ***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
 	commonHub, err := factory.CreateHub(publisherType)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***is error nil?? CH ***", "err == nil???", err == nil)
+	//! ---------------- END OF NEW CODE -----------------		
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: during CreateHub ***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------				
 		return err
 	}
 
 	publisher, err := factory.CreatePublisher(publisherType, nr.configs.MainConfig, externalMarshaller, commonHub)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***is error nil?? CP ***", "err == nil???", err == nil)
+	//! ---------------- END OF NEW CODE -----------------	
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: during CreatePublisher ***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------				
 		return err
 	}
-
 	wsHandler, err := factory.CreateWSHandler(publisherType, commonHub, externalMarshaller)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("***is error nil?? CWSH ***", "err == nil???", err == nil)
+	//! ---------------- END OF NEW CODE -----------------		
 	if err != nil {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: during CreateWSHandler ***", "err", err.Error())
+		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
 
