@@ -1,0 +1,8 @@
+--exclude=*.html
+--exclude=*.md
+--exclude=.git
+--exclude=.gitignore
+--exclude=.vscode
+--exclude=README*
+--exclude=multiversx_sdk_cli/tests/testdata/*
+--exclude=__pycache__
