@@ -19,7 +19,7 @@ def get_delegation_address() -> Address:
 
 
 def is_last_user(nickname: str) -> bool:
-    return nickname == "mike"
+    return nickname == "my_wallet"
 
 
 def is_foundational_node(nickname: str) -> bool:

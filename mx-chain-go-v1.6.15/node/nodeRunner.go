@@ -296,12 +296,12 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 
 
 	//! SCOMMENTARE
-	///*
+	/*
 	accountAddressToBeMigrated := "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th" //alice's address
 	sourceShardId := uint32(1)
 	destinationShardId := uint32(0)
 	migrationNonce := uint64(0) //? perché il next expected nonce è il valore del nonce correntemente salvato nello stato dell'account (e all'inizio è pari a 0)
-	//*/
+	*/
 
 	//TODO: TOGLIERE ASSOLUTAMENTE
 	//? Serve solo per testare se funziona il meccanismo di invio delle txs rimaste in coda dell'account che viene migrato. Scommentarlo se si vuole testare
@@ -324,15 +324,16 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 	
 	
 	//! SCOMMENTARE
-	///*
+	/*
 	//TODO: spostare dentro CreateSingleAccountMigrationClean
 	if (epoch == uint32(2)){
 		currentAccountsMapping := h.currentNode.processComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destinationShardId, epoch)		
 		log.Debug("***Current Accounts Mapping***", "accountsMapping", currentAccountsMapping)
+		createSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
 	}
 	//TODO: SCOMMENTARE
-	createSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
-	//*/
+
+	*/
 	//createSingleTestAccountAdjustmentTransaction(h, epoch)	
 }
 
@@ -402,7 +403,7 @@ func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
     accountToBeMigratedAddrBytes, _ := h.currentNode.coreComponents.AddressPubKeyConverter().Decode(accountAddressToBeMigrated)
 
     
-    if(epoch == uint32(1)){
+    if(epoch == uint32(2)){
 
         transactionData := ""   // Additional data for the transaction
         privateKey := h.currentNode.cryptoComponents.TxPrivateKey()     // Your private key here

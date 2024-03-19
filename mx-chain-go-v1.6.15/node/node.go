@@ -718,6 +718,7 @@ func (n *Node) ValidateTransaction(tx *transaction.Transaction) error {
 	}
 	//! -------------------- NEW CODE --------------------
 	*/
+	log.Debug("*** ValidateTransaction called ***")
 	//! ---------------- END OF NEW CODE -----------------
 
 	txValidator, intTx, err := n.commonTransactionValidation(tx, n.processComponents.WhiteListerVerifiedTxs(), n.processComponents.WhiteListHandler(), true)

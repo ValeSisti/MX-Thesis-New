@@ -410,6 +410,14 @@ func (wrk *Worker) ProcessReceivedMessage(message p2p.MessageP2P, fromConnectedP
 	isMessageWithBlockHeader := wrk.consensusService.IsMessageWithBlockHeader(msgType)
 	isMessageWithBlockBodyAndHeader := wrk.consensusService.IsMessageWithBlockBodyAndHeader(msgType)
 
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** Received consensus message type ***",
+		"isMessageWithBlockBody", isMessageWithBlockBody,
+		"isMessageWithBlockBody", isMessageWithBlockHeader,
+		"isMessageWithBlockBody", isMessageWithBlockBodyAndHeader,
+	)
+	//! ---------------- END OF NEW CODE -----------------	
+
 	if isMessageWithBlockBody || isMessageWithBlockBodyAndHeader {
 		wrk.doJobOnMessageWithBlockBody(cnsMsg)
 	}
