@@ -65,11 +65,11 @@ accounts_info = {
         "nonce" : 1,
     },
 # ! ------------------------------- NEW USERS -------------------------------
-    "erd1xrvst0w2sa60f6g59z6rawxzgmpktj6yh9jgmnseceq458ys7kts2xxac4" : {
-        "username" : "my_wallet",
-        "shard" : 1, # TODO: CONTROLLA
-        "nonce" : 1,
-    },
+    # "erd1xrvst0w2sa60f6g59z6rawxzgmpktj6yh9jgmnseceq458ys7kts2xxac4" : {
+    #    "username" : "my_wallet",
+    #    "shard" : 1, # TODO: CONTROLLA
+    #    "nonce" : 1,
+    #},
 }
 
 
@@ -78,7 +78,7 @@ accounts_info = {
 def run_shell_command(command, sender_addr):
     try:
         result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        #print("Command output: ", result.stdout)
+        print("Command output: ", result.stdout)
         
     
     except subprocess.CalledProcessError as e:
@@ -130,6 +130,19 @@ def pick_sender_and_receiver(hash_map, seed):
         # Yield the pair of keys
         yield first_key, second_key
 
+def pick_receiver(hash_map, seed):
+    # Extract keys from the hash map
+    keys = list(hash_map.keys())
+    
+    # Set the random seed
+    random.seed(seed)
+    
+    while True:
+        # Randomly select the first key
+        first_key = random.choice(keys)
+           
+        # Yield the pair of keys
+        yield first_key
 
 
 def generateRandomTransactions():
@@ -140,7 +153,7 @@ def generateRandomTransactions():
     generator = pick_sender_and_receiver(accounts_info, seed_value)
 
     # Generate pairs of keys
-    for _ in range(100000):  # Generate 5 pairs
+    for _ in range(500):  # Generate 5 pairs
         sender_addr, receiver_addr = next(generator)
 
         print("----- GENERATING A TX FROM " + accounts_info[sender_addr]["username"] + " TO " + accounts_info[receiver_addr]["username"] + " -----")
@@ -154,5 +167,26 @@ def generateRandomTransactions():
         time.sleep(0.7)
 
 
+def generateRandomTransactionsFromSingleSender():
+    sender_addr = "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th"
+    seed_value = 42
+
+    generator = pick_receiver(accounts_info, seed_value)
+
+    # Generate pairs of keys
+    for _ in range(150):
+        receiver_addr = next(generator)
+
+        print("----- GENERATING TX FROM " + accounts_info[sender_addr]["username"] + " TO " + accounts_info[receiver_addr]["username"] + " -----")
+        command_to_run = create_command_to_run(
+                nonce=accounts_info[sender_addr]["nonce"],
+                gas_limit=70000,
+                receiver_address=receiver_addr,
+                sender_name=accounts_info[sender_addr]["username"]
+        )
+        run_shell_command(command_to_run, sender_addr)
+        time.sleep(1)
+
 
 generateRandomTransactions()
+#generateRandomTransactionsFromSingleSender()

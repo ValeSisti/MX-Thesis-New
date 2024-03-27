@@ -1078,6 +1078,9 @@ func (txs *transactions) computeMissingTxsHashesForMiniBlock(miniBlock *block.Mi
 			method)
 
 		if check.IfNil(tx) {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("*** Appending tx to missing txs ***", "txHash", txHash, "mbSenderShard", miniBlock.SenderShardID,  "mbReceiverShard", miniBlock.ReceiverShardID, )
+			//! ---------------- END OF NEW CODE -----------------			
 			missingTransactionsHashes = append(missingTransactionsHashes, txHash)
 		}
 	}

@@ -421,6 +421,9 @@ func GetTransactionHandlerFromPool(
 ) (data.TransactionHandler, error) {
 
 	if check.IfNil(shardedDataCacherNotifier) {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("***Error: nil sharded data cacher notifier inside GetTransationHandlerFromPool ***")
+		//! ---------------- END OF NEW CODE -----------------		
 		return nil, ErrNilShardedDataCacherNotifier
 	}
 
@@ -438,12 +441,18 @@ func getTransactionHandlerFromPool(
 	var ok bool
 
 	if method == SearchMethodSearchFirst {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** method == SearchMethodSearchFirst inside getTransactionHandlerFromPool ***")
+		//! ---------------- END OF NEW CODE -----------------			
 		val, ok = shardedDataCacherNotifier.SearchFirstData(txHash)
 
 		return castDataFromCacheAsTransactionHandler(val, ok)
 	}
 
 	strCache := ShardCacherIdentifier(senderShardID, destShardID)
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** strCache inside getTransactionHandlerFromPool ***", "strCache", strCache)
+	//! ---------------- END OF NEW CODE -----------------		
 	txStore := shardedDataCacherNotifier.ShardDataStore(strCache)
 	if txStore == nil {
 		return nil, ErrNilStorage
@@ -451,8 +460,14 @@ func getTransactionHandlerFromPool(
 
 	switch method {
 	case SearchMethodJustPeek:
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** method == SearchMethodJustPeek inside getTransactionHandlerFromPool ***")
+		//! ---------------- END OF NEW CODE -----------------				
 		val, ok = txStore.Peek(txHash)
 	case SearchMethodPeekWithFallbackSearchFirst:
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** method == SearchMethodPeekWithFallbackSearchFirst inside getTransactionHandlerFromPool ***")
+		//! ---------------- END OF NEW CODE -----------------			
 		val, ok = txStore.Peek(txHash)
 		if !ok {
 			val, ok = shardedDataCacherNotifier.SearchFirstData(txHash)

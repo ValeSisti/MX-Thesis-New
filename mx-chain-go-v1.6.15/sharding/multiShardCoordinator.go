@@ -9,6 +9,7 @@ import (
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-go/state"
 	"github.com/multiversx/mx-chain-core-go/data"
+	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	//! ---------------- END OF NEW CODE -----------------
 )
 
@@ -57,6 +58,8 @@ type multiShardCoordinator struct {
 	addressPubKeyConverter core.PubkeyConverter
 	accountsAdapter state.AccountsAdapter
 	waitingMbsForAATsNotarization map[string]*data.AccountAjustmentTxsInfo
+	pendingTxsForMigratingAccounts map[string][]*transaction.Transaction
+	rootHashBeforeNewAccounts []byte
 	//! ---------------- END OF NEW CODE -----------------		
 }
 
@@ -81,6 +84,8 @@ func NewMultiShardCoordinator(numberOfShards, selfId uint32, addressPubKeyConver
     }
 	sr.addressPubKeyConverter = addressPubKeyConverter
 	sr.waitingMbsForAATsNotarization = make(map[string]*data.AccountAjustmentTxsInfo)
+	sr.pendingTxsForMigratingAccounts = make(map[string][]*transaction.Transaction)
+	sr.rootHashBeforeNewAccounts = make([]byte, 0)
 	//! ---------------- END OF NEW CODE -----------------	
 
 	return sr, nil
@@ -269,6 +274,7 @@ func (msc *multiShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes [
 
 func (msc *multiShardCoordinator) HasBeenMigratedInCurrentEpochFromAddrBytes(pubKeyBytes []byte) bool {
 	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
+	log.Debug("*** HasBeenMigratedInCurrentEpochFromAddrBytes ***", "addr", accountAddress, "updatedInEpoch", msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch, "currentEpoch", msc.accountsMapping.currentEpoch)
 	return msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch == msc.accountsMapping.currentEpoch
 }
 
@@ -444,6 +450,40 @@ func (msc *multiShardCoordinator) RemoveReadyMbsInsertedInCurrentRoundFromWaitin
 		log.Debug("*** ready mb inserted in current round removed from waitingMbsForAATsNotarization ***", "mbHash", mbHash)
 	}
 	return msc.waitingMbsForAATsNotarization
+}
+
+
+func (msc *multiShardCoordinator) PutTransactionInPendingForMigratingAccount(txSender string, tx *transaction.Transaction){
+	if _, ok := msc.pendingTxsForMigratingAccounts[txSender]; !ok{
+		msc.pendingTxsForMigratingAccounts[txSender] = make([]*transaction.Transaction, 0)
+	}
+	msc.pendingTxsForMigratingAccounts[txSender] = append(msc.pendingTxsForMigratingAccounts[txSender], tx)
+
+	log.Debug("*** Transaction put inside PendingTxsForMigratingAccounts ***")
+}
+
+
+func (msc *multiShardCoordinator) GetTransactionsReceivedForMigratingAccount(txSender string) []*transaction.Transaction{
+	log.Debug("*** GetTransactionsReceivedForMigratingAccount called ***")
+	if _, ok := msc.pendingTxsForMigratingAccounts[txSender]; !ok{
+		log.Debug("*** Sender is not present inside PendingTxsForMigratingAccounts ***")
+		return make([]*transaction.Transaction, 0)
+	}
+	return msc.pendingTxsForMigratingAccounts[txSender]
+}
+
+func (msc *multiShardCoordinator) RemoveAccountFromPendingTxsForMigratingAccounts(accountAddr string){
+	if _, ok := msc.pendingTxsForMigratingAccounts[accountAddr]; !ok{
+		delete(msc.pendingTxsForMigratingAccounts, accountAddr)
+	}
+}
+
+func (msc *multiShardCoordinator) SetRootHashBeforeNewAccounts(rootHash []byte){
+	msc.rootHashBeforeNewAccounts = rootHash
+}
+
+func (msc *multiShardCoordinator) GetRootHashBeforeNewAccounts() []byte {
+	return msc.rootHashBeforeNewAccounts
 }
 //! ---------------- END OF NEW CODE -----------------	
 

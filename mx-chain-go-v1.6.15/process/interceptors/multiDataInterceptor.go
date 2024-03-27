@@ -194,6 +194,9 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 		interceptedData, err = mdi.interceptedData(dataBuff, message.Peer(), fromConnectedPeer)
 		listInterceptedData[index] = interceptedData
 		if err != nil {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***Error: mdi.interceptedData. Ending processing***", "err", err.Error())
+			//! ---------------- END OF NEW CODE -----------------					
 			mdi.throttler.EndProcessing()
 			return err
 		}
@@ -216,18 +219,22 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 
 		//! -------------------- NEW CODE --------------------
 		//? SERVE PER QUANDO VENGONO INVIATE LE TRANSAZIONI RIMASTE IN CODA DI UN ACCOUNT CHE è STATO MIGRATO!!!!
-		_, txPresentInShardedTxPool := mdi.dataPool.Transactions().SearchFirstData(interceptedData.Hash())
+		//TODO: SCOMMENTARE ASSOLUTAMENTE
+		//_, txPresentInShardedTxPool := mdi.dataPool.Transactions().SearchFirstData(interceptedData.Hash())
 		
-		if (txPresentInShardedTxPool){
+		//if (txPresentInShardedTxPool){
+			//! -------------------- NEW CODE --------------------
+			log.Debug("*** ----- Setting shouldProcess = true ----- ***")
+			//! ---------------- END OF NEW CODE -----------------				
 			shouldProcess = true
-		}
+		//}
 		//! ---------------- END OF NEW CODE -----------------		
 
 		if !shouldProcess {
 			//! -------------------- NEW CODE --------------------
 			log.Debug("***!shouldProcess is true inside ProcessReceivedMessage. Ending processing***")
 			//! ---------------- END OF NEW CODE -----------------			
-			log.Trace("intercepted data should not be processed",
+			log.Debug("intercepted data should not be processed",
 				"pid", p2p.MessageOriginatorPid(message),
 				"seq no", p2p.MessageOriginatorSeq(message),
 				"topic", message.Topic(),

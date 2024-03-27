@@ -1254,4 +1254,8 @@ var ErrProblematicMiniBlock = errors.New("***account has not been found because 
 var ErrNilDataPoolInsideMultiDataInterceptor = errors.New("***data pool is nil inside multiDataInterceptor***")
 
 var ErrAATAlreadyProcessed = errors.New("***AAT has already been inserted in a block and is miniblock is waiting for its notarization dest-side***")
+
+var ErrTransactionForwardedToNewShard = errors.New("*** -------- Transaction from an already migrated (i.e. migration completed) sender has been received and forwarded to its new shard. Nothing more has to be done -------- ***")
+
+var ErrTransactionPutInPendingUntilMigrationCompletes = errors.New("*** -------- Transaction from migrating account (i.e. migration has not yet been completed) sender has been received and will be put into pendingTxsForMigratingAccount -------- ***")
 //! ---------------- END OF NEW CODE -----------------	

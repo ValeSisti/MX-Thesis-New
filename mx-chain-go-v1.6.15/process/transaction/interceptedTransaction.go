@@ -134,7 +134,7 @@ func NewInterceptedTransaction(
 		return nil, err
 	}
 	//! -------------------- NEW CODE --------------------
-	log.Debug("*** Intercepted transaction created ***", "txHash", string(inTx.hash))
+	log.Debug("*** Intercepted transaction created ***", "txHash", string(inTx.hash), "txNonce", inTx.tx.GetNonce())
 	//! ---------------- END OF NEW CODE -----------------	
 
 	return inTx, nil
@@ -385,7 +385,7 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 		inTx.sndShard = inTx.tx.SenderShard
 		inTx.rcvShard = inTx.tx.ReceiverShard
 
-		log.Debug("***Intercepted transaction: isAccountAdjustmentTransaction***")
+		log.Debug("***Intercepted transaction: isAccountMigrationTransaction***")
 
 	}else{
 	//! ---------------- END OF NEW CODE -----------------
@@ -401,8 +401,10 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 			inTx.rcvShard = inTx.sndShard
 		}
 	//! -------------------- NEW CODE --------------------
-	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-	//! ---------------- END OF NEW CODE -----------------	
+	} 
+
+	log.Debug("*** inTx info ***", "sndShard", inTx.sndShard, "rcvShard",inTx.sndShard, "isForCurrentShard", (inTx.rcvShard == inTx.coordinator.SelfId() || inTx.sndShard == inTx.coordinator.SelfId()))
+	//! ---------------- END OF NEW CODE ----------------
 
 	isForCurrentShardRecv := inTx.rcvShard == inTx.coordinator.SelfId()
 	isForCurrentShardSender := inTx.sndShard == inTx.coordinator.SelfId()

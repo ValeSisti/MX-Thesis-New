@@ -237,7 +237,7 @@ func (bp *baseProcessor) checkScheduledRootHash(headerHandler data.HeaderHandler
 		return process.ErrNilAdditionalData
 	}
 
-	if !bytes.Equal(additionalData.GetScheduledRootHash(), bp.getRootHash()) {
+	if !bytes.Equal(additionalData.GetScheduledRootHash(), bp.getRootHash()) && !bytes.Equal(additionalData.GetScheduledRootHash(), bp.shardCoordinator.GetRootHashBeforeNewAccounts()) { //! MODIFIED CODE
 		log.Debug("scheduled root hash does not match",
 			"current root hash", bp.getRootHash(),
 			"header scheduled root hash", additionalData.GetScheduledRootHash())

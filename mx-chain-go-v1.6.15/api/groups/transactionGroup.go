@@ -19,6 +19,7 @@ import (
 	"github.com/multiversx/mx-chain-go/api/shared/logging"
 	"github.com/multiversx/mx-chain-go/common"
 	"github.com/multiversx/mx-chain-go/node/external"
+	//"github.com/multiversx/mx-chain-go/process"
 	txSimData "github.com/multiversx/mx-chain-go/process/transactionEvaluator/data"
 )
 
@@ -343,23 +344,35 @@ func (tg *transactionGroup) sendTransaction(c *gin.Context) {
 		return
 	}
 
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------	
 	start = time.Now()
 	err = tg.getFacade().ValidateTransaction(tx)
 	logging.LogAPIActionDurationIfNeeded(start, "API call: ValidateTransaction")
 	if err != nil {
 		//! -------------------- NEW CODE --------------------
 		log.Debug("***Error: TRANSACTION IS NOT VALID inside transactionGroup.go (api). Probably this is an observer to which the proxy has sent the transaction to.***", "err", err.Error())
-		//! ---------------- END OF NEW CODE -----------------				
-		c.JSON(
-			http.StatusBadRequest,
-			shared.GenericAPIResponse{
-				Data:  nil,
-				Error: fmt.Sprintf("%s: %s", errors.ErrTxGenerationFailed.Error(), err.Error()),
-				Code:  shared.ReturnCodeRequestError,
-			},
-		)
-		return
+				
+		if err != process.ErrTransactionForwardedToNewShard && err != process.ErrTransactionPutInPendingUntilMigrationCompletes{
+		//! ---------------- END OF NEW CODE -----------------
+			c.JSON(
+				http.StatusBadRequest,
+				shared.GenericAPIResponse{
+					Data:  nil,
+					Error: fmt.Sprintf("%s: %s", errors.ErrTxGenerationFailed.Error(), err.Error()),
+					Code:  shared.ReturnCodeRequestError,
+				},
+			)
+			return
+		//! -------------------- NEW CODE --------------------
+		}
+		//! ---------------- END OF NEW CODE -----------------
 	}
+	//! -------------------- NEW CODE --------------------
+	*/
+	//! ---------------- END OF NEW CODE -----------------		
+
 
 	start = time.Now()
 	_, err = tg.getFacade().SendBulkTransactions([]*transaction.Transaction{tx})
@@ -437,6 +450,9 @@ func (tg *transactionGroup) sendMultipleTransactions(c *gin.Context) {
 
 		err = tg.getFacade().ValidateTransaction(tx)
 		if err != nil {
+			//! -------------------- NEW CODE --------------------
+			log.Debug("***Error: TRANSACTION IS NOT VALID inside sendMultipleTransactions (api). Probably this is an observer to which the proxy has sent the transaction to.***", "err", err.Error())
+			//! ---------------- END OF NEW CODE -----------------				
 			continue
 		}
 

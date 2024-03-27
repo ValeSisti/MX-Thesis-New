@@ -15,6 +15,7 @@ import (
 
 	//! -------------------- NEW CODE --------------------
 	"encoding/hex"
+	"sort"
 	//! ---------------- END OF NEW CODE -----------------
 
 	"github.com/google/gops/agent"
@@ -70,6 +71,7 @@ import (
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-go/state"
+	"github.com/multiversx/mx-chain-go/storage/txcache"
 	//! ---------------- END OF NEW CODE -----------------
 )
 
@@ -296,12 +298,12 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 
 
 	//! SCOMMENTARE
-	/*
+	
 	accountAddressToBeMigrated := "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th" //alice's address
 	sourceShardId := uint32(1)
 	destinationShardId := uint32(0)
 	migrationNonce := uint64(0) //? perché il next expected nonce è il valore del nonce correntemente salvato nello stato dell'account (e all'inizio è pari a 0)
-	*/
+	
 
 	//TODO: TOGLIERE ASSOLUTAMENTE
 	//? Serve solo per testare se funziona il meccanismo di invio delle txs rimaste in coda dell'account che viene migrato. Scommentarlo se si vuole testare
@@ -324,16 +326,40 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 	
 	
 	//! SCOMMENTARE
-	/*
+	
 	//TODO: spostare dentro CreateSingleAccountMigrationClean
 	if (epoch == uint32(2)){
 		currentAccountsMapping := h.currentNode.processComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destinationShardId, epoch)		
 		log.Debug("***Current Accounts Mapping***", "accountsMapping", currentAccountsMapping)
+		rootHashBeforeNewAccount, err := h.currentNode.stateComponents.AccountsAdapter().RootHash()
+		if err != nil {
+			log.Debug("***Error: Cannot get RootHash for AccountsAdapter ***", "err", err.Error())
+		}
+		h.currentNode.processComponents.ShardCoordinator().SetRootHashBeforeNewAccounts(rootHashBeforeNewAccount)
+		
 		createSingleAccountMigrationTransactionClean(h, epoch, accountAddressToBeMigrated, sourceShardId, destinationShardId, migrationNonce)
 	}
 	//TODO: SCOMMENTARE
 
-	*/
+	if (epoch == uint32(3) && h.currentNode.processComponents.ShardCoordinator().SelfId() == destinationShardId){
+		cacheId := process.ShardCacherIdentifier(destinationShardId, destinationShardId)
+		cache := h.currentNode.dataComponents.Datapool().Transactions().ShardDataStore(cacheId)
+		txCache, _ := cache.(*txcache.TxCache)
+	
+		wrappedTxsForSender := txCache.GetTransactionsPoolForSender(accountAddressToBeMigrated)
+	
+		sort.Slice(wrappedTxsForSender, func(i, j int) bool {
+			return wrappedTxsForSender[i].Tx.GetNonce() < wrappedTxsForSender[j].Tx.GetNonce()
+		})
+		
+		var txsNonceList []uint64
+		
+		for _, wTx := range wrappedTxsForSender{
+			txsNonceList = append(txsNonceList, wTx.Tx.GetNonce())
+		}
+		log.Debug("*** MIGRATED ACCOUNT TXSNONCESLIST ***", "txsNonceList", txsNonceList)
+	}
+	
 	//createSingleTestAccountAdjustmentTransaction(h, epoch)	
 }
 
@@ -398,7 +424,7 @@ func createSingleTestAccountAdjustmentTransaction(h *AccountMigrationHandler, ep
 
 func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, epoch uint32, accountAddressToBeMigrated string, sourceShard uint32, destShard uint32, migrationNonce uint64){
     
-    selfShardId, _ := h.currentNode.processComponents.NodesCoordinator().ShardIdForEpoch(epoch)
+    selfShardId := h.currentNode.processComponents.ShardCoordinator().SelfId()
     shardedTxPool := h.currentNode.dataComponents.Datapool().Transactions().(dataRetriever.ShardedTxPool)
     accountToBeMigratedAddrBytes, _ := h.currentNode.coreComponents.AddressPubKeyConverter().Decode(accountAddressToBeMigrated)
 
@@ -468,12 +494,12 @@ func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
             }
 
 
-            err = h.currentNode.ValidateTransaction(tx) //? al suo interno chiama CheckTxValidity()
+            /*err = h.currentNode.ValidateTransaction(tx) //? al suo interno chiama CheckTxValidity()
             if err != nil {
                 log.Debug("***Error: TRANSACTION IS NOT VALID***", "error", err.Error(),)
             }else{
                 log.Debug("***TRANSACTION IS VALID INSIDE nodeRunner***")
-            }
+            }*/
             
             log.Debug(
                 "***PRINTING AMT inside nodeRunner***", 
@@ -519,14 +545,33 @@ func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
             // LoadAccount fetches the account based on the address. Creates an empty account if the account is missing.
             accountHandler, err := h.currentNode.stateComponents.AccountsAdapter().LoadAccount(accountToBeMigratedAddrBytes)
             if err != nil {
-                log.Debug("***CANNOT LOAD ACCOUNT INSIDE nodeRunner***")
+                log.Debug("***ERROR: CANNOT LOAD ACCOUNT INSIDE nodeRunner***", "err", err.Error())
             }
+
+			err = h.currentNode.stateComponents.AccountsAdapter().SaveAccount(accountHandler)
+            if err != nil {
+                log.Debug("***ERROR: CANNOT SAVE ACCOUNT INSIDE nodeRunner***", "err", err.Error())
+            }
+
+			_, err = h.currentNode.stateComponents.AccountsAdapter().Commit()
+            if err != nil {
+                log.Debug("***ERROR: CANNOT COMMIT ACCOUNT INSIDE nodeRunner***", "err", err.Error())
+            }
+
+			_, err = h.currentNode.stateComponents.AccountsAdapter().GetExistingAccount(accountToBeMigratedAddrBytes)
+			if err != nil {
+                log.Debug("***ERROR: ------ ACCOUNT NOT CREATED IN DESTINATION SHARD -------- ***", "err", err.Error())
+            }else{
+                log.Debug("*** ACCOUNT CREATED IN DESTINATION SHARD, OK! ***")
+			}
 
             //faccio il cast a UserAccount così ho disponibili i metodi per il flag IsBeingMigrated
             userAccountHandler, ok := accountHandler.(state.UserAccountHandler)
             if !ok{
-                log.Debug("***CANNOT CAST accountHandler INSIDE nodeRunner")
+                log.Debug("***ERROR: CANNOT CAST accountHandler INSIDE nodeRunner")
             }
+
+			log.Debug("*** Created account info ***", "addressBytes", string(userAccountHandler.AddressBytes()))
 
             //setto il flag IsBeingMigrated a true
             userAccountHandler.SetIsBeingMigrated(true)
@@ -534,7 +579,7 @@ func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
             shardedTxPool.AddAccountToMigratingAccounts(string(userAccountHandler.AddressBytes()))
 
             //settando questo, so che da adesso in poi dovrò occuparmi io delle txs che arrivano per questo account
-            h.currentNode.bootstrapComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destShard, epoch)
+            //h.currentNode.bootstrapComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destShard, epoch)
 
             
         }

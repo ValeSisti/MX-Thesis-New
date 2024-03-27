@@ -5,6 +5,7 @@ import (
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-go/state"
 	"github.com/multiversx/mx-chain-core-go/data"
+	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	//! ---------------- END OF NEW CODE -----------------
 )
 
@@ -150,5 +151,22 @@ func (osc *OneShardCoordinator) IsProblematicMBReadyToBeProcessed(mbHash string)
 
 func (osc *OneShardCoordinator) RemoveReadyMbsInsertedInCurrentRoundFromWaitingMbs(readyMbsIncludedInCurrentBlock map[string]bool) map[string]*data.AccountAjustmentTxsInfo{
 	return nil
+}
+
+func (osc *OneShardCoordinator) PutTransactionInPendingForMigratingAccount(txSender string, tx *transaction.Transaction){}
+
+
+func (osc *OneShardCoordinator) GetTransactionsReceivedForMigratingAccount(txSender string) []*transaction.Transaction{
+	return make([]*transaction.Transaction, 0)
+}
+
+func (osc *OneShardCoordinator) RemoveAccountFromPendingTxsForMigratingAccounts(txSender string){}
+
+
+func (osc *OneShardCoordinator) SetRootHashBeforeNewAccounts(rootHash []byte){}
+
+
+func (osc *OneShardCoordinator) GetRootHashBeforeNewAccounts() []byte {
+	return make([]byte, 0)
 }
 //! ---------------- END OF NEW CODE -----------------	

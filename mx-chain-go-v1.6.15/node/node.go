@@ -729,6 +729,23 @@ func (n *Node) ValidateTransaction(tx *transaction.Transaction) error {
 		return err
 	}
 
+	//! -------------------- NEW CODE --------------------
+	notMineAnymore := n.checkSenderNotMineAnymore(tx) //? i.e. non è più mio ma ERA mio
+	migrationCompleted := n.checkMigrationCompleted(tx)
+	if notMineAnymore{
+		if migrationCompleted{
+			//? transaction is simply forwarded to the new shard (?) -> Dovrebbe funzionare!
+			n.SendBulkTransactions([]*transaction.Transaction{tx})
+			return process.ErrTransactionForwardedToNewShard
+		}else{
+			//TODO: put in pending -> la cosa bella è che qui ho n, quindi posso mettere queste "pending" ovunque voglio per essere accessibily all'historyRepository
+			n.processComponents.ShardCoordinator().PutTransactionInPendingForMigratingAccount(string(tx.SndAddr), tx)				
+			return process.ErrTransactionPutInPendingUntilMigrationCompletes
+			//n.dataComponents.Datapool().Transactions().AddData() //? -> will be done by the caller (?)
+		} 
+	}
+	//! ---------------- END OF NEW CODE -----------------
+
 	err = txValidator.CheckTxValidity(intTx)
 	if errors.Is(err, process.ErrAccountNotFound) {
 		return fmt.Errorf("%w for address %s",
@@ -831,6 +848,22 @@ func (n *Node) checkSenderIsInShard(tx *transaction.Transaction) error {
 
 	return nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (n *Node) checkSenderNotMineAnymore(tx *transaction.Transaction) bool {
+	shardCoordinator := n.bootstrapComponents.ShardCoordinator()
+	notCurrentlyMine := shardCoordinator.SelfId() != shardCoordinator.ComputeId(tx.SndAddr)
+	wasMineBefore := shardCoordinator.WasPreviouslyMineAddrBytes(tx.SndAddr)
+	return notCurrentlyMine && wasMineBefore
+}
+
+func (n *Node) checkMigrationCompleted(tx *transaction.Transaction) bool {
+	sndAddrString := hex.EncodeToString(tx.SndAddr)
+	return n.dataComponents.Datapool().Transactions().(dataRetriever.ShardedTxPool).IsAccountInMigratingAccounts(sndAddrString)
+}
+//! ---------------- END OF NEW CODE -----------------
+
+
 
 // CreateTransaction will return a transaction from all the required fields
 func (n *Node) CreateTransaction(txArgs *external.ArgsCreateTransaction) (*transaction.Transaction, []byte, error) {

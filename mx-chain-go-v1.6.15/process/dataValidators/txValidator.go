@@ -2,10 +2,12 @@ package dataValidators
 
 import (
 	"fmt"
+	"math/big"
 	//! -------------------- NEW CODE --------------------
+	"bytes"
 	"encoding/hex"
-	"bytes"	
-	//! ---------------- END OF NEW CODE -----------------	
+
+	//! ---------------- END OF NEW CODE -----------------
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -14,10 +16,10 @@ import (
 	"github.com/multiversx/mx-chain-go/state"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	vmcommon "github.com/multiversx/mx-chain-vm-common-go"
+
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-core-go/data"
-	//! ---------------- END OF NEW CODE -----------------	
-
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 var _ process.TxValidator = (*txValidator)(nil)
@@ -95,7 +97,10 @@ func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransac
 		}
 	}
 
-	if txv.isSenderInDifferentShard(interceptedTx) {
+	//! -------------------- NEW CODE --------------------
+	wasPreviouslyMine := txv.shardCoordinator.WasPreviouslyMineAddrBytes(interceptedTx.SenderAddress())
+	//! ---------------- END OF NEW CODE -----------------	
+	if txv.isSenderInDifferentShard(interceptedTx) && !wasPreviouslyMine{ //! MODIFIED
 		//! -------------------- NEW CODE --------------------
 		log.Debug("***sender is in different shard for interceptedTx. Returning nil***", "hash", hex.EncodeToString(interceptedData.Hash()))	
 		//! ---------------- END OF NEW CODE -----------------				
@@ -103,7 +108,7 @@ func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransac
 	}
 
 	accountHandler, err := txv.getSenderAccount(interceptedTx)
-	if err != nil {
+	if err != nil && !wasPreviouslyMine{ //! MODIFIED CODE
 		//! -------------------- NEW CODE --------------------
 		log.Debug("***could not get sender account inside CheckTxValidity***", "err", err.Error())	
 		//! ---------------- END OF NEW CODE -----------------			
@@ -168,8 +173,16 @@ func (txv *txValidator) getSenderUserAccount(
 	return account, nil
 }
 
-func (txv *txValidator) checkBalance(interceptedTx process.InterceptedTransactionHandler, account state.UserAccountHandler) error {
+func (txv *txValidator) checkBalance(interceptedTx process.InterceptedTransactionHandler, account state.UserAccountHandler) error {	
 	accountBalance := account.GetBalance()
+	//! -------------------- NEW CODE --------------------
+	log.Debug("*** Account Balance inside checkBalance ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))
+	senderIsMigrating := accountBalance.Cmp(big.NewInt(0)) == 0 && account.GetNonce() == uint64(0)
+	if senderIsMigrating{
+		log.Debug("*** Balance can't be checked for migrating account, as its state is not yet update. Returning nil ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))	
+		return nil
+	}
+	//! ---------------- END OF NEW CODE -----------------
 	txFee := interceptedTx.Fee()
 	if accountBalance.Cmp(txFee) < 0 {
 		senderAddress := interceptedTx.SenderAddress()

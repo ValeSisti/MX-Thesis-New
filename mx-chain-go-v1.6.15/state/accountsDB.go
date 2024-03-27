@@ -554,7 +554,7 @@ func (adb *AccountsDB) RemoveAccount(address []byte) error {
 		return err
 	}
 
-	log.Trace("accountsDB.RemoveAccount",
+	log.Debug("accountsDB.RemoveAccount",
 		"address", hex.EncodeToString(address),
 	)
 
@@ -639,6 +639,9 @@ func (adb *AccountsDB) LoadAccount(address []byte) (vmcommon.AccountHandler, err
 		return nil, err
 	}
 	if check.IfNil(acnt) {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** Create Account called ***")
+		//! ---------------- END OF NEW CODE -----------------		
 		return adb.accountFactory.CreateAccount(address)
 	}
 
@@ -1069,12 +1072,15 @@ func (adb *AccountsDB) journalize(entry JournalEntry) {
 	}
 
 	adb.entries = append(adb.entries, entry)
-	log.Trace("accountsDB.Journalize",
+	log.Debug("accountsDB.Journalize",
 		"new length", len(adb.entries),
 		"entry type", fmt.Sprintf("%T", entry),
 	)
 
 	if len(adb.entries) == 1 {
+		//! -------------------- NEW CODE --------------------
+		log.Debug("*** len(adb.entries) == 1 inside journalize ***")
+		//! ---------------- END OF NEW CODE -----------------		
 		adb.stackDebug = debug.Stack()
 	}
 }

@@ -66,9 +66,9 @@ func (bdi *baseDataInterceptor) processInterceptedData(data process.InterceptedD
 	err := bdi.processor.Validate(data, msg.Peer())
 	if err != nil {
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***intercepted data is not valid***")
+		log.Debug("***intercepted data is not valid***", "err", err.Error())
 		//! ---------------- END OF NEW CODE -----------------			
-		log.Trace("intercepted data is not valid",
+		log.Debug("intercepted data is not valid",
 			"hash", data.Hash(),
 			"type", data.Type(),
 			"pid", p2p.MessageOriginatorPid(msg),

@@ -5,7 +5,8 @@ import (
 	//! -------------------- NEW CODE --------------------
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-go/state"
-	"github.com/multiversx/mx-chain-core-go/data"	
+	"github.com/multiversx/mx-chain-core-go/data"
+	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	//! ---------------- END OF NEW CODE -----------------	
 )
 
@@ -46,6 +47,11 @@ type Coordinator interface {
 	GetMbsWithAllAATsNotarizedFromWaitingMBs() map[string]*data.AccountAjustmentTxsInfo
 	IsProblematicMBReadyToBeProcessed(mbHash string) bool 
 	RemoveReadyMbsInsertedInCurrentRoundFromWaitingMbs(readyMbsIncludedInCurrentBlock map[string]bool) map[string]*data.AccountAjustmentTxsInfo
+	PutTransactionInPendingForMigratingAccount(txSender string, tx *transaction.Transaction)
+	GetTransactionsReceivedForMigratingAccount(txSender string) []*transaction.Transaction
+	RemoveAccountFromPendingTxsForMigratingAccounts(accountAddr string)
+	SetRootHashBeforeNewAccounts(rootHash []byte)
+	GetRootHashBeforeNewAccounts() []byte
 	//! ---------------- END OF NEW CODE -----------------	
 }
 

@@ -520,13 +520,14 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 				if len(txsForSender) > 0 {
 					log.Debug("*** Sending queuing transaction of migrated account ...***", "migratedAccount", string(tx.SndAddr), "amtxHash", string(txHash))
-					logTxsToBeSent(txsForSender)
+					hr.logTxsToBeSent(txsForSender)
 					
 					numTxs, err := hr.queuingTxsSenderHandler.SendBulkTransactions(txsForSender)
 					if err != nil{
 						log.Debug("*** Failed to send transactions through SendBulkTransactions ***", "err", err.Error())
 					}
-					log.Debug("*** Transactions sent through SendBulkTransactions ***", "numTxs", numTxs)					
+					log.Debug("*** Transactions sent through SendBulkTransactions ***", "numTxs", numTxs)
+					hr.shardCoordinator.RemoveAccountFromPendingTxsForMigratingAccounts(string(tx.SndAddr))				
 				}else{
 					log.Debug("*** No queuing transaction for migrated account. NOT calling SendBulkTransactions(queuingTxs)***", "migratedAccount", string(tx.SndAddr))
 				}
@@ -534,8 +535,22 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 				
 				//TODO: capire se SendBulkTranasction è bloccante e, se sì, eliminare l'account tramite hr.accountsAdapter.RemoveAccount o quello che sia
-				log.Debug("*** Removing migrated account from source shard ***")
-				//hr.accountsAdapter.RemoveAccount(tx.SndAddr) //TODO: RIMETTERE
+				/*log.Debug("*** Removing migrated account from source shard ***")
+				err := hr.accountsAdapter.RemoveAccount(tx.SndAddr) //TODO: RIMETTERE
+				if err != nil {
+					log.Debug("***ERROR: COULDN'T REMOVE ACCOUNT FROM SOURCE SHARD ***","err", err.Error())
+				}
+				_, err = hr.accountsAdapter.Commit()
+				if err != nil {
+					log.Debug("***ERROR: COULDN'T REMOVE ACCOUNT FROM SOURCE SHARD ***","err", err.Error())
+				}
+
+
+
+				_, err = hr.accountsAdapter.GetExistingAccount(tx.SndAddr)
+				if err != nil {
+					log.Debug("*** Migrated account has effectively been removed from source shard ***")
+				}*/
 			
 				
 			}else if (hr.selfShardID == tx.ReceiverShard){ //Altrimenti, se faccio parte del destination shard (andava bene anche solo else, visto che ci sono solo due casi possibili, ma per sicurezza ho messo else if)
@@ -546,7 +561,7 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 
 				//is migrated account actually in my shard??? It should be. Here is the check:
-				accountHandler, err := hr.accountsAdapter.LoadAccount(tx.SndAddr)
+				accountHandler, err := hr.accountsAdapter.GetExistingAccount(tx.SndAddr)
 				if err != nil {
 					log.Debug("*** Migrated account has not been created in the destination shard r***")
 				}
@@ -566,6 +581,15 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 				)
 
 				log.Debug("*** AccountsMapping is now: ***", "accountsMapping", hr.shardCoordinator.AccountsMapping(), "len", len(hr.shardCoordinator.AccountsShardInfo()))
+
+
+				txsRemoved := removeOldTxsOfNewlyMigratedAccount(hr, tx.SndAddr, tx.ReceiverShard)
+				if len(txsRemoved) > 0{
+					log.Debug("*** Removed old txs of newly migrated account (serve perché se ad esempio il nonce del nuovo account era 35, ma io ho transazioni nella pool con nonce < 35, quelle verranno selezionate, quindi le devo rimuovere ***")					
+				}else{
+					log.Debug("*** No old txs of newly migrated account, nothing to remove ***")					
+				}
+
 
 			}
 		}else if isAccountAdjustmentTransaction {
@@ -598,10 +622,52 @@ func fetchTxsForSender(hr *historyRepository, sender string, senderShard uint32)
 	})
 	
 	txsForSender := convertWrappedTxsListToTransactionList(wrappedTxsForSender)
+	txsReceivedInTheMeantime := hr.shardCoordinator.GetTransactionsReceivedForMigratingAccount(sender)
+
+	if len(txsReceivedInTheMeantime) > 0{
+		log.Debug("*** TRANSACTIONS FOR MIGRATING ACCOUNT RECEIVED IN THE MEANTIME, FORWARING THEM TOGETHER WITH QUEUING TXS ***", "numTxs", len(txsReceivedInTheMeantime))
+		txsForSender = append(txsForSender, txsReceivedInTheMeantime...)	
+	}
 
 	return txsForSender
 }
 
+func removeOldTxsOfNewlyMigratedAccount(hr *historyRepository, senderAddrBytes []byte, newShardOfAccount uint32) map[string]uint64 {
+	//? NOTA: codice preso e ispirato da "fetchTxsForSender" dell'apiTransactionProcessor nel file apiTransactionProcessor.go
+	cacheId := process.ShardCacherIdentifier(newShardOfAccount, newShardOfAccount)
+	cache := hr.shardedTxPool.ShardDataStore(cacheId)
+	txCache, ok := cache.(*txcache.TxCache)
+	if !ok {
+		log.Debug("***removeOldTxsOfNewlyMigratedAccount could not cast to TxCache***")
+		return nil
+	}
+
+	wrappedTxsForSender := txCache.GetTransactionsPoolForSender(string(senderAddrBytes))
+
+	sort.Slice(wrappedTxsForSender, func(i, j int) bool {
+		return wrappedTxsForSender[i].Tx.GetNonce() < wrappedTxsForSender[j].Tx.GetNonce()
+	})
+
+
+	removedTxs := make(map[string]uint64)
+	accountHandler, err := hr.accountsAdapter.GetExistingAccount(senderAddrBytes)
+	if err != nil {
+		log.Debug("***Error: cannot get existing account inside removeOldTxsOfNewlyMigratedAccount ***")
+	}
+	accountNonce := accountHandler.GetNonce()
+
+	for _, wTx := range wrappedTxsForSender{
+		if wTx.Tx.GetNonce() >= accountNonce{
+			log.Debug("*** Stop removing txs inside removeOldTxsOfNewlyMigratedAccount ***", "accountNonce", accountNonce, "txNonce", wTx.Tx.GetNonce())
+			break
+		} 
+		hr.shardedTxPool.RemoveDataFromAllShards(wTx.TxHash)
+		removedTxs[string(wTx.TxHash)] = wTx.Tx.GetNonce()
+		log.Debug("*** Removed tx from pool because old ***", "txNonce", wTx.Tx.GetNonce(), "txHash", wTx.TxHash)
+	}
+
+	return removedTxs
+}
 
 
 func convertWrappedTxsListToTransactionList(wrappedTxsList []*txcache.WrappedTransaction) []*transaction.Transaction {
@@ -618,14 +684,17 @@ func convertWrappedTxsListToTransactionList(wrappedTxsList []*txcache.WrappedTra
 	return txsList
 }
 
-func logTxsToBeSent(txsList []*transaction.Transaction) {
+func (hr *historyRepository) logTxsToBeSent(txsList []*transaction.Transaction) {
 	var txsStringList []string
+	var txsNonceList []uint64
 
 	for _, tx := range txsList {
 		txsStringList = append(txsStringList, tx.String())
+		txsNonceList = append(txsNonceList, tx.GetNonce())
 	}
 
 	log.Debug("***Transactions to be sent***", "txsStringList", txsStringList)
+	log.Debug("***Transactions to be sent nonces***", "txsNoncesList", txsNonceList)
 }
 
 

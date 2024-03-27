@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -113,7 +114,8 @@ func NewTransactionProcessor(
 }
 
 // SendTransaction relays the post request by sending the request to the right observer and replies back the answer
-func (tp *TransactionProcessor) SendTransaction(tx *data.Transaction) (int, string, error) {
+//! MODIFIED CODE: SendTransaction -> SendTransactionOLD
+func (tp *TransactionProcessor) SendTransactionOLD(tx *data.Transaction) (int, string, error) {
 	err := tp.checkTransactionFields(tx)
 	if err != nil {
 		return http.StatusBadRequest, "", err
@@ -131,21 +133,31 @@ func (tp *TransactionProcessor) SendTransaction(tx *data.Transaction) (int, stri
 
 
 	//! -------------------- NEW CODE --------------------
-	///*
+	/*
 	//! ---------------- END OF NEW CODE -----------------		
 	observers, err := tp.proc.GetObservers(shardID, data.AvailabilityRecent)
 	//! -------------------- NEW CODE --------------------	
-	//*/
+	*/
 	//! ---------------- END OF NEW CODE -----------------		
-	//observers, err := tp.proc.GetAllObservers(data.AvailabilityRecent) //! MODIFIED CODE
+	observers, err := tp.proc.GetAllObservers(data.AvailabilityRecent) //! MODIFIED CODE
 	if err != nil {
 		return http.StatusInternalServerError, "", err
 	}
 
 	for _, observer := range observers {
+		//! -------------------- NEW CODE --------------------	
+		log.Info("*** Sending tx to observer of shard: ***", "shardId", observer.ShardId, "isSynced", observer.IsSynced)
+		//! ---------------- END OF NEW CODE -----------------		
 		txResponse := &data.ResponseTransaction{}
 
 		respCode, err := tp.proc.CallPostRestEndPoint(observer.Address, TransactionSendPath, tx, txResponse)
+		//! -------------------- NEW CODE --------------------	
+		if err != nil{
+			log.Info("***Error: CallPostRestEndPoint ***", "err", err.Error())
+		}
+		log.Info("***Response code:***", "respCode", respCode)
+		//! ---------------- END OF NEW CODE -----------------				
+
 		if respCode == http.StatusOK && err == nil {
 			log.Info(fmt.Sprintf("Transaction sent successfully to observer %v from shard %v, received tx hash %s",
 				observer.Address,
@@ -167,6 +179,97 @@ func (tp *TransactionProcessor) SendTransaction(tx *data.Transaction) (int, stri
 
 	return http.StatusInternalServerError, "", ErrSendingRequest
 }
+
+
+// SendTransaction relays the post request by sending the request to the right observer and replies back the answer
+func (tp *TransactionProcessor) SendTransaction(tx *data.Transaction) (int, string, error) {
+	err := tp.checkTransactionFields(tx)
+	if err != nil {
+		return http.StatusBadRequest, "", err
+	}
+
+	senderBuff, err := tp.pubKeyConverter.Decode(tx.Sender)
+	if err != nil {
+		return http.StatusBadRequest, "", err
+	}
+
+	shardID, err := tp.proc.ComputeShardId(senderBuff)
+	if err != nil {
+		return http.StatusInternalServerError, "", err
+	}
+
+
+	//! -------------------- NEW CODE --------------------
+	/*
+	//! ---------------- END OF NEW CODE -----------------		
+	observers, err := tp.proc.GetObservers(shardID, data.AvailabilityRecent)
+	//! -------------------- NEW CODE --------------------	
+	*/
+	//! ---------------- END OF NEW CODE -----------------		
+	observers, err := tp.proc.GetAllObservers(data.AvailabilityRecent) //! MODIFIED CODE
+	if err != nil {
+		return http.StatusInternalServerError, "", err
+	}
+
+
+	var finalResponseCode int
+	var finalTxHash string
+	//var finalError error
+
+	for _, observer := range observers {
+		//! -------------------- NEW CODE --------------------	
+		observerAddrParts := strings.Split(observer.Address, ":") // Example string: "http://127.0.0.1:10101"
+
+		// Extract the last part after the last ":"
+		observerPort := observerAddrParts[len(observerAddrParts)-1]
+		if !strings.HasPrefix(observerPort, "101"){ // observers have port 10100, 10101, 10102, 10103,...
+			continue
+		}
+
+		log.Info("*** Sending tx to observer of shard: ***", "shardId", observer.ShardId, "address", observer.Address, "isSynced", observer.IsSynced)
+		//! ---------------- END OF NEW CODE -----------------		
+		txResponse := &data.ResponseTransaction{}
+
+		respCode, err := tp.proc.CallPostRestEndPoint(observer.Address, TransactionSendPath, tx, txResponse)
+		//! -------------------- NEW CODE --------------------	
+		if err != nil{
+			log.Info("***Error: CallPostRestEndPoint ***", "err", err.Error())
+		}
+		log.Info("***Response code:***", "respCode", respCode)
+		//! ---------------- END OF NEW CODE -----------------				
+
+		if respCode == http.StatusOK && err == nil {
+			log.Info(fmt.Sprintf("Transaction sent successfully to observer %v from shard %v, received tx hash %s",
+				observer.Address,
+				shardID,
+				txResponse.Data.TxHash,
+			))
+			//return respCode, txResponse.Data.TxHash, nil
+			finalResponseCode = http.StatusOK
+			finalTxHash = txResponse.Data.TxHash
+			//finalError = nil			
+		}
+
+		// if observer was down (or didn't respond in time), skip to the next one
+		if respCode == http.StatusNotFound || respCode == http.StatusRequestTimeout {
+			log.LogIfError(err)
+			continue
+		}
+		// if the request was bad, return the error message
+		if respCode == http.StatusBadRequest {
+			return respCode, "", err
+		}
+
+	}
+
+	if finalResponseCode != http.StatusOK {
+		return http.StatusInternalServerError, "", ErrSendingRequest		
+	}
+
+	return finalResponseCode, finalTxHash, nil
+
+}
+
 
 // SimulateTransaction relays the post request by sending the request to the right observer and replies back the answer
 func (tp *TransactionProcessor) SimulateTransaction(tx *data.Transaction, checkSignature bool) (*data.GenericAPIResponse, error) {

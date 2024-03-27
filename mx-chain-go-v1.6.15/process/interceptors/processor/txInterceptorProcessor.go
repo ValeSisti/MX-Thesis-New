@@ -70,7 +70,7 @@ func (txip *TxInterceptorProcessor) Save(dataToProcess process.InterceptedData, 
 
 	err := txip.txValidator.CheckTxWhiteList(dataToProcess)
 	if err != nil {
-		log.Trace(
+		log.Debug(
 			"TxInterceptorProcessor.Save: not whitelisted cross transactions will not be added in pool",
 			"nonce", interceptedTx.Nonce(),
 			"sender address", interceptedTx.SenderAddress(),
@@ -80,7 +80,7 @@ func (txip *TxInterceptorProcessor) Save(dataToProcess process.InterceptedData, 
 		return nil
 	}
 
-	txLog.Trace("received transaction", "pid", peerOriginator.Pretty(), "hash", dataToProcess.Hash())
+	txLog.Debug("received transaction", "pid", peerOriginator.Pretty(), "hash", dataToProcess.Hash())
 	cacherIdentifier := process.ShardCacherIdentifier(interceptedTx.SenderShardId(), interceptedTx.ReceiverShardId())
 	txip.shardedPool.AddData(
 		dataToProcess.Hash(),
@@ -111,6 +111,17 @@ func (txip *TxInterceptorProcessor) Save(dataToProcess process.InterceptedData, 
 		oldCacherIdentifier := process.ShardCacherIdentifier(interceptedTx.SenderShardId(), receiverAddrOldShardId)
 
 		log.Debug("*** Receiver account has been 'recently' migrated: adding the interceptedTx also in the old cache!! --- THIS AVOIDS PROBLEM ON IPAD PAGE 185 ---")
+		txip.shardedPool.AddData(
+			dataToProcess.Hash(),
+			interceptedTx.Transaction(),
+			interceptedTx.Transaction().Size(),
+			oldCacherIdentifier,
+		)
+	}else if !isSpecialTransaction && txip.shardCoordinator.HasBeenMigratedInCurrentEpochFromAddrBytes(interceptedTx.Transaction().GetSndAddr()) { // if receiver address recently migrated 
+		senderAddrOldShardId := txip.shardCoordinator.GetOldShardFromAddressBytes(interceptedTx.Transaction().GetSndAddr())
+		oldCacherIdentifier := process.ShardCacherIdentifier(senderAddrOldShardId, interceptedTx.ReceiverShardId())
+
+		log.Debug("*** Sender account has been 'recently' migrated: adding the interceptedTx also in the old cache!! --- THIS AVOIDS PROBLEM ON IPAD PAGE 185 but for sender addresses ---")
 		txip.shardedPool.AddData(
 			dataToProcess.Hash(),
 			interceptedTx.Transaction(),
