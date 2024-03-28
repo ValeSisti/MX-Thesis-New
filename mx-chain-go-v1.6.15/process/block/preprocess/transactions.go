@@ -479,14 +479,20 @@ func (txs *transactions) computeTxsFromMiniBlock(
 			return nil, process.ErrWrongTypeAssertion
 		}
 
+		//! -------------------- NEW CODE --------------------
+		/*
+		//! ---------------- END OF NEW CODE -----------------		
 		calculatedSenderShardId := txs.getShardFromAddress(tx.GetSndAddr())
 		calculatedReceiverShardId := txs.getShardFromAddress(tx.GetRcvAddr())
+		//! -------------------- NEW CODE --------------------	
+		*/
+		//! ---------------- END OF NEW CODE -----------------			
 
 		wrappedTx := &txcache.WrappedTransaction{
 			Tx:              tx,
 			TxHash:          txHash,
-			SenderShardID:   calculatedSenderShardId,
-			ReceiverShardID: calculatedReceiverShardId,
+			SenderShardID:   miniBlock.SenderShardID /*calculatedSenderShardId*/, //! MODIFIED CODE
+			ReceiverShardID: miniBlock.ReceiverShardID /*calculatedReceiverShardId*/, //! MODIFIED CODE
 		}
 
 		txsFromMiniBlock = append(txsFromMiniBlock, wrappedTx)
