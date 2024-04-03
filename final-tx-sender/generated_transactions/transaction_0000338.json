@@ -1,0 +1,21 @@
+{
+    "emittedTransaction": {
+        "nonce": 27,
+        "value": "0",
+        "receiver": "erd1kdl46yctawygtwg2k462307dmz2v55c605737dp3zkxh04sct7asqylhyv",
+        "sender": "erd1r69gk66fmedhhcg24g2c5kn2f2a5k4kvpr6jfw67dn2lyydd8cfswy6ede",
+        "gasPrice": 1000000000,
+        "gasLimit": 70000,
+        "chainID": "localnet",
+        "senderUsername": "",
+        "receiverUsername": "",
+        "data": "SGVsbG8sIFdvcmxk",
+        "version": 2,
+        "options": 0,
+        "guardian": "",
+        "signature": "d40ec214f4efb2dac08ec28d87f79886bd1244ac4c78196767cee8d838e45a71c339d6cc6fae831da91fe9252a5a397b7525e4d5990a6746a0170556084be70c",
+        "guardianSignature": ""
+    },
+    "emittedTransactionData": "Hello, World",
+    "emittedTransactionHash": ""
+}

@@ -328,7 +328,7 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 	//! SCOMMENTARE
 	
 	//TODO: spostare dentro CreateSingleAccountMigrationClean
-	if (epoch == uint32(2)){
+	if (epoch == uint32(4)){
 		currentAccountsMapping := h.currentNode.processComponents.ShardCoordinator().UpdateAccountsMappingEntryFromAddressString(accountAddressToBeMigrated, destinationShardId, epoch)		
 		log.Debug("***Current Accounts Mapping***", "accountsMapping", currentAccountsMapping)
 		rootHashBeforeNewAccount, err := h.currentNode.stateComponents.AccountsAdapter().RootHash()
@@ -341,7 +341,7 @@ func (h *AccountMigrationHandler) EpochConfirmed(epoch uint32, timestamp uint64)
 	}
 	//TODO: SCOMMENTARE
 
-	if (epoch == uint32(3) && h.currentNode.processComponents.ShardCoordinator().SelfId() == destinationShardId){
+	if (epoch == uint32(5) && h.currentNode.processComponents.ShardCoordinator().SelfId() == destinationShardId){
 		cacheId := process.ShardCacherIdentifier(destinationShardId, destinationShardId)
 		cache := h.currentNode.dataComponents.Datapool().Transactions().ShardDataStore(cacheId)
 		txCache, _ := cache.(*txcache.TxCache)
@@ -429,7 +429,7 @@ func createSingleAccountMigrationTransactionClean(h *AccountMigrationHandler, ep
     accountToBeMigratedAddrBytes, _ := h.currentNode.coreComponents.AddressPubKeyConverter().Decode(accountAddressToBeMigrated)
 
     
-    if(epoch == uint32(2)){
+    if(epoch == uint32(4)){
 
         transactionData := ""   // Additional data for the transaction
         privateKey := h.currentNode.cryptoComponents.TxPrivateKey()     // Your private key here

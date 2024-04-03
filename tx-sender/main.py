@@ -153,10 +153,10 @@ def generateRandomTransactions():
     generator = pick_sender_and_receiver(accounts_info, seed_value)
 
     # Generate pairs of keys
-    for _ in range(100000):  # Generate 5 pairs
+    for _ in range(100000):
         sender_addr, receiver_addr = next(generator)
 
-        print("----- GENERATING A TX FROM " + accounts_info[sender_addr]["username"] + " TO " + accounts_info[receiver_addr]["username"] + " -----")
+        print("----- GENERATING TX FROM " + accounts_info[sender_addr]["username"] + " TO " + accounts_info[receiver_addr]["username"] + " -----")
         command_to_run = create_command_to_run(
                 nonce=accounts_info[sender_addr]["nonce"],
                 gas_limit=70000,
@@ -164,7 +164,7 @@ def generateRandomTransactions():
                 sender_name=accounts_info[sender_addr]["username"]
         )
         run_shell_command(command_to_run, sender_addr)
-        time.sleep(0.3)
+        #time.sleep(0.1)
 
 
 def generateRandomTransactionsFromSingleSender():
