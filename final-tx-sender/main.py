@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 TRANSACTIONS_DIRECTORY = "./generated_transactions/" #? crearla se non esiste
 OUTPUT_CSV = "./output.csv"
 OUTPUT_CSV_WITH_END_TIMESTAMP = "./output_with_end_timestamp.csv"
+OUTPUT_CSV_WITH_STATISTICS = "./output_with_statistics.csv"
 OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE = "./output_with_timestamp_difference.csv"
 
 
@@ -372,7 +373,105 @@ def get_end_timestamp(tx_hash):
         return end_timestamp
     else:
         return None
+
+
+# Function to query Elasticsearch for end_timestamp based on txHash
+def get_has_corresponding_AAT(tx_hash):
+    # Connect to Elasticsearch
+    es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'scheme': 'http'}])
+
+
+    query = {
+        "query": {
+            "bool": {
+                "must": [
+                    {
+                        "exists": {
+                            "field": "originalTxHash"
+                        }
+                    },
+                    {
+                        "match": {
+                            "originalTxHash": tx_hash
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+    res = es.search(index="transactions", body=query)
     
+    if res['hits']['total']['value'] > 0:
+        return 1 #true
+    else:
+        return 0 #false
+
+
+
+
+# Function to query Elasticsearch for end_timestamp based on txHash
+def get_is_affected_by_AAT(mini_block_hash):
+    # Connect to Elasticsearch
+    es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'scheme': 'http'}])
+
+
+    query = {
+        "query": {
+            "bool": {
+                "must": [
+                    {
+                        "exists": {
+                            "field": "originalMiniBlockHash"
+                        }
+                    },
+                    {
+                        "match": {
+                            "originalMiniBlockHash": mini_block_hash
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+    res = es.search(index="transactions", body=query)
+    
+    if res['hits']['total']['value'] > 0:
+        return 1 #true
+    else:
+        return 0 #false
+
+
+    
+# Function to query Elasticsearch for end_timestamp based on txHash
+def get_statistics(tx_hash):
+    # Connect to Elasticsearch
+    es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'scheme': 'http'}])
+
+    query = {
+        "query": {
+            "match": {
+                "_id": tx_hash
+            }
+        }
+    }
+    
+
+    res = es.search(index="transactions", body=query)
+    
+    if res['hits']['total']['value'] > 0:
+        end_timestamp = res['hits']['hits'][0]['_source']['timestamp']
+        sender_shard = res['hits']['hits'][0]['_source']['senderShard']
+        receiver_shard = res['hits']['hits'][0]['_source']['receiverShard']
+        sender = res['hits']['hits'][0]['_source']['sender']
+        receiver = res['hits']['hits'][0]['_source']['receiver']
+        mini_block_hash = res['hits']['hits'][0]['_source']['miniBlockHash']
+        return end_timestamp, sender_shard, receiver_shard, sender, receiver, mini_block_hash
+    else:
+        return None
+
+
 def addEndTimestampToCSV():
     # Read CSV file
     df = pd.read_csv(OUTPUT_CSV)
@@ -384,7 +483,24 @@ def addEndTimestampToCSV():
     # Write the updated dataframe to the new CSV file
     df.to_csv(OUTPUT_CSV_WITH_END_TIMESTAMP, index=False)
 
-    print(f"Result saved to {OUTPUT_CSV_WITH_END_TIMESTAMP}")   
+    print(f"Result saved to {OUTPUT_CSV_WITH_END_TIMESTAMP}")
+
+
+def addStatisticsToCSV():
+    # Read CSV file
+    df = pd.read_csv(OUTPUT_CSV)
+
+    # Add a new column 'end_timestamp' and populate it by querying Elasticsearch
+    df[['end_timestamp', 'sender_shard', 'receiver_shard', 'sender', 'receiver', 'mini_block_hash']] = df['txHashes'].apply(get_statistics).apply(pd.Series)
+    # Calculate the timestamp difference and add it as a new column
+    df['timestamp_difference'] = df['end_timestamp'] - df['timestamp']
+    df['has_corresponding_AAT'] = df['txHashes'].apply(get_has_corresponding_AAT)
+    df['is_affected_by_AAT'] = df['mini_block_hash'].apply(get_is_affected_by_AAT)
+
+    # Write the updated dataframe to the new CSV file
+    df.to_csv(OUTPUT_CSV_WITH_STATISTICS, index=False)
+
+    print(f"Result saved to {OUTPUT_CSV_WITH_STATISTICS}")   
 
 
 def addTimestampDifferenceToCSV():
@@ -404,6 +520,19 @@ def plotData():
     # Read the CSV file
     df = pd.read_csv(OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE)
 
+
+    migration_starts_at = 1712169658
+    x_migration_start = migration_starts_at - df['timestamp'].min()
+    print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
+    print(x_migration_start)
+
+    # Add vertical line at specified timestamp
+    vertical_timestamp = 1712169682
+    x_vertical_ts = vertical_timestamp - df['timestamp'].min()
+    print(str(vertical_timestamp) + " - " + str(df["timestamp"].min()))
+    print(x_vertical_ts)
+
+
     # Convert timestamp to seconds
     df['timestamp'] = df['timestamp'] - df['timestamp'].min()  # Normalize timestamps to start from 0
 
@@ -418,8 +547,13 @@ def plotData():
     plt.title('Mean Timestamp Difference over Time (Seconds)')
     plt.grid(True)
     plt.xticks(rotation=45)
+    
+    
+    plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
+    
+    
     plt.tight_layout()
-
     # Save the plot
     plt.savefig('mean_timestamp_difference_seconds_plot.png')
 
@@ -429,6 +563,95 @@ def plotData():
     # Save the mean timestamp difference to a new CSV file
     mean_timestamp_diff_df = mean_timestamp_diff.reset_index()
     mean_timestamp_diff_df.to_csv('mean_timestamp_difference_seconds.csv', index=False)
+
+
+def plotDataFromStatistics():
+    # Read the CSV file
+    df = pd.read_csv(OUTPUT_CSV_WITH_STATISTICS)
+
+    # Find the row with the maximum timestamp difference
+    max_time_difference_row = df.loc[df['timestamp_difference'].idxmax()]
+    # Retrieve the corresponding txHash
+    max_time_difference_txHash = max_time_difference_row['txHashes']
+    max_time_difference_has_corresponding_AAT = max_time_difference_row['has_corresponding_AAT']
+    max_time_difference_is_affected_by_AAT = max_time_difference_row['is_affected_by_AAT']
+    max_time_difference = max_time_difference_row['timestamp_difference']
+    print("Max time difference: " + str(max_time_difference) + " ---- TxHash: " + max_time_difference_txHash + " ---- HasCorrespondingAAT: " + 
+    str(max_time_difference_has_corresponding_AAT) + " ---- IsAffectedByAAT: " + str(max_time_difference_is_affected_by_AAT))
+
+
+    # Filter the DataFrame
+    ts_differences_greater_than_70 = df[df['timestamp_difference'] > 70]
+
+    print("Transactions with timestamp_difference > 70:")
+    for i, row in ts_differences_greater_than_70.iterrows():
+        print(
+            f"{str(i)})  "
+            #+ f"TxHash: {row['txHashes']}  "
+            + f"HasCorrespondingAAT: {row['has_corresponding_AAT']}  "
+            + f"IsAffectedByAAT: {row['is_affected_by_AAT']}  "
+            + f"Sender: {row['sender']}  "
+            + f"Receiver: {row['receiver']}  "
+            + f"SenderShard: {row['sender_shard']}  "
+            + f"ReceiverShard: {row['receiver_shard']}  "
+        )
+
+
+    migration_starts_at = 1712169658
+    x_migration_start = migration_starts_at - df['timestamp'].min()
+    #print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
+    #print(x_migration_start)
+
+    # Add vertical line at specified timestamp
+    vertical_timestamp = 1712169682
+    x_vertical_ts = vertical_timestamp - df['timestamp'].min()
+    #print(str(vertical_timestamp) + " - " + str(df["timestamp"].min()))
+    #print(x_vertical_ts)
+
+
+    # Convert timestamp to seconds
+    df['timestamp'] = df['timestamp'] - df['timestamp'].min()  # Normalize timestamps to start from 0
+
+    # Separate data for each shard
+    shard_0_data = df[df['sender_shard'] == 0]
+    shard_1_data = df[df['sender_shard'] == 1]
+    shard_2_data = df[df['sender_shard'] == 2]
+
+    # Group by timestamp and calculate the mean of timestamp_difference for each shard
+    mean_timestamp_diff_shard_0 = shard_0_data.groupby('timestamp')['timestamp_difference'].mean()
+    mean_timestamp_diff_shard_1 = shard_1_data.groupby('timestamp')['timestamp_difference'].mean()
+    mean_timestamp_diff_shard_2 = shard_2_data.groupby('timestamp')['timestamp_difference'].mean()
+
+    # Plotting
+    plt.figure(figsize=(19, 3))
+
+    # Plot line for shard 0
+    plt.plot(mean_timestamp_diff_shard_0.index, mean_timestamp_diff_shard_0.values, marker=',', linestyle='-', label='Shard 0')
+
+    # Plot line for shard 1
+    plt.plot(mean_timestamp_diff_shard_1.index, mean_timestamp_diff_shard_1.values, marker=',', linestyle='-', label='Shard 1')
+
+    # Plot line for shard 2
+    plt.plot(mean_timestamp_diff_shard_2.index, mean_timestamp_diff_shard_2.values, marker=',', linestyle='-', label='Shard 2')
+
+    plt.xlabel('Timestamp (Seconds)')
+    plt.ylabel('Mean Timestamp Difference (Seconds)')
+    plt.title('Mean Timestamp Difference over Time for Each Shard (Seconds)')
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    plt.legend()
+    
+    
+    plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
+
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig('mean_timestamp_difference_shards_plot.png')
+
+    # Show the plot
+    plt.show()
 
 
 def sendAllGeneratedTransactions(batch_size):
@@ -460,7 +683,9 @@ def sendAllGeneratedTransactions(batch_size):
 #generateRandomTransactions(num_txs=1000)
 #sendAllGeneratedTransactions(batch_size=5)
 #addEndTimestampToCSV()
+#addStatisticsToCSV()
 #addTimestampDifferenceToCSV()
-plotData()
+#plotData()
+plotDataFromStatistics()
 
 
