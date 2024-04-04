@@ -211,6 +211,11 @@ func (tp *TransactionProcessor) SendTransaction(tx *data.Transaction) (int, stri
 		return http.StatusInternalServerError, "", err
 	}
 
+	//! -------------------- NEW CODE --------------------
+	observersOnePerShard, err := tp.proc.GetObserversOnePerShard(data.AvailabilityAll)
+	log.Info("***Observers List***", "num", len(observers), "observers", observers)
+	log.Info("***Observers List One Per Shard***", "num", len(observersOnePerShard), "observersOnePerShard", observersOnePerShard)
+	//! ---------------- END OF NEW CODE -----------------
 
 	var finalResponseCode int
 	var finalTxHash string

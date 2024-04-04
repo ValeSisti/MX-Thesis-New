@@ -8,11 +8,13 @@ from datetime import datetime
 from collections import defaultdict
 import pandas as pd
 from elasticsearch import Elasticsearch
+import matplotlib.pyplot as plt
 
 
 TRANSACTIONS_DIRECTORY = "./generated_transactions/" #? crearla se non esiste
 OUTPUT_CSV = "./output.csv"
 OUTPUT_CSV_WITH_END_TIMESTAMP = "./output_with_end_timestamp.csv"
+OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE = "./output_with_timestamp_difference.csv"
 
 
 accounts_info = {
@@ -353,7 +355,7 @@ def createOutputCSV():
 # Function to query Elasticsearch for end_timestamp based on txHash
 def get_end_timestamp(tx_hash):
     # Connect to Elasticsearch
-    es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
+    es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'scheme': 'http'}])
 
     query = {
         "query": {
@@ -385,6 +387,50 @@ def addEndTimestampToCSV():
     print(f"Result saved to {OUTPUT_CSV_WITH_END_TIMESTAMP}")   
 
 
+def addTimestampDifferenceToCSV():
+    # Read CSV file
+    df = pd.read_csv(OUTPUT_CSV_WITH_END_TIMESTAMP)
+
+    # Calculate the timestamp difference and add it as a new column
+    df['timestamp_difference'] = df['end_timestamp'] - df['timestamp']
+
+    # Write the updated dataframe to the new CSV file
+    df.to_csv(OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE, index=False)
+
+    print(f"Result saved to {OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE}")    
+
+
+def plotData():
+    # Read the CSV file
+    df = pd.read_csv(OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE)
+
+    # Convert timestamp to seconds
+    df['timestamp'] = df['timestamp'] - df['timestamp'].min()  # Normalize timestamps to start from 0
+
+    # Group by timestamp and calculate the mean of timestamp_difference
+    mean_timestamp_diff = df.groupby('timestamp')['timestamp_difference'].mean()
+
+    # Plotting
+    plt.figure(figsize=(15, 7))
+    plt.plot(mean_timestamp_diff.index, mean_timestamp_diff.values, marker=',', linestyle='-')
+    plt.xlabel('Timestamp (Seconds)')
+    plt.ylabel('Mean Timestamp Difference (Seconds)')
+    plt.title('Mean Timestamp Difference over Time (Seconds)')
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig('mean_timestamp_difference_seconds_plot.png')
+
+    # Show the plot
+    plt.show()
+
+    # Save the mean timestamp difference to a new CSV file
+    mean_timestamp_diff_df = mean_timestamp_diff.reset_index()
+    mean_timestamp_diff_df.to_csv('mean_timestamp_difference_seconds.csv', index=False)
+
+
 def sendAllGeneratedTransactions(batch_size):
     files = os.listdir(TRANSACTIONS_DIRECTORY)
     # Filter out only the JSON files
@@ -412,7 +458,9 @@ def sendAllGeneratedTransactions(batch_size):
 
 #! ------ RUN ------
 #generateRandomTransactions(num_txs=1000)
-sendAllGeneratedTransactions(batch_size=5)
+#sendAllGeneratedTransactions(batch_size=5)
 #addEndTimestampToCSV()
+#addTimestampDifferenceToCSV()
+plotData()
 
 
