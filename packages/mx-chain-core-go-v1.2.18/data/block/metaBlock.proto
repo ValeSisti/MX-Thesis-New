@@ -78,10 +78,19 @@ message Economics {
 	bytes  PrevEpochStartHash               = 8 [(gogoproto.jsontag) = "prevEpochStartHash,omitempty"];
 }
 
+
+message SingleAccountMigration {
+	bytes                        AccountAddressBytes       = 1 [(gogoproto.jsontag) = "accountAddressBytes"];
+	uint64                       MigrationNonce            = 2 [(gogoproto.jsontag) = "migrationNonce"];
+	uint32                       SourceShard               = 3 [(gogoproto.jsontag) = "sourceShard"];
+	uint32                       DestinationShard          = 4 [(gogoproto.jsontag) = "destinationShard"];
+}
+
 // EpochStart holds the block information for end-of-epoch
 message EpochStart {
 	repeated EpochStartShardData LastFinalizedHeaders = 1 [(gogoproto.jsontag) = "lastFinalizedHeaders", (gogoproto.nullable) = false];
 	Economics                    Economics            = 2 [(gogoproto.jsontag) = "economics", (gogoproto.nullable) = false];
+	repeated SingleAccountMigration AccountsAllocation = 3 [(gogoproto.jsontag) = "accountsAllocation,omitempty", (gogoproto.nullable) = false];
 }
 
 // MetaBlock holds the data that will be saved to the metachain each round
