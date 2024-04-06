@@ -80,7 +80,7 @@ message Economics {
 
 
 message SingleAccountMigration {
-	bytes                        AccountAddressBytes       = 1 [(gogoproto.jsontag) = "accountAddressBytes"];
+	string                       AccountAddressBytes       = 1 [(gogoproto.jsontag) = "accountAddressBytes"];
 	uint64                       MigrationNonce            = 2 [(gogoproto.jsontag) = "migrationNonce"];
 	uint32                       SourceShard               = 3 [(gogoproto.jsontag) = "sourceShard"];
 	uint32                       DestinationShard          = 4 [(gogoproto.jsontag) = "destinationShard"];
