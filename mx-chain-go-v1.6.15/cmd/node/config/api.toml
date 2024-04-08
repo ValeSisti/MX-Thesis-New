@@ -51,6 +51,9 @@
 
         # /node/managed-keys/waiting will return the waiting keys managed by the node on the current epoch
         { Name = "/managed-keys/waiting", Open = true }
+
+        # /node/send-account-allocation will send account allocation result to (metachain) node
+        { Name = "/send-account-allocation", Open = true }
     ]
 
 [APIPackages.address]

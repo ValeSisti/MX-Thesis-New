@@ -738,3 +738,9 @@ func (nf *nodeFacade) GetGasConfigs() (map[string]map[string]uint64, error) {
 func (nf *nodeFacade) IsInterfaceNil() bool {
 	return nf == nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (nf *nodeFacade) SaveReceivedAccountAllocation(accountAllocation []map[string]interface{}, id int) bool{
+	return nf.node.	SaveReceivedAccountAllocation(accountAllocation, id)
+}
+//! ---------------- END OF NEW CODE -----------------

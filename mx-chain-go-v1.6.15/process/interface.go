@@ -282,6 +282,9 @@ type BlockProcessor interface {
 	NonceOfFirstCommittedBlock() core.OptionalUint64
 	Close() error
 	IsInterfaceNil() bool
+	//! -------------------- NEW CODE --------------------
+	AddReceivedAccountsAllocation(accountAllocation []map[string]interface{}, id int) bool
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // SmartContractProcessorFull is the main interface for smart contract result execution engine
@@ -491,6 +494,10 @@ type EpochStartTriggerHandler interface {
 	SetFinalityAttestingRound(round uint64)
 	EpochFinalityAttestingRound() uint64
 	RequestEpochStartIfNeeded(interceptedHeader data.HeaderHandler)
+	//! -------------------- NEW CODE --------------------
+	GetAccountAllocationFromCurrentEpochStartBlock() []data.SingleAccountMigrationHandler
+	SetAccountAllocationFromCurrentEpochStartBlock(accountsAllocation []block.SingleAccountMigration)
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // EpochBootstrapper defines the actions needed by bootstrapper

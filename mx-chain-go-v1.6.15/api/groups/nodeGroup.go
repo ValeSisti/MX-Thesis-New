@@ -31,6 +31,9 @@ const (
 	managedKeysCount          = "/managed-keys/count"
 	eligibleManagedKeys       = "/managed-keys/eligible"
 	waitingManagedKeys        = "/managed-keys/waiting"
+	//! -------------------- NEW CODE --------------------
+	saveAccountAllocation 	  = "/send-account-allocation"
+	//! ---------------- END OF NEW CODE -----------------
 )
 
 // nodeFacadeHandler defines the methods to be implemented by a facade for node requests
@@ -46,6 +49,10 @@ type nodeFacadeHandler interface {
 	GetEligibleManagedKeys() ([]string, error)
 	GetWaitingManagedKeys() ([]string, error)
 	IsInterfaceNil() bool
+	//! -------------------- NEW CODE --------------------
+	//SaveReceivedAccountAllocation(accountAddressString string, migrationNonce uint64, sourceShard uint32, destShard uint32) bool
+	SaveReceivedAccountAllocation(accountAllocation []map[string]interface{}, id int) bool
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // QueryDebugRequest represents the structure on which user input for querying a debug info will validate against
@@ -137,6 +144,14 @@ func NewNodeGroup(facade nodeFacadeHandler) (*nodeGroup, error) {
 			Method:  http.MethodGet,
 			Handler: ng.managedKeysWaiting,
 		},
+		//! -------------------- NEW CODE --------------------
+		{
+			Path:    saveAccountAllocation,
+			Method:  http.MethodPost,
+			Handler: ng.saveReceivedAccountAllocation,
+		},		
+		//! ---------------- END OF NEW CODE -----------------		
+
 	}
 	ng.endpoints = endpoints
 
@@ -439,6 +454,80 @@ func (ng *nodeGroup) managedKeysWaiting(c *gin.Context) {
 		},
 	)
 }
+
+//! -------------------- NEW CODE --------------------
+// AccountAllocationRequest represents the JSON structure for sending account allocation data
+/*type AccountAllocationRequest struct {
+    AccountAddressString string `json:"accountAddressString"`
+    MigrationNonce       uint64 `json:"migrationNonce"`
+    SourceShard          uint32 `json:"sourceShard"`
+    DestinationShard     uint32 `json:"destinationShard"`
+}*/
+
+
+type AccountAllocationRequest struct {
+	ID   				     int `json:"id"`
+    AccountMigrations []struct {
+        AccountAddressString string `json:"accountAddressString"`
+        MigrationNonce       uint64 `json:"migrationNonce"`
+        SourceShard          uint32 `json:"sourceShard"`
+        DestinationShard     uint32 `json:"destinationShard"`
+    } `json:"accountAllocation"`
+}
+
+func (ng *nodeGroup) saveReceivedAccountAllocation(c *gin.Context) {
+
+	log.Debug("*** RECEIVED ACCOUNT ALLOCATION IN nodeGroup.go ***")
+
+    var req AccountAllocationRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+
+	// Iterate through the account allocations and call SaveReceivedAccountAllocation for each
+	accountAllocation := make([]map[string]interface{}, 0)
+
+	for _, accountMigration := range req.AccountMigrations{
+		accountMigrationInfo := map[string]interface{}{
+			"accountAddressString" : accountMigration.AccountAddressString,
+			"migrationNonce" : accountMigration.MigrationNonce,
+			"sourceShard" : accountMigration.SourceShard,
+			"destinationShard" : accountMigration.DestinationShard,
+		}
+		accountAllocation = append(accountAllocation, accountMigrationInfo)
+	}
+
+	log.Debug("")
+
+	ng.getFacade().SaveReceivedAccountAllocation(accountAllocation, req.ID)
+    // Create a SingleAccountMigration instance from the request data
+    /*migration := core.SingleAccountMigration{
+        AccountAddressString: req.AccountAddressString,
+        MigrationNonce:       req.MigrationNonce,
+        SourceShard:          req.SourceShard,
+        DestinationShard:     req.DestinationShard,
+    }*/
+
+    // Handle the allocation of the account with the provided data
+    // You would implement the logic to handle account allocation using the 'migration' data
+
+	c.JSON(
+		http.StatusOK,
+		shared.GenericAPIResponse{
+			Data:  gin.H{"message": "Account allocated successfully"},
+			Error: "",
+			Code:  shared.ReturnCodeSuccess,
+		},
+	)
+
+
+}
+//! ---------------- END OF NEW CODE -----------------
+
+
+
 
 func (ng *nodeGroup) getFacade() nodeFacadeHandler {
 	ng.mutFacade.RLock()

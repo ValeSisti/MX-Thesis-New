@@ -133,4 +133,7 @@ type FacadeHandler interface {
 	GetEligibleManagedKeys() ([]string, error)
 	GetWaitingManagedKeys() ([]string, error)
 	IsInterfaceNil() bool
+	//! -------------------- NEW CODE --------------------
+	SaveReceivedAccountAllocation(accountAllocation []map[string]interface{}, id int) bool
+	//! ---------------- END OF NEW CODE -----------------	
 }

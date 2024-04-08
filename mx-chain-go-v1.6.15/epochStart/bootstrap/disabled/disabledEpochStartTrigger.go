@@ -2,6 +2,7 @@ package disabled
 
 import (
 	"github.com/multiversx/mx-chain-core-go/data"
+	"github.com/multiversx/mx-chain-core-go/data/block"
 )
 
 type epochStartTrigger struct {
@@ -81,3 +82,19 @@ func (e *epochStartTrigger) RequestEpochStartIfNeeded(_ data.HeaderHandler) {
 func (e *epochStartTrigger) IsInterfaceNil() bool {
 	return e == nil
 }
+
+
+//! -------------------- NEW CODE --------------------
+func (e *epochStartTrigger) GetAccountAllocationFromCurrentEpochStartBlock() []data.SingleAccountMigrationHandler {
+	return make([]data.SingleAccountMigrationHandler, 0)
+}
+
+
+func (e *epochStartTrigger) SetAccountAllocationFromCurrentEpochStartBlock(accountsAllocation []block.SingleAccountMigration) {
+}
+
+
+func (e *epochStartTrigger) CleanAccountAllocationFromCurrentEpochStartBlock() {
+}
+//! ---------------- END OF NEW CODE -----------------
+

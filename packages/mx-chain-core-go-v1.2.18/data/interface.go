@@ -257,10 +257,22 @@ type EconomicsHandler interface {
 	SetPrevEpochStartHash(prevEpochStartHash []byte) error
 }
 
+//! -------------------- NEW CODE --------------------
+type SingleAccountMigrationHandler interface {
+	GetAccountAddressString() string
+	GetMigrationNonce() uint64
+	GetSourceShard() uint32
+	GetDestinationShard() uint32
+}
+//! ---------------- END OF NEW CODE -----------------
+
 // EpochStartHandler defines setters and getters for EpochStart
 type EpochStartHandler interface {
 	GetLastFinalizedHeaderHandlers() []EpochStartShardDataHandler
 	GetEconomicsHandler() EconomicsHandler
+	//! -------------------- NEW CODE --------------------
+	GetAccountsAllocationHandler() []SingleAccountMigrationHandler
+	//! ---------------- END OF NEW CODE -----------------	
 
 	SetLastFinalizedHeaders(epochStartShardDataHandlers []EpochStartShardDataHandler) error
 	SetEconomics(economicsHandler EconomicsHandler) error

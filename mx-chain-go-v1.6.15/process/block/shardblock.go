@@ -2872,4 +2872,8 @@ func (sp *shardProcessor) removeReadyMbsInsertedInCurrentRoundFromWaitingMbs() {
 		log.Debug("***Printing updated waitingMBsForAATsNotarization***", "waitingMBsForAATsNotarization", waitingMbsForAATsNotarization)
 	}
 }
+
+func (sp *shardProcessor) AddReceivedAccountsAllocation(accountAllocation []map[string]interface{}, id int) bool{
+	return false
+}
 //! ---------------- END OF NEW CODE -----------------

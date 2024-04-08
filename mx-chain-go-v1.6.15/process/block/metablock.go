@@ -42,6 +42,10 @@ type metaProcessor struct {
 	shardBlockFinality           uint32
 	chRcvAllHdrs                 chan bool
 	headersCounter               *headersCounter
+	//! -------------------- NEW CODE --------------------
+	accountsAllocation			 map[int][]block.SingleAccountMigration
+	insertedAccountsAllocationInCurrentEpochStartBlock []int
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // NewMetaProcessor creates a new metaProcessor object
@@ -177,6 +181,11 @@ func NewMetaProcessor(arguments ArgMetaProcessor) (*metaProcessor, error) {
 
 	mp.shardsHeadersNonce = &sync.Map{}
 
+	//! -------------------- NEW CODE --------------------
+	mp.accountsAllocation = make(map[int][]block.SingleAccountMigration)
+	mp.insertedAccountsAllocationInCurrentEpochStartBlock = make([]int, 0)	
+	//! ---------------- END OF NEW CODE -----------------
+
 	return &mp, nil
 }
 
@@ -275,7 +284,7 @@ func (mp *metaProcessor) ProcessBlock(
 	}
 
 	mp.blockChainHook.SetCurrentHeader(header)
-	mp.epochStartTrigger.Update(header.GetRound(), header.GetNonce())
+	mp.epochStartTrigger.Update(header.GetRound(), header.GetNonce()) //TODO: CAMBIARE QUI
 
 	err = mp.checkEpochCorrectness(header)
 	if err != nil {
@@ -754,6 +763,10 @@ func (mp *metaProcessor) CreateBlock(
 			return nil, nil, nil, err //! MODIFIED CODE
 		}
 
+		//! -------------------- NEW CODE --------------------
+		mp.epochStartTrigger.SetAccountAllocationFromCurrentEpochStartBlock(metaHdr.EpochStart.AccountsAllocation)
+		//! ---------------- END OF NEW CODE -----------------		
+
 		body, err = mp.createEpochStartBody(metaHdr)
 		if err != nil {
 			return nil, nil, nil, err //! MODIFIED CODE
@@ -838,6 +851,9 @@ func (mp *metaProcessor) updateEpochStartHeader(metaHdr *block.MetaBlock) error 
 	}
 
 	metaHdr.EpochStart.Economics = *economicsData
+	//! -------------------- NEW CODE --------------------
+	metaHdr.EpochStart.AccountsAllocation = mp.getAccountsAllocationWithSmallerId()
+	//! ---------------- END OF NEW CODE -----------------	
 
 	saveEpochStartEconomicsMetrics(mp.appStatusHandler, metaHdr)
 
@@ -1168,7 +1184,16 @@ func (mp *metaProcessor) CommitBlock(
 	defer func() {
 		if err != nil {
 			mp.RevertCurrentBlock()
+		//! -------------------- NEW CODE --------------------
+		} else {
+			//TODO: se non c'è stato nessun errore, allora rimuovo l'accountAllocation da mp.accountsAllocation
+			mp.removeAccountsAllocationInsertedInCurrentEpochStartBlock()
+		//! ---------------- END OF NEW CODE -----------------		
 		}
+		//! -------------------- NEW CODE --------------------
+		//? a prescindere che il metablocco sia stato committato o "reverted", comunque faccio il clean di mp.insertedAccountsAllocationInCurrentEpochStartBlock
+		mp.insertedAccountsAllocationInCurrentEpochStartBlock = make([]int, 0)
+		//! ---------------- END OF NEW CODE -----------------	
 		mp.processStatusHandler.SetIdle()
 	}()
 
@@ -2545,3 +2570,73 @@ func (mp *metaProcessor) DecodeBlockHeader(dta []byte) data.HeaderHandler {
 
 	return metaBlock
 }
+
+
+//! -------------------- NEW CODE --------------------
+func (mp *metaProcessor) AddReceivedAccountsAllocation(accountAllocation []map[string]interface{}, id int) bool{
+	mp.accountsAllocation[id] = make([]block.SingleAccountMigration, 0)
+	
+	for _, account := range accountAllocation {
+        // Accessing each field using type assertion
+        accountAddressString, _ := account["accountAddressString"].(string)
+        migrationNonce, _ := account["migrationNonce"].(uint64)
+        sourceShard, _ := account["sourceShard"].(uint32)
+        destinationShard, _ := account["destinationShard"].(uint32)
+		
+		
+		accountMigration := block.SingleAccountMigration{
+			AccountAddressString: accountAddressString,
+			MigrationNonce: migrationNonce,
+			SourceShard: sourceShard,
+			DestinationShard: destinationShard,
+		}
+
+		mp.accountsAllocation[id] = append(mp.accountsAllocation[id], accountMigration)
+    }
+
+	log.Debug("*** SAVED ACCOUNT ALLOCATION ***", "accountsAllocation", mp.accountsAllocation)
+
+	return true
+}
+
+
+func (mp *metaProcessor) getAccountsAllocationWithSmallerId() []block.SingleAccountMigration{
+    // Find the entry associated with the smallest integer key
+	minKey := 0
+	minEntry := make([]block.SingleAccountMigration, 0)
+	
+	for key, value := range mp.accountsAllocation {
+		// Assign the minKey and the minEntry as corresponding to the one of the first "entry" in the map
+		minKey = key
+		minEntry = value
+        break // Exit the loop after the first iteration
+    }
+	
+	// Now iterate over the whole map to get the minimum key
+	for key, value := range mp.accountsAllocation {
+		if key < minKey {
+			minKey = key
+			minEntry = value
+		}
+	}
+    // Access the entry associated with the smallest integer key
+    if len(minEntry) > 0 { // In this way, if mp.accountsAllocation was empty, this will be false
+		mp.insertedAccountsAllocationInCurrentEpochStartBlock = append(mp.insertedAccountsAllocationInCurrentEpochStartBlock, minKey)
+	}
+
+    // Print the smallest entry
+    log.Debug("*** AccountAllocation with smallest id ***", "accountAllocation", minEntry, "smallestKey", minKey, "mp.accountsAllocation", mp.accountsAllocation)
+	return minEntry
+}
+
+func (mp *metaProcessor) removeAccountsAllocationInsertedInCurrentEpochStartBlock() {
+	if len(mp.insertedAccountsAllocationInCurrentEpochStartBlock) > 0 {
+		log.Debug("***insertedAccountsAllocationInCurrentEpochStartBlock is NOT empty: removing processed accountsAllocation***")
+
+		for _, id := range mp.insertedAccountsAllocationInCurrentEpochStartBlock{
+			delete(mp.accountsAllocation, id)
+		}
+		log.Debug("***Printing updated accountsAllocation***", "accountsAllocation", mp.accountsAllocation)
+	}
+}
+//! ---------------- END OF NEW CODE -----------------

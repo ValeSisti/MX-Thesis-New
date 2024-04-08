@@ -30,6 +30,11 @@ type TriggerHandler interface {
 	SetCurrentEpochStartRound(round uint64)
 	RequestEpochStartIfNeeded(interceptedHeader data.HeaderHandler)
 	IsInterfaceNil() bool
+	//! -------------------- NEW CODE --------------------
+	GetAccountAllocationFromCurrentEpochStartBlock() []data.SingleAccountMigrationHandler
+	SetAccountAllocationFromCurrentEpochStartBlock(accountsAllocation []block.SingleAccountMigration)
+	CleanAccountAllocationFromCurrentEpochStartBlock()
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // RoundHandler defines the actions which should be handled by a round implementation

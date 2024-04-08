@@ -378,3 +378,9 @@ func (nar *nodeApiResolver) parseKeys(keys [][]byte) []string {
 func (nar *nodeApiResolver) IsInterfaceNil() bool {
 	return nar == nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (nar *nodeApiResolver) SaveReceivedAccountAllocation(accountAddressString string, migrationNonce uint64, sourceShard uint32, destShard uint32) bool{
+	return nar == nil
+}
+//! ---------------- END OF NEW CODE -----------------

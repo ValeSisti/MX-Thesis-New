@@ -27,6 +27,23 @@ func (es *EpochStart) GetEconomicsHandler() data.EconomicsHandler {
 	return &es.Economics
 }
 
+//! -------------------- NEW CODE --------------------
+// GetAccountsAllocationHandler returns the account allocation handlers
+func (es *EpochStart) GetAccountsAllocationHandler() []data.SingleAccountMigrationHandler{
+	if es == nil {
+		return nil
+	}
+
+	singleAccountMigrationHandlers := make([]data.SingleAccountMigrationHandler, len(es.AccountsAllocation))
+	for i := range es.AccountsAllocation {
+		singleAccountMigrationHandlers[i] = &es.AccountsAllocation[i]
+	}
+
+	return singleAccountMigrationHandlers
+}
+//! ---------------- END OF NEW CODE -----------------
+
+
 // SetLastFinalizedHeaders sets the last finalized header
 func (es *EpochStart) SetLastFinalizedHeaders(epochStartDataHandlers []data.EpochStartShardDataHandler) error {
 	if es == nil {

@@ -112,6 +112,10 @@ type trigger struct {
 	mutMissingMiniBlocks     sync.RWMutex
 	mutMissingValidatorsInfo sync.RWMutex
 	cancelFunc               func()
+
+	//! -------------------- NEW CODE --------------------
+	accountAllocationFromCurrentEpochStartBlock []data.SingleAccountMigrationHandler
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 type metaInfo struct {
@@ -254,6 +258,9 @@ func NewEpochStartTrigger(args *ArgsShardEpochStartTrigger) (*trigger, error) {
 		appStatusHandler:              args.AppStatusHandler,
 		roundHandler:                  args.RoundHandler,
 		enableEpochsHandler:           args.EnableEpochsHandler,
+		//! -------------------- NEW CODE --------------------
+		accountAllocationFromCurrentEpochStartBlock: make([]data.SingleAccountMigrationHandler, 0),
+		//! ---------------- END OF NEW CODE -----------------		
 	}
 
 	t.headersPool.RegisterHandler(t.receivedMetaBlock)
@@ -645,6 +652,14 @@ func (t *trigger) updateTriggerFromMeta() {
 			t.epochStartMeta = currMetaInfo.hdr
 			t.saveCurrentState(currMetaInfo.hdr.GetRound())
 			t.epochStartNotifier.NotifyEpochChangeConfirmed(t.metaEpoch)
+
+			//! -------------------- NEW CODE --------------------
+			metaHdrHandler, ok := currMetaInfo.hdr.(data.MetaHeaderHandler)
+			if !ok {
+				log.Debug("***Error: cannot cast currMetaInfo.hdr to data.MetaHeaderHandler***")
+			}
+			t.accountAllocationFromCurrentEpochStartBlock = metaHdrHandler.GetEpochStartHandler().GetAccountsAllocationHandler()
+			//! ---------------- END OF NEW CODE -----------------
 
 			msg := fmt.Sprintf("EPOCH %d BEGINS IN ROUND (%d)", t.metaEpoch, t.epochStartRound)
 			log.Debug(display.Headline(msg, "", "#"))
@@ -1092,6 +1107,26 @@ func (t *trigger) EpochStartMetaHdrHash() []byte {
 func (t *trigger) GetSavedStateKey() []byte {
 	return t.triggerStateKey
 }
+
+//! -------------------- NEW CODE --------------------
+func (t *trigger) GetAccountAllocationFromCurrentEpochStartBlock() []data.SingleAccountMigrationHandler {
+	log.Debug("*** shardchain.GetAccountAllocationFromCurrentEpochStartBlock called ***")
+	return t.accountAllocationFromCurrentEpochStartBlock
+}
+
+func (t *trigger) SetAccountAllocationFromCurrentEpochStartBlock(accountsAllocation []block.SingleAccountMigration) {
+	singleAccountMigrationHandlers := make([]data.SingleAccountMigrationHandler, len(accountsAllocation))
+	for i := range accountsAllocation {
+		singleAccountMigrationHandlers[i] = &accountsAllocation[i]
+	}
+
+	t.accountAllocationFromCurrentEpochStartBlock = singleAccountMigrationHandlers
+}
+
+func (t *trigger) CleanAccountAllocationFromCurrentEpochStartBlock() {
+	t.accountAllocationFromCurrentEpochStartBlock = make([]data.SingleAccountMigrationHandler, 0)
+}
+//! ---------------- END OF NEW CODE -----------------
 
 // Update updates the end-of-epoch trigger
 func (t *trigger) Update(_ uint64, _ uint64) {

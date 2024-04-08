@@ -430,3 +430,9 @@ func (inf *initialNodeFacade) GetWaitingManagedKeys() ([]string, error) {
 func (inf *initialNodeFacade) IsInterfaceNil() bool {
 	return inf == nil
 }
+
+//! -------------------- NEW CODE --------------------
+func (inf *initialNodeFacade) SaveReceivedAccountAllocation(accountAllocation []map[string]interface{}, id int) bool{
+	return false
+}
+//! ---------------- END OF NEW CODE -----------------

@@ -71,6 +71,9 @@ type trigger struct {
 	hasher                      hashing.Hasher
 	appStatusHandler            core.AppStatusHandler
 	validatorInfoPool           epochStart.ValidatorInfoCacher
+	//! -------------------- NEW CODE --------------------
+	accountAllocationFromCurrentEpochStartBlock []data.SingleAccountMigrationHandler
+	//! ---------------- END OF NEW CODE -----------------		
 }
 
 // NewEpochStartTrigger creates a trigger for start of epoch
@@ -142,6 +145,9 @@ func NewEpochStartTrigger(args *ArgsNewMetaEpochStartTrigger) (*trigger, error) 
 		appStatusHandler:            args.AppStatusHandler,
 		nextEpochStartRound:         disabledRoundForForceEpochStart,
 		validatorInfoPool:           args.DataPool.CurrentEpochValidatorInfo(),
+		//! -------------------- NEW CODE --------------------
+		accountAllocationFromCurrentEpochStartBlock: make([]data.SingleAccountMigrationHandler, 0),
+		//! ---------------- END OF NEW CODE -----------------			
 	}
 
 	err = trig.saveState(trig.triggerStateKey)
@@ -421,6 +427,26 @@ func (t *trigger) SetCurrentEpochStartRound(round uint64) {
 	t.saveCurrentState(round)
 	t.mutTrigger.Unlock()
 }
+
+//! -------------------- NEW CODE --------------------
+func (t *trigger) GetAccountAllocationFromCurrentEpochStartBlock() []data.SingleAccountMigrationHandler {
+	log.Debug("*** shardchain.GetAccountAllocationFromCurrentEpochStartBlock called ***")
+	return t.accountAllocationFromCurrentEpochStartBlock
+}
+
+func (t *trigger) SetAccountAllocationFromCurrentEpochStartBlock(accountsAllocation []block.SingleAccountMigration) {
+	singleAccountMigrationHandlers := make([]data.SingleAccountMigrationHandler, len(accountsAllocation))
+	for i := range accountsAllocation {
+		singleAccountMigrationHandlers[i] = &accountsAllocation[i]
+	}
+
+	t.accountAllocationFromCurrentEpochStartBlock = singleAccountMigrationHandlers
+}
+
+func (t *trigger) CleanAccountAllocationFromCurrentEpochStartBlock() {
+	t.accountAllocationFromCurrentEpochStartBlock = make([]data.SingleAccountMigrationHandler, 0)
+}
+//! ---------------- END OF NEW CODE -----------------
 
 // Close will close the endless running go routine
 func (t *trigger) Close() error {

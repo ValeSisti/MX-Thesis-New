@@ -1808,4 +1808,10 @@ func (n *Node) CreateAccountAdjustmentTransactionForTest(
 }*/
 
 
+
+// IsInterfaceNil returns true if there is no value under the interface
+func (n *Node) SaveReceivedAccountAllocation(accountAllocation []map[string]interface{}, id int) bool{
+	return n.processComponents.BlockProcessor().AddReceivedAccountsAllocation(accountAllocation, id)
+}
+
 //! ---------------- END OF NEW CODE -----------------	

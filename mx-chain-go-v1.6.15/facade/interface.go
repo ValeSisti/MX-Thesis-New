@@ -102,6 +102,10 @@ type NodeHandler interface {
 	GetProofDataTrie(rootHash string, address string, key string) (*common.GetProofResponse, *common.GetProofResponse, error)
 	VerifyProof(rootHash string, address string, proof [][]byte) (bool, error)
 	IsDataTrieMigrated(address string, options api.AccountQueryOptions) (bool, error)
+
+	//! -------------------- NEW CODE --------------------
+	SaveReceivedAccountAllocation(accountAllocation []map[string]interface{}, id int) bool
+	//! ---------------- END OF NEW CODE -----------------	
 }
 
 // TransactionSimulatorProcessor defines the actions which a transaction simulator processor has to implement
@@ -146,6 +150,9 @@ type ApiResolver interface {
 	GetWaitingManagedKeys() ([]string, error)
 	Close() error
 	IsInterfaceNil() bool
+	//! -------------------- NEW CODE --------------------
+	//SaveReceivedAccountAllocation(accountAddressString string, migrationNonce uint64, sourceShard uint32, destShard uint32) bool
+	//! ---------------- END OF NEW CODE -----------------
 }
 
 // HardforkTrigger defines the structure used to trigger hardforks
