@@ -12,11 +12,16 @@ import matplotlib.pyplot as plt
 
 
 TRANSACTIONS_DIRECTORY = "./generated_transactions/" #? crearla se non esiste
+TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD = "./generated_transactions_with_correct_load/" #? crearla se non esiste
 OUTPUT_CSV = "./output.csv"
 OUTPUT_CSV_WITH_END_TIMESTAMP = "./output_with_end_timestamp.csv"
 OUTPUT_CSV_WITH_STATISTICS = "./output_with_statistics.csv"
 OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE = "./output_with_timestamp_difference.csv"
 
+
+hot_accounts = ["erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th"] #alice
+hot_sender_probability = 0.9 #TODO modificare a 0.5
+cross_shard_probability = 1
 
 accounts_info = {
     "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th" : {
@@ -26,12 +31,12 @@ accounts_info = {
     },
     "erd1spyavw0956vq68xj8y4tenjpq2wd5a9p2c6j8gsz7ztyrnpxrruqzu66jx" : {
         "username" : "bob",
-        "shard" : 1,
+        "shard" : 0,
         "nonce" : 1,
     },
     "erd1k2s324ww2g0yj38qn2ch2jwctdy8mnfxep94q9arncc6xecg3xaq6mjse8" : {
         "username" : "carol",
-        "shard" : 1,
+        "shard" : 2,
         "nonce" : 1,
     },
     "erd1kyaqzaprcdnv4luvanah0gfxzzsnpaygsy6pytrexll2urtd05ts9vegu7" : {
@@ -56,7 +61,7 @@ accounts_info = {
     },
     "erd1dc3yzxxeq69wvf583gw0h67td226gu2ahpk3k50qdgzzym8npltq7ndgha" : {
         "username" : "heidi",
-        "shard" : 1,
+        "shard" : 2,
         "nonce" : 1,
     },
     "erd13x29rvmp4qlgn4emgztd8jgvyzdj0p6vn37tqxas3v9mfhq4dy7shalqrx" : {
@@ -66,7 +71,7 @@ accounts_info = {
     },
     "erd1fggp5ru0jhcjrp5rjqyqrnvhr3sz3v2e0fm3ktknvlg7mcyan54qzccnan" : {
         "username" : "judy",
-        "shard" : 1,
+        "shard" : 2,
         "nonce" : 1,
     },
     "erd1z32fx8l6wk9tx4j555sxk28fm0clhr0cl88dpyam9zr7kw0hu7hsx2j524" : {
@@ -76,7 +81,7 @@ accounts_info = {
     },
     "erd1uv40ahysflse896x4ktnh6ecx43u7cmy9wnxnvcyp7deg299a4sq6vaywa" : {
         "username" : "mike",
-        "shard" : 1,
+        "shard" : 0,
         "nonce" : 1,
     },
 # ! ------------------------------- NEW USERS -------------------------------
@@ -128,9 +133,9 @@ def run_shell_command_without_waiting(command):
 
 
 
-def create_new_tx_command(nonce, gas_limit, receiver_address, sender_name, tx_id):
+def create_new_tx_command(nonce, gas_limit, receiver_address, sender_name, tx_id, output_directory):
     formatted_tx_id = "{:07d}".format(tx_id)
-    outfile = f"{TRANSACTIONS_DIRECTORY}transaction_{formatted_tx_id}.json"
+    outfile = f"{output_directory}transaction_{formatted_tx_id}.json"
     
     command = f"mxpy tx new \
             --nonce={nonce} \
@@ -177,7 +182,7 @@ def sendTransactionFromFile(tx_id):
 
 
 
-def sendBatchOfTransactions(file_names, batch_size, i):
+def sendBatchOfTransactions(file_names, batch_size, i, input_directory):
     timestamp = datetime.now()
     print(f"Sending new batch of transactions (batch_size = {batch_size}, timestamp = {timestamp})")
     
@@ -187,7 +192,7 @@ def sendBatchOfTransactions(file_names, batch_size, i):
         timestamp = datetime.now()
         print(timestamp)
         
-        infile = TRANSACTIONS_DIRECTORY+file_name
+        infile = input_directory+file_name
         command_to_run = f"mxpy tx send \
                 --proxy=http://localhost:7950 \
                 --infile={infile};"
@@ -292,6 +297,53 @@ def pick_sender_and_receiver(hash_map, seed):
         # Yield the pair of keys
         yield first_key, second_key
 
+def pick_sender_and_receiver_with_correct_load(all_accounts, seed):
+    # Extract keys from the hash map
+    all_accounts_keys = list(all_accounts.keys())
+    light_accounts = list(all_accounts.keys())
+    for account in hot_accounts:
+        light_accounts.remove(account)
+    keys_for_receiver = []
+    
+    # Set the random seed
+    random.seed(seed)
+    
+    while True:
+        #? PICK SENDER ----------
+        if random.random() < hot_sender_probability:
+            first_key = random.choice(hot_accounts)
+        else:
+            # Randomly select the first key
+            first_key = random.choice(light_accounts)
+        
+        #? PICK RECEIVER (based on picked sender and cross-shard probability) --------
+        sender_shard = all_accounts[first_key]["shard"]
+        
+
+        # Extract same shard accounts (excluding the given key)
+        same_shard_account_keys = [key for key, acc in accounts_info.items() if key != first_key and acc["shard"] == sender_shard]
+        # Extract different shard account keys
+        different_shard_account_keys = [key for key, acc in accounts_info.items() if key != first_key and acc["shard"] != sender_shard]
+        
+        # Randomly choose between same shard and different shard accounts based on cross_shard_probability
+        if random.random() < cross_shard_probability:
+            # Choose from different shard accounts
+            account_keys = different_shard_account_keys
+        else:
+            # Choose from same shard accounts
+            account_keys = same_shard_account_keys
+        
+        # If the chosen account set is empty, return None
+        if not account_keys:
+            return None
+        
+        # Randomly choose a key from the selected set
+        second_key = random.choice(account_keys)
+
+        
+        # Yield the pair of keys
+        yield first_key, second_key
+
 def pick_receiver(hash_map, seed):
     # Extract keys from the hash map
     keys = list(hash_map.keys())
@@ -315,7 +367,8 @@ def generateSingleTransaction():
                 gas_limit=70000,
                 receiver_address="erd1spyavw0956vq68xj8y4tenjpq2wd5a9p2c6j8gsz7ztyrnpxrruqzu66jx",
                 sender_name="alice",
-                tx_id = 2
+                tx_id = 2,
+                output_directory = TRANSACTIONS_DIRECTORY
         )
         run_shell_command(command_to_run, sender_addr)
 
@@ -340,11 +393,40 @@ def generateRandomTransactions(num_txs):
                 gas_limit=70000,
                 receiver_address=receiver_addr,
                 sender_name=accounts_info[sender_addr]["username"],
-                tx_id = global_txs_id
+                tx_id = global_txs_id,
+                output_directory = TRANSACTIONS_DIRECTORY
         )
         run_shell_command(command_to_run, sender_addr)
         global_txs_id += 1
         #time.sleep(0.1)
+
+
+def generateTransactionsWithCorrectLoad(num_txs):
+    print("Num of accounts: " + str(len(accounts_info)))
+    print("0.02x of account is: " + str(len(accounts_info) * 0.02))
+    seed_value = 42
+
+    global_txs_id = 0
+
+    generator = pick_sender_and_receiver_with_correct_load(accounts_info, seed_value)
+
+    # Generate pairs of keys
+    for _ in range(num_txs):
+        sender_addr, receiver_addr = next(generator)
+
+        print("----- GENERATING TX FROM " + accounts_info[sender_addr]["username"] + " TO " + accounts_info[receiver_addr]["username"] + " -----")
+        command_to_run = create_new_tx_command(
+                nonce=accounts_info[sender_addr]["nonce"],
+                gas_limit=70000,
+                receiver_address=receiver_addr,
+                sender_name=accounts_info[sender_addr]["username"],
+                tx_id = global_txs_id,
+                output_directory = TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD
+        )
+        run_shell_command(command_to_run, sender_addr)
+        global_txs_id += 1
+        #time.sleep(0.1)
+
 
 def createOutputCSV():
     # Open the file in write mode
@@ -435,12 +517,15 @@ def get_is_affected_by_AAT(mini_block_hash):
         }
     }
 
-    res = es.search(index="transactions", body=query)
-    
-    if res['hits']['total']['value'] > 0:
-        return 1 #true
-    else:
-        return 0 #false
+    try:
+        res = es.search(index="transactions", body=query)
+        
+        if res['hits']['total']['value'] > 0:
+            return 1 #true
+        else:
+            return 0 #false
+    except:
+        return 0
 
 
     
@@ -518,7 +603,7 @@ def addTimestampDifferenceToCSV():
 
 def plotData():
     # Read the CSV file
-    df = pd.read_csv(OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE)
+    df = pd.read_csv(OUTPUT_CSV_WITH_STATISTICS)
 
 
     migration_starts_at = 1712169658
@@ -549,8 +634,8 @@ def plotData():
     plt.xticks(rotation=45)
     
     
-    plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
-    plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
+    #plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    #plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
     
     
     plt.tight_layout()
@@ -597,13 +682,13 @@ def plotDataFromStatistics():
         )
 
 
-    migration_starts_at = 1712169658
+    migration_starts_at = 1712322484 #1712169658
     x_migration_start = migration_starts_at - df['timestamp'].min()
     #print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
     #print(x_migration_start)
 
     # Add vertical line at specified timestamp
-    vertical_timestamp = 1712169682
+    vertical_timestamp = 1712322532
     x_vertical_ts = vertical_timestamp - df['timestamp'].min()
     #print(str(vertical_timestamp) + " - " + str(df["timestamp"].min()))
     #print(x_vertical_ts)
@@ -654,8 +739,8 @@ def plotDataFromStatistics():
     plt.show()
 
 
-def sendAllGeneratedTransactions(batch_size):
-    files = os.listdir(TRANSACTIONS_DIRECTORY)
+def sendAllGeneratedTransactions(batch_size, input_directory):
+    files = os.listdir(input_directory)
     # Filter out only the JSON files
     json_files = [file for file in files if file.endswith('.json')]
     sorted_json_files = sorted(json_files)
@@ -665,7 +750,7 @@ def sendAllGeneratedTransactions(batch_size):
 
     for i in range(0, len(sorted_json_files), batch_size):
         batch = sorted_json_files[i:i+batch_size]
-        sendBatchOfTransactions(batch, batch_size, i)
+        sendBatchOfTransactions(batch, batch_size, i, input_directory)
     readCSVFile()
 
 
@@ -677,15 +762,17 @@ def sendAllGeneratedTransactions(batch_size):
 #! ----- PROVE -----
 #generateSingleTransaction()
 #sendTransactionFromFile(tx_id="000000001")
-
-
-#! ------ RUN ------
 #generateRandomTransactions(num_txs=1000)
-#sendAllGeneratedTransactions(batch_size=5)
 #addEndTimestampToCSV()
-#addStatisticsToCSV()
 #addTimestampDifferenceToCSV()
 #plotData()
-plotDataFromStatistics()
+#! ------------------
+
+
+#? ---- COMMANDS TO EXECUTE ----
+#generateTransactionsWithCorrectLoad(num_txs=1000)
+sendAllGeneratedTransactions(batch_size=5, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD)
+#addStatisticsToCSV()
+#plotDataFromStatistics()
 
 
