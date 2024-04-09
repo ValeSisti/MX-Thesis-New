@@ -9,10 +9,12 @@ from collections import defaultdict
 import pandas as pd
 from elasticsearch import Elasticsearch
 import matplotlib.pyplot as plt
+import requests
 
 
 TRANSACTIONS_DIRECTORY = "./generated_transactions/" #? crearla se non esiste
 TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD = "./generated_transactions_with_correct_load/" #? crearla se non esiste
+TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH = "./generated_transactions_with_correct_load_by_batch/" #? crearla se non esiste
 OUTPUT_CSV = "./output.csv"
 OUTPUT_CSV_WITH_END_TIMESTAMP = "./output_with_end_timestamp.csv"
 OUTPUT_CSV_WITH_STATISTICS = "./output_with_statistics.csv"
@@ -20,7 +22,7 @@ OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE = "./output_with_timestamp_difference.csv"
 
 
 hot_accounts = ["erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th"] #alice
-hot_sender_probability = 0.9 #TODO modificare a 0.5
+hot_sender_probability = 0.5 #TODO modificare a 0.5
 cross_shard_probability = 1
 
 accounts_info = {
@@ -92,6 +94,54 @@ accounts_info = {
     #},
 }
 
+
+
+
+
+accountsAllocationData = {
+    1: [
+        {
+            "accountAddressString": "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th",
+            "migrationNonce": 0,
+            "sourceShard": 1,
+            "destinationShard": 0
+        },
+        {
+            "accountAddressString": "erd1kyaqzaprcdnv4luvanah0gfxzzsnpaygsy6pytrexll2urtd05ts9vegu7",
+            "migrationNonce": 0,
+            "sourceShard": 1,
+            "destinationShard": 2
+        }
+    ],
+    2: [
+        {
+            "accountAddressString": "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th",
+            "migrationNonce": 1,
+            "sourceShard": 0,
+            "destinationShard": 1
+        },
+        {
+            "accountAddressString": "erd1kyaqzaprcdnv4luvanah0gfxzzsnpaygsy6pytrexll2urtd05ts9vegu7",
+            "migrationNonce": 1,
+            "sourceShard": 2,
+            "destinationShard": 1
+        }
+    ],
+    3: [
+        {
+            "accountAddressString": "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th",
+            "migrationNonce": 2,
+            "sourceShard": 1,
+            "destinationShard": 0
+        },
+        {
+            "accountAddressString": "erd1kyaqzaprcdnv4luvanah0gfxzzsnpaygsy6pytrexll2urtd05ts9vegu7",
+            "migrationNonce": 2,
+            "sourceShard": 1,
+            "destinationShard": 2
+        }
+    ]    
+}
 
 
 
@@ -344,6 +394,55 @@ def pick_sender_and_receiver_with_correct_load(all_accounts, seed):
         # Yield the pair of keys
         yield first_key, second_key
 
+
+
+def pick_sender_and_receiver_with_correct_load_by_batch(all_accounts, seed, num_txs_per_batch):
+    # Extract keys from the hash map
+    all_accounts_keys = list(all_accounts.keys())
+    light_accounts = list(all_accounts.keys())
+    for account in hot_accounts:
+        light_accounts.remove(account)
+
+    # Set the random seed
+    random.seed(seed)
+
+    # Prepare a list to store sender-receiver pairs
+    batch_sender_receiver_pairs = []
+
+    # Calculate the number of hot account senders
+    num_hot_account_senders = int(num_txs_per_batch * hot_sender_probability)
+    print(f"--- Generating {num_hot_account_senders} by hot senders and {num_txs_per_batch - num_hot_account_senders} by light senders in current batch ---")
+
+    # Generate sender-receiver pairs for hot account senders
+    for _ in range(num_hot_account_senders):
+        first_key = random.choice(hot_accounts)
+        second_key = pick_receiver_based_on_cross_shard_probability(all_accounts, first_key)
+        batch_sender_receiver_pairs.append((first_key, second_key))
+
+    # Generate sender-receiver pairs for light account senders
+    for _ in range(num_txs_per_batch - num_hot_account_senders):
+        first_key = random.choice(light_accounts)
+        second_key = pick_receiver_based_on_cross_shard_probability(all_accounts, first_key)
+        batch_sender_receiver_pairs.append((first_key, second_key))
+
+    # Shuffle the pairs to mix hot and light account senders
+    #random.shuffle(batch_sender_receiver_pairs, random.Random(seed))
+    random.shuffle(batch_sender_receiver_pairs)
+
+    # Return the list of sender-receiver pairs for this batch
+    return batch_sender_receiver_pairs
+
+def pick_receiver_based_on_cross_shard_probability(all_accounts, sender_addr):
+    sender_shard = all_accounts[sender_addr]["shard"]
+    same_shard_account_keys = [key for key, acc in all_accounts.items() if key != sender_addr and acc["shard"] == sender_shard]
+    different_shard_account_keys = [key for key, acc in all_accounts.items() if key != sender_addr and acc["shard"] != sender_shard]
+    if random.random() < cross_shard_probability:
+        return random.choice(different_shard_account_keys)
+    else:
+        return random.choice(same_shard_account_keys)
+
+
+
 def pick_receiver(hash_map, seed):
     # Extract keys from the hash map
     keys = list(hash_map.keys())
@@ -426,6 +525,37 @@ def generateTransactionsWithCorrectLoad(num_txs):
         run_shell_command(command_to_run, sender_addr)
         global_txs_id += 1
         #time.sleep(0.1)
+
+
+def generateTransactionsWithCorrectLoadInBatches(num_txs_per_batch, num_batches, output_dir):
+    print("Num of accounts: " + str(len(accounts_info)))
+    print("0.02x of account is: " + str(len(accounts_info) * 0.02))
+    seed_value = 42
+
+    global_txs_id = 0
+
+    for batch in range(num_batches):
+        generator = pick_sender_and_receiver_with_correct_load_by_batch(accounts_info, seed_value, num_txs_per_batch)
+        batch_sender_receiver_pairs = list(generator)
+
+        # Prepare a list to store all the commands to run
+        #commands_to_run = []
+
+        # Generate commands for each sender-receiver pair in the batch
+        for sender_addr, receiver_addr in batch_sender_receiver_pairs:
+            print("----- GENERATING TX FROM " + accounts_info[sender_addr]["username"] + " TO " + accounts_info[receiver_addr]["username"] + " -----")
+            command_to_run = create_new_tx_command(
+                    nonce=accounts_info[sender_addr]["nonce"],
+                    gas_limit=70000,
+                    receiver_address=receiver_addr,
+                    sender_name=accounts_info[sender_addr]["username"],
+                    tx_id = global_txs_id,
+                    output_directory = output_dir
+            )
+            #commands_to_run.append((command_to_run, sender_addr))
+            run_shell_command(command_to_run, sender_addr)
+            global_txs_id += 1
+
 
 
 def createOutputCSV():
@@ -682,7 +812,7 @@ def plotDataFromStatistics():
         )
 
 
-    migration_starts_at = 1712322484 #1712169658
+    migration_starts_at = 1712606295 #1712322484 #1712169658
     x_migration_start = migration_starts_at - df['timestamp'].min()
     #print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
     #print(x_migration_start)
@@ -708,7 +838,7 @@ def plotDataFromStatistics():
     mean_timestamp_diff_shard_2 = shard_2_data.groupby('timestamp')['timestamp_difference'].mean()
 
     # Plotting
-    plt.figure(figsize=(19, 3))
+    plt.figure(figsize=(15, 6)) #19,3
 
     # Plot line for shard 0
     plt.plot(mean_timestamp_diff_shard_0.index, mean_timestamp_diff_shard_0.values, marker=',', linestyle='-', label='Shard 0')
@@ -727,8 +857,8 @@ def plotDataFromStatistics():
     plt.legend()
     
     
-    plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
-    plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
+    #plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    #plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
 
     plt.tight_layout()
 
@@ -737,6 +867,25 @@ def plotDataFromStatistics():
 
     # Show the plot
     plt.show()
+
+
+def generate_account_migration_transactions(current_account_allocation_id):
+    url = "http://localhost:10206/node/send-account-allocation"
+
+    payload = {
+        "id": current_account_allocation_id,
+        "accountAllocation": accountsAllocationData[current_account_allocation_id]
+    }
+
+    # Send POST request
+    response = requests.post(url, json=payload)
+
+    # Check if request was successful (status code 200)
+    if response.status_code == 200:
+        print("--------REST API call successful--------")
+        print(f"GENERATED ACCOUNT ALLOCATION WTIH ID {current_account_allocation_id}:  {accountsAllocationData[current_account_allocation_id]}")
+    else:
+        print(f"REST API call failed with status code {response.status_code}")
 
 
 def sendAllGeneratedTransactions(batch_size, input_directory):
@@ -748,9 +897,25 @@ def sendAllGeneratedTransactions(batch_size, input_directory):
     
     createOutputCSV()
 
+    total_txs_generated = 0
+    current_account_allocation_id = 1 # because accountsAllocationData starts by 1
+
     for i in range(0, len(sorted_json_files), batch_size):
         batch = sorted_json_files[i:i+batch_size]
         sendBatchOfTransactions(batch, batch_size, i, input_directory)
+
+        # Update the total number of transactions generated
+        total_txs_generated += len(batch)
+        
+        # Check if the threshold for triggering the API call is reached
+        #"""
+        if (total_txs_generated >= 100 and current_account_allocation_id == 1) or (total_txs_generated >= 500 and current_account_allocation_id == 2): #TODO: RENDERE PARAMETRICO
+            # Trigger the call to the REST API
+            generate_account_migration_transactions(current_account_allocation_id)
+            current_account_allocation_id += 1
+            # Reset the total_txs_generated counter
+            total_txs_generated = 0
+        #"""
     readCSVFile()
 
 
@@ -769,10 +934,16 @@ def sendAllGeneratedTransactions(batch_size, input_directory):
 #! ------------------
 
 
-#? ---- COMMANDS TO EXECUTE ----
+#? ---- COMMANDS TO EXECUTE (Correct load overall) ----
 #generateTransactionsWithCorrectLoad(num_txs=1000)
-sendAllGeneratedTransactions(batch_size=5, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD)
+#sendAllGeneratedTransactions(batch_size=5, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD)
 #addStatisticsToCSV()
 #plotDataFromStatistics()
 
 
+
+#? ---- COMMANDS TO EXECUTE (Correct load by batch) ----
+#generateTransactionsWithCorrectLoadInBatches(num_txs_per_batch=5, num_batches=200, output_dir=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH) # 20 tx/batch x 50 batch = 1000 txs
+#sendAllGeneratedTransactions(batch_size=5, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH)
+#addStatisticsToCSV()
+plotDataFromStatistics()
