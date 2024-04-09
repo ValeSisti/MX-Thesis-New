@@ -139,6 +139,13 @@ func (txv *txValidator) checkAccount(
 	interceptedTx process.InterceptedTransactionHandler,
 	accountHandler vmcommon.AccountHandler,
 ) error {
+	
+	//! -------------------- NEW CODE --------------------
+	if accountHandler == nil {
+		return fmt.Errorf("*** account is no more present inside this shard, as it has probably removed on the way, once its corresponding AMT has been notarized dest-side ***")
+	}
+	//! ---------------- END OF NEW CODE -----------------
+	
 	err := txv.checkNonce(interceptedTx, accountHandler)
 	if err != nil {
 		//! -------------------- NEW CODE --------------------
@@ -174,6 +181,13 @@ func (txv *txValidator) getSenderUserAccount(
 }
 
 func (txv *txValidator) checkBalance(interceptedTx process.InterceptedTransactionHandler, account state.UserAccountHandler) error {	
+	
+	//! -------------------- NEW CODE --------------------
+	if account == nil {
+		return fmt.Errorf("*** account is no more present inside this shard, as it has probably removed on the way, once its corresponding AMT has been notarized dest-side ***")
+	}
+	//! ---------------- END OF NEW CODE -----------------
+	
 	accountBalance := account.GetBalance()
 	//! -------------------- NEW CODE --------------------
 	log.Debug("*** Account Balance inside checkBalance ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))
@@ -201,6 +215,13 @@ func (txv *txValidator) checkBalance(interceptedTx process.InterceptedTransactio
 }
 
 func (txv *txValidator) checkNonce(interceptedTx process.InterceptedTransactionHandler, accountHandler vmcommon.AccountHandler) error {
+	
+	//! -------------------- NEW CODE --------------------
+	if accountHandler == nil {
+		return fmt.Errorf("*** account is no more present inside this shard, as it has probably removed on the way, once its corresponding AMT has been notarized dest-side ***")
+	}
+	//! ---------------- END OF NEW CODE -----------------
+	
 	accountNonce := accountHandler.GetNonce()
 	txNonce := interceptedTx.Nonce()
 	lowerNonceInTx := txNonce < accountNonce

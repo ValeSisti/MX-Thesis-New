@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -880,7 +881,7 @@ func (txProc *txProcessor) processAccountMigration(
 	if (txProc.shardCoordinator.SelfId() == tx.SenderShard){ //TODO: cambiare in tx.SourceShard
 		if !check.IfNil(acntSrc) {
 			acntSrc.IncreaseMigrationNonce(1) //! AGGIUNTO PER RISOLVERE IL PROBLEMA CHE UNA AMT, UNA VOLTA INSERITA IN UN BLOCCO, VIENE AGGIUNTA DI NUOVO NELLA CACHE
-			log.Debug("*** AMT processed in source shard ***", "account", string(acntSrc.AddressBytes()), "nonce", string(acntSrc.GetNonce()), "migration nonce",string(acntSrc.GetMigrationNonce()), "balance", acntSrc.GetBalance().String())
+			log.Debug("*** AMT processed in source shard ***", "account", hex.EncodeToString(acntSrc.AddressBytes()), "nonce", acntSrc.GetNonce(), "migration nonce",acntSrc.GetMigrationNonce(), "balance", acntSrc.GetBalance().String())
 		}
 
 		err := txProc.accounts.SaveAccount(acntSrc)
@@ -893,7 +894,9 @@ func (txProc *txProcessor) processAccountMigration(
 	if (txProc.shardCoordinator.SelfId() == tx.ReceiverShard){ //TODO: cambiare in tx.DestinationShard
 		// is account address (src or dst, they are the same) in node shard
 		if !check.IfNil(acntDst) {
-			
+
+			log.Debug("*** Processing AMT dest-side. Values before update ***", "account", hex.EncodeToString(acntDst.AddressBytes()), "nonce", acntDst.GetNonce(),  "migration nonce", acntDst.GetMigrationNonce(), "balance", acntDst.GetBalance().String())
+	
 			acntDst.IncreaseMigrationNonce(tx.MigrationNonce + 1)
 			acntDst.IncreaseNonce(tx.Nonce)
 			acntDst.SetUserName(tx.SndUserName)
@@ -909,7 +912,7 @@ func (txProc *txProcessor) processAccountMigration(
 			}
 
 
-			log.Debug("*** AMT processed in destination shard ***", "account", string(acntDst.AddressBytes()), "nonce", string(acntDst.GetNonce()), "migration nonce",string(acntDst.GetMigrationNonce()), "balance", acntDst.GetBalance().String())
+			log.Debug("*** AMT processed in destination shard ***", "account", hex.EncodeToString(acntDst.AddressBytes()), "nonce", acntDst.GetNonce(), "migration nonce", acntDst.GetMigrationNonce(), "balance", acntDst.GetBalance().String())
 
 
 		}

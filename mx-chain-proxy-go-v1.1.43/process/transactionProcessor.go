@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strings"
+	//"strings"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -215,21 +215,22 @@ func (tp *TransactionProcessor) SendTransaction(tx *data.Transaction) (int, stri
 	observersOnePerShard, err := tp.proc.GetObserversOnePerShard(data.AvailabilityAll)
 	log.Info("***Observers List***", "num", len(observers), "observers", observers)
 	log.Info("***Observers List One Per Shard***", "num", len(observersOnePerShard), "observersOnePerShard", observersOnePerShard)
+	
 	//! ---------------- END OF NEW CODE -----------------
 
 	var finalResponseCode int
 	var finalTxHash string
 	//var finalError error
 
-	for _, observer := range observers {
+	for _, observer := range observersOnePerShard { //TODO: prima era range observers, ora ho provato a mettere range observersOnePerShard
 		//! -------------------- NEW CODE --------------------	
-		observerAddrParts := strings.Split(observer.Address, ":") // Example string: "http://127.0.0.1:10101"
+		/*observerAddrParts := strings.Split(observer.Address, ":") // Example string: "http://127.0.0.1:10101"
 
 		// Extract the last part after the last ":"
 		observerPort := observerAddrParts[len(observerAddrParts)-1]
 		if !strings.HasPrefix(observerPort, "101"){ // observers have port 10100, 10101, 10102, 10103,...
 			continue
-		}
+		}*/
 
 		log.Info("*** Sending tx to observer of shard: ***", "shardId", observer.ShardId, "address", observer.Address, "isSynced", observer.IsSynced)
 		//! ---------------- END OF NEW CODE -----------------		

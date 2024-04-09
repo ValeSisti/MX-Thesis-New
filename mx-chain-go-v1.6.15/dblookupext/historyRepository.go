@@ -535,7 +535,7 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 				
 				//TODO: capire se SendBulkTranasction è bloccante e, se sì, eliminare l'account tramite hr.accountsAdapter.RemoveAccount o quello che sia
-				/*log.Debug("*** Removing migrated account from source shard ***")
+				log.Debug("*** Removing migrated account from source shard ***")
 				err := hr.accountsAdapter.RemoveAccount(tx.SndAddr) //TODO: RIMETTERE
 				if err != nil {
 					log.Debug("***ERROR: COULDN'T REMOVE ACCOUNT FROM SOURCE SHARD ***","err", err.Error())
@@ -549,8 +549,8 @@ func sendTransactionsAndRemoveAccountForFinalAMTsInsideMiniBlock(hr *historyRepo
 
 				_, err = hr.accountsAdapter.GetExistingAccount(tx.SndAddr)
 				if err != nil {
-					log.Debug("*** Migrated account has effectively been removed from source shard ***")
-				}*/
+					log.Debug("*** ----- MIGRATED ACCOUNT has effectively been REMOVED FROM SOURCE SHARD ----- ***", "migratedAccount", hex.EncodeToString(tx.SndAddr))
+				}
 			
 				
 			}else if (hr.selfShardID == tx.ReceiverShard){ //Altrimenti, se faccio parte del destination shard (andava bene anche solo else, visto che ci sono solo due casi possibili, ma per sicurezza ho messo else if)

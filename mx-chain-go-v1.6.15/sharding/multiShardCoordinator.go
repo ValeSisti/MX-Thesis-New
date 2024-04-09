@@ -395,7 +395,7 @@ func (msc *multiShardCoordinator) IsMbHashStringInWaitingMbsForAATsNotarization(
 func (msc *multiShardCoordinator) SetNotarizedAATInWaitingMbsForAATsNotarization(aatHash string, mbHash string) (bool, int, int) {
 	aatsInfo, ok := msc.waitingMbsForAATsNotarization[mbHash]
 	if !ok {
-		log.Debug("*** Error: cannot find mbHash inside waitingMbsForAATsNotarization ***")
+		log.Debug("*** Error: cannot find mbHash inside waitingMbsForAATsNotarization ***", "mbHash", mbHash)
 		return false, 0, 0
 	}
 	aatInfo, ok := aatsInfo.AATsInfo[aatHash]
