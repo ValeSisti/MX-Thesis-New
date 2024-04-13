@@ -1,0 +1,145 @@
+1. ------------------------- Run the Docker container for Elasticsearch and Kibana ----------------------------------
+
+cd /home/valentina/Thesis/MX-Thesis-New/packages/mx-chain-es-indexer-go-v1.4.18/ && docker compose up
+
+---------------------------------------------------------------------------------------------------------------------
+
+
+
+2. ---------------------------------------- Run elasticindexer -------------------------------------------------------
+
+cd /home/valentina/Thesis/MX-Thesis-New/packages/mx-chain-es-indexer-go-v1.4.18/cmd/elasticindexer && ./elasticindexer
+
+----------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+3. ------------------------- Configure the localnet with elasticindexer integration ----------------------------------
+
+cd /home/valentina/Thesis/Localnets && mxpy localnet prerequisites && mxpy localnet build && mxpy localnet config && mxpy localnet start
+
+
+
+cd /home/valentina/Thesis/Localnets && mxpy localnet prerequisites && mxpy localnet build && mxpy localnet config &&
+cp -f /home/valentina/Thesis/Localnets/external.toml /home/valentina/Thesis/Localnets/localnet/observer00/config/ &&
+cp -f /home/valentina/Thesis/Localnets/external.toml /home/valentina/Thesis/Localnets/localnet/observer01/config/ &&
+cp -f /home/valentina/Thesis/Localnets/external.toml /home/valentina/Thesis/Localnets/localnet/observer02/config/ &&
+cp -f /home/valentina/Thesis/Localnets/external.toml /home/valentina/Thesis/Localnets/localnet/observer03/config/ &&
+mxpy localnet start
+
+----------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+4. -------------------------------------------- Run the localnet ------------------------------------------------------
+
+mxpy localnet start
+
+-----------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------
+CERCA IN TUTTI I FILE:
+        
+        MaxNumOfTxsToSelect
+
+E modificare per gestire il carico a piacimento!
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------
+
+To query the status of a transaction:
+
+curl http://localhost:7950/transaction/60db637a5f20ac525e376eaf85ca545df868b77a110d2e4ac0df10d40482e702 | jq
+
+
+(Requires installing jq:
+    sudo apt install jq
+)
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+-----------------
+sudo lsof -i :22111
+kill -9 25226
+-----------------
+
+
+
+
+
+
+
+
+
+--------------------- INSTALL GO -------------------------
+
+Before running elasticindexer, Go needs to be installed.
+
+
+wget https://go.dev/dl/go1.21.1.linux-amd64.tar.gz
+
+
+sudo tar -C /usr/local -xzf go1.21.1.linux-amd64.tar.gz
+
+cd ~ && mkdir go
+
+sudo nano ~/.bashrc
+
+
+Paste:
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$PATH:/usr/local/go/bin
+
+
+
+Then do:
+
+cd /home/valentina/Thesis/MX-Thesis-New/packages/mx-chain-es-indexer-go-v1.4.18/cmd/elasticindexer
+
+go install
+go build -o elasticindexer
+
+
+
+Now command of step 2. can be executed!
+
+-------------------------------------------------------------------
+
+
+
+
+Per matplotlib: https://www.youtube.com/watch?v=zmwpNGPlkrE&ab_channel=HowtoFixYourComputer (FONTE)
+
+- Install VcxSrv from: https://sourceforge.net/projects/vcxsrv/
+- Configure XLaunch (eseguibile che si crea sul desktop una volta installato VcxSrv)
+
+- Run:    sudo apt-get update
+- Run:    sudo apt-get install python3.8-tk
+
+- Run:    export DISPLAY=:0.0
+    - Or put it inside ./bashrc with:      sudo nano ~/.bashrc
+
+
+
+
+
+
+

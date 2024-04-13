@@ -142,7 +142,7 @@ const MaxShardHeadersAllowedInOneMetaBlock = 60
 const MinShardHeadersFromSameShardInOneMetaBlock = 10
 
 // MaxNumOfTxsToSelect defines the maximum number of transactions that should be selected from the cache
-const MaxNumOfTxsToSelect = 30000
+const MaxNumOfTxsToSelect = 100 //! MODIFIED -> previous (original): 30000
 
 // MaxGasBandwidthPerBatchPerSender defines the maximum gas bandwidth that should be selected for a sender per batch from the cache
 const MaxGasBandwidthPerBatchPerSender = 5000000
