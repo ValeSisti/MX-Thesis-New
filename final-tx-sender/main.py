@@ -2007,7 +2007,7 @@ def myLastSenderWithBarrier(input_directory, delay_in_seconds, num_txs_to_send, 
     barrier = threading.Barrier(num_txs_per_batch)  # Additional +1 for the main thread
 
     # Define a function to execute a batch of commands and capture their output
-    def execute_batch(commands, batch_outputs, batch_index): #TODO: rimuovere sent come parametro nel caso in cui non lo usassi piu
+    def execute_batch(commands, batch_outputs, batch_index):
         global sent
         current_time = time.time()
         elapsed_time = current_time - start_time
