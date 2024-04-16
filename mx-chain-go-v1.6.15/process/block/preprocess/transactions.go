@@ -1033,7 +1033,7 @@ func (txs *transactions) notifyTransactionProviderIfNeeded() {
 			continue
 		}
 
-		sortedTransactionsProvider := createSortedTransactionsProvider(txShardPool)
+		sortedTransactionsProvider := createSortedTransactionsProvider(txShardPool, txs.shardCoordinator)
 		sortedTransactionsProvider.NotifyAccountNonce([]byte(senderAddress), account.GetNonce())
 	}
 	txs.accountTxsShards.RUnlock()
@@ -1571,7 +1571,7 @@ func (txs *transactions) computeSortedTxs(
 		return nil, nil, process.ErrNilTxDataPool
 	}
 
-	sortedTransactionsProvider := createSortedTransactionsProvider(txShardPool)
+	sortedTransactionsProvider := createSortedTransactionsProvider(txShardPool, txs.shardCoordinator)
 
 	//! -------------------- NEW CODE --------------------
 	//Devo passare anche il map con i migratingAccounts della shardedTxPool generale

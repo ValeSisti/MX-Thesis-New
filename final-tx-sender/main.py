@@ -32,6 +32,7 @@ OUTPUT_CSV_WITH_END_TIMESTAMP = os.path.join(script_directory, "output_with_end_
 OUTPUT_CSV_WITH_STATISTICS = os.path.join(script_directory, "output_with_statistics.csv")
 OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE = os.path.join(script_directory, "output_with_timestamp_difference.csv")
 GENERATED_TXS_STATISTICS_CSV = os.path.join(script_directory, "generated_txs_statistics.csv")
+ACCOUNTS_INFO_JSON_PATH = os.path.join(script_directory, "accounts_info.json")
 
 
 """
@@ -1133,7 +1134,7 @@ def plotData():
     df = pd.read_csv(OUTPUT_CSV_WITH_STATISTICS)
 
 
-    migration_starts_at = 1712169658
+    migration_starts_at = 1713187141
     x_migration_start = migration_starts_at - df['timestamp'].min()
     print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
     print(x_migration_start)
@@ -1209,7 +1210,7 @@ def plotDataFromStatistics(time_threshold):
         )
 
 
-    migration_starts_at = 1713031140 #1712606295 #1712322484 #1712169658
+    migration_starts_at = 1713187141 #1712606295 #1712322484 #1712169658
     x_migration_start = migration_starts_at - df['timestamp'].min()
     #print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
     #print(x_migration_start)
@@ -1258,7 +1259,7 @@ def plotDataFromStatistics(time_threshold):
     plt.legend()
     
     
-    plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    #plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
     #plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
 
     plt.tight_layout()
@@ -1288,6 +1289,38 @@ def generate_account_migration_transactions(current_account_allocation_id):
     else:
         print(f"REST API call failed with status code {response.status_code}")
 
+
+
+def sendAccountAllocation():
+    url = "http://localhost:10206/node/send-account-allocation"
+
+    payload = {
+        "id": 0,
+        "accountAllocation": [
+            {
+                "accountAddressString": "erd18tudnj2z8vjh0339yu3vrkgzz2jpz8mjq0uhgnmklnap6z33qqeszq2yn4",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 0
+            },
+            {
+                "accountAddressString": "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 2
+            }
+        ]
+    }
+
+    # Send POST request
+    response = requests.post(url, json=payload)
+
+    # Check if request was successful (status code 200)
+    if response.status_code == 200:
+        print("--------REST API call successful--------")
+        print(f"----------------------- ACCOUNT ALLOCATION SENT -----------------------")
+    else:
+        print(f"REST API call failed with status code {response.status_code}")
 
 def sendAllGeneratedTransactions(batch_size, input_directory):
     files = os.listdir(input_directory)
@@ -1835,10 +1868,10 @@ def saveTxsBatchToOutputCSV(batch_outputs):
             tx_string = infile_parts[-1]
 
             #print(f"data: {data}")
-            print(f"infile: {tx_string}")
-            print(f"timestamp_of_generation: {timestamp_of_generation}")
-            print(f"TxHash: {data['txHash']}")
-            print(f"realTimestamp: {data['realTimestamp']}")
+            #print(f"infile: {tx_string}")
+            #print(f"timestamp_of_generation: {timestamp_of_generation}")
+            #print(f"TxHash: {data['txHash']}")
+            #print(f"realTimestamp: {data['realTimestamp']}")
 
             writer.writerow([tx_string, int(timestamp_of_generation), data["txHash"], int(data["realTimestamp"])]) #? faccio timestamp.timestamp() per avere il timestamp in epoch format invece che come datetime
 
@@ -1930,6 +1963,149 @@ def myLastSender(input_directory, delay_in_seconds, num_txs_to_send, num_txs_per
         saveTxsBatchToOutputCSV(total_txs_by_batch[i])
 
 
+# Function to retrieve shard information from the REST API
+def get_shard_from_api_call(account_address):
+    # Make the REST API call to retrieve shard information
+    # Replace 'API_ENDPOINT' with the actual endpoint of the API   
+
+    response = requests.get(f'http://localhost:7950/address/{account_address}')
+    
+    # Parse the response and extract shard information
+    if response.status_code == 200:
+        response_json = response.json()
+        account_data = response_json.get('data', {}).get('account', {})
+        shard = account_data.get('shardId')
+        return shard
+    else:
+        print(f"Failed to retrieve shard information for account {account_address}")
+        return None
+
+
+def generateAccountsInfoJsonFile():
+    # Update shard information for each account
+    for account_address in accounts_info:
+        shard = get_shard_from_api_call(account_address)
+        accounts_info[account_address]['shard'] = shard
+
+    # Write the dictionary to a JSON file
+    with open(ACCOUNTS_INFO_JSON_PATH, "w") as json_file:
+        json.dump(accounts_info, json_file, indent=4)
+
+
+
+sent = False
+
+def myLastSenderWithBarrier(input_directory, delay_in_seconds, num_txs_to_send, num_txs_per_batch, with_AMTs):
+    # Get the current time before the function execution
+    start_time = time.time()
+    # Define a lock for synchronization
+    lock = threading.Lock()
+
+    global sent
+
+    # Define a threading barrier
+    barrier = threading.Barrier(num_txs_per_batch)  # Additional +1 for the main thread
+
+    # Define a function to execute a batch of commands and capture their output
+    def execute_batch(commands, batch_outputs, batch_index): #TODO: rimuovere sent come parametro nel caso in cui non lo usassi piu
+        global sent
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        
+        if elapsed_time >= 50 and not sent:
+            # Trigger your logic here
+            print("2 minutes seconds have passed.")
+            #sendAccountAllocation()
+            sent = True
+
+
+        threads = []
+        
+        timestamp_of_batch_generation = datetime.now()
+        batch_outputs["timestamp_of_generation"] = timestamp_of_batch_generation.timestamp()
+        batch_outputs["batchTxs"] = {}
+
+        for command in commands:
+            thread = threading.Thread(target=run_command, args=(command, batch_outputs, lock, batch_index, barrier))
+            threads.append(thread)
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+    # Define a function to run a single command and capture its output
+    def run_command(command_data, batch_outputs, lock, batch_index, barrier):
+        
+        if command_data["command"] == "ACCOUNT_ALLOCATION":
+            url = "http://localhost:10206/node/send-account-allocation"
+            command_to_run = f'curl -X POST {url} -H "Content-Type: application/json" --data-raw \'{command_data["accountAllocationPayload"]}\''
+        else:
+            command_to_run = command_data["command"]        
+
+        try:
+            if not command_to_run == None:
+                result = subprocess.run(command_to_run, shell=True, capture_output=True, text=True)
+                real_timestamp = datetime.now()
+                output_data = json.loads(result.stdout)
+                txHash = output_data.get('emittedTransactionHash')
+                # Acquire the lock before updating the outputs dictionary
+                with lock:
+                    batch_outputs["batchTxs"][command_data["infile"]] = {"txHash" : txHash, "realTimestamp": real_timestamp.timestamp()}
+        except Exception as e:
+            print(f"Error executing command: {e}")
+            # Log the error to a file
+            with open("error.log", mode='a') as log_file:
+                log_file.write(f"Error executing command: {e}\n")
+        finally:
+            # Wait for all threads to reach the barrier before proceeding
+            #print("Waiting for batch threads to complete...")
+            barrier.wait()
+
+    files = os.listdir(input_directory)
+    # Filter out only the JSON files
+    json_files = [file for file in files if file.endswith('.json')]
+    if not with_AMTs:
+        json_files = [file for file in json_files if not file.endswith('_account_allocation.json')]
+    sorted_json_files = sorted(json_files)
+
+    createOutputCSVWithRealExecutionTimestamp()
+
+    num_txs = len(sorted_json_files) if num_txs_to_send == 0 else num_txs_to_send
+
+    commands_to_run = get_all_commands_to_run(sorted_json_files, num_txs, input_directory)
+    num_total_commands = len(commands_to_run)
+    num_batches = math.ceil(num_total_commands / num_txs_per_batch)
+    print(f"Num txs to send: {num_txs}")
+    print(f"Num batches: {num_batches}")
+
+    total_txs_by_batch = {}
+
+    # Process commands in batches
+    for i in range(0, num_batches):
+        # Dictionary to store the output of each command
+        batch_outputs = {}
+        start_index = i * num_txs_per_batch
+        end_index = min(start_index + num_txs_per_batch, num_total_commands)
+        timestamp = datetime.now()
+        
+        print(f"Generating batch {i} of transactions: commands_to_run[{start_index}:{end_index}]        Timestamp: {timestamp}")
+        
+        batch_commands = commands_to_run[start_index:end_index]
+        execute_batch(batch_commands, batch_outputs, i)
+        total_txs_by_batch[i] = batch_outputs
+
+    # After all commands have been executed, you can access the output from the 'outputs' dictionary
+    for i in range(0, num_batches):
+        saveTxsBatchToOutputCSV(total_txs_by_batch[i])
+
+    # Get the current time after the function execution
+    end_time = time.time()
+    # Calculate the time taken
+    execution_time = end_time - start_time
+    print("Execution time:", execution_time, "seconds")
+
+
+
+
 
 #! ----- PROVE -----
 #generateSingleTransaction()
@@ -1956,17 +2132,29 @@ def myLastSender(input_directory, delay_in_seconds, num_txs_to_send, num_txs_per
 
 #? ---- COMMANDS TO EXECUTE (Correct load by batch) ----
 
-#generateTransactionsWithCorrectLoadInBatchesWithAccountAllocations(num_txs_per_batch=50, num_total_txs=4000, num_txs_threshold_for_account_allocation=2000, output_dir=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, with_cross_shard_probability=False) 
+"""generateTransactionsWithCorrectLoadInBatchesWithAccountAllocations(num_txs_per_batch=50, 
+                                                                   num_total_txs=20000, 
+                                                                   num_txs_threshold_for_account_allocation=6000, 
+                                                                   output_dir=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, 
+                                                                   with_cross_shard_probability=False)"""
 # --------- sendAllGeneratedTransactions(batch_size=100, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH)
 #sendAllGeneratedTransactionsAllAtOnce(batch_size=20, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, delay_in_seconds=5, num_txs_to_send=2000)
 #sendAllGeneratedTransactionsAllAtOnceWithMultithreadingRevisedByMe(batch_size=50, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, delay_in_seconds=5, num_txs_to_send=1000, num_txs_per_thread=50) #? 0: all transactions
 
-#myLastSender(input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, delay_in_seconds=5, num_txs_to_send=4000, num_txs_per_batch=50)
+#---------- myLastSender(input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, delay_in_seconds=5, num_txs_to_send=4000, num_txs_per_batch=50)
+"""myLastSenderWithBarrier(input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, 
+                        delay_in_seconds=5, 
+                        num_txs_to_send=20000, 
+                        num_txs_per_batch=50, 
+                        with_AMTs=False)"""
 
 #addStatisticsToCSV()
 
-plotDataFromStatistics(time_threshold=175)
+plotDataFromStatistics(time_threshold=250)
 
 #plotData()
 
 #printStatistics()
+
+
+#generateAccountsInfoJsonFile()

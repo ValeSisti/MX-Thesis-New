@@ -274,7 +274,7 @@ func (msc *multiShardCoordinator) GetEpochOfUpdateFromAddressBytes(pubKeyBytes [
 
 func (msc *multiShardCoordinator) HasBeenMigratedInCurrentEpochFromAddrBytes(pubKeyBytes []byte) bool {
 	accountAddress, _ := msc.addressPubKeyConverter.Encode(pubKeyBytes)
-	log.Debug("*** HasBeenMigratedInCurrentEpochFromAddrBytes ***", "addr", accountAddress, "updatedInEpoch", msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch, "currentEpoch", msc.accountsMapping.currentEpoch)
+	//log.Debug("*** HasBeenMigratedInCurrentEpochFromAddrBytes ***", "addr", accountAddress, "updatedInEpoch", msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch, "currentEpoch", msc.accountsMapping.currentEpoch)
 	return msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch == msc.accountsMapping.currentEpoch
 }
 

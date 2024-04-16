@@ -61,7 +61,7 @@ E modificare per gestire il carico a piacimento!
 
 To query the status of a transaction:
 
-curl http://localhost:7950/transaction/60db637a5f20ac525e376eaf85ca545df868b77a110d2e4ac0df10d40482e702 | jq
+curl http://localhost:7950/transaction/557f84ded2600779f44063f72a3fff7bd4d719c29b1d9c5570d0a7b4f4029428 | jq
 
 
 (Requires installing jq:
@@ -143,3 +143,11 @@ Per matplotlib: https://www.youtube.com/watch?v=zmwpNGPlkrE&ab_channel=HowtoFixY
 
 
 
+---------------------------------------------------------------------
+
+
+
+ ***Tx inside miniblock inside historyRepository*** txHash = d9174e82f28378abfb07441ece9b625594bbf53072cfc4695d370349fe90cb51
+
+
+ GENERATING THE ACCOUNT MIGRATION TRANSACTION FOR ALICE!

@@ -1,17 +1,19 @@
 package preprocess
 
 import (
+	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-go/process"
+	"github.com/multiversx/mx-chain-go/sharding"
 	"github.com/multiversx/mx-chain-go/storage"
 	"github.com/multiversx/mx-chain-go/storage/txcache"
 )
 
 // TODO: Refactor "transactions.go" to not require the components in this file anymore
 // createSortedTransactionsProvider is a "simple factory" for "SortedTransactionsProvider" objects
-func createSortedTransactionsProvider(cache storage.Cacher) SortedTransactionsProvider {
+func createSortedTransactionsProvider(cache storage.Cacher, shardCoordinator sharding.Coordinator) SortedTransactionsProvider {
 	txCache, isTxCache := cache.(TxCache)
 	if isTxCache {
-		return newAdapterTxCacheToSortedTransactionsProvider(txCache)
+		return newAdapterTxCacheToSortedTransactionsProvider(txCache, shardCoordinator)
 	}
 
 	log.Error("Could not create a real [SortedTransactionsProvider], will create a disabled one")
@@ -21,11 +23,13 @@ func createSortedTransactionsProvider(cache storage.Cacher) SortedTransactionsPr
 // adapterTxCacheToSortedTransactionsProvider adapts a "TxCache" to the "SortedTransactionsProvider" interface
 type adapterTxCacheToSortedTransactionsProvider struct {
 	txCache TxCache
+	shardCoordinator sharding.Coordinator
 }
 
-func newAdapterTxCacheToSortedTransactionsProvider(txCache TxCache) *adapterTxCacheToSortedTransactionsProvider {
+func newAdapterTxCacheToSortedTransactionsProvider(txCache TxCache, shardCoordinator sharding.Coordinator) *adapterTxCacheToSortedTransactionsProvider {
 	adapter := &adapterTxCacheToSortedTransactionsProvider{
 		txCache: txCache,
+		shardCoordinator: shardCoordinator,
 	}
 
 	return adapter
@@ -46,7 +50,22 @@ func (adapter *adapterTxCacheToSortedTransactionsProvider) GetSortedTransactions
 
 // GetSortedTransactions gets the transactions from the cache
 func (adapter *adapterTxCacheToSortedTransactionsProvider) GetSortedTransactions(migratingAccounts map[string]bool) []*txcache.WrappedTransaction { //! MODIFIED CODE
-	txs := adapter.txCache.SelectTransactionsWithBandwidth(process.MaxNumOfTxsToSelect, process.NumTxPerSenderBatchForFillingMiniblock, process.MaxGasBandwidthPerBatchPerSender, migratingAccounts) //! MODIFIED CODE
+	//! -------------------- NEW CODE --------------------	
+	currentEpoch := adapter.shardCoordinator.CurrentEpoch()
+	selfShardId := adapter.shardCoordinator.SelfId() 
+	var numTxsToSelect int
+	log.Debug("*** Checking current Epoch inside GetSortedTransactions ***", "current epoch", currentEpoch )
+	
+	if currentEpoch >= process.EpochToStartHandlingLoadBalance && selfShardId != core.MetachainShardId{
+		log.Debug("*** Setting numTxsToSelect = process.MaxNumOfTxsToSelectToHandleLoadBalance***")
+		numTxsToSelect = process.MaxNumOfTxsToSelectToHandleLoadBalance
+	}else{
+		log.Debug("*** Setting numTxsToSelect = process.MaxNumOfTxsToSelect***")
+		numTxsToSelect = process.MaxNumOfTxsToSelect
+	}
+	//! ---------------- END OF NEW CODE -----------------		
+	
+	txs := adapter.txCache.SelectTransactionsWithBandwidth(numTxsToSelect, process.NumTxPerSenderBatchForFillingMiniblock, process.MaxGasBandwidthPerBatchPerSender, migratingAccounts) //! MODIFIED CODE
 	return txs
 }
 
