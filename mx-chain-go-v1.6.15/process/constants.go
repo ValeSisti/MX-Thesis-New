@@ -145,9 +145,9 @@ const MinShardHeadersFromSameShardInOneMetaBlock = 10
 const MaxNumOfTxsToSelect = 30000 //! MODIFIED -> previous (original): 30000
 
 //! -------------------- NEW CODE --------------------	
-const MaxNumOfTxsToSelectToHandleLoadBalance = 100
+const MaxNumOfTxsToSelectToHandleLoadBalance = 50
 
-const EpochToStartHandlingLoadBalance = uint32(4)
+const EpochToStartHandlingLoadBalance = uint32(2)
 //! ---------------- END OF NEW CODE ----------------
 
 // MaxGasBandwidthPerBatchPerSender defines the maximum gas bandwidth that should be selected for a sender per batch from the cache

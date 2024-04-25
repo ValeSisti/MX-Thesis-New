@@ -1129,7 +1129,7 @@ def addTimestampDifferenceToCSV():
     print(f"Result saved to {OUTPUT_CSV_WITH_TIMESTAMP_DIFFERENCE}")    
 
 
-def plotData():
+def plotData(field_to_group_by):
     # Read the CSV file
     df = pd.read_csv(OUTPUT_CSV_WITH_STATISTICS)
 
@@ -1147,10 +1147,10 @@ def plotData():
 
 
     # Convert timestamp to seconds
-    df['timestamp'] = df['timestamp'] - df['timestamp'].min()  # Normalize timestamps to start from 0
+    df[field_to_group_by] = df[field_to_group_by] - df[field_to_group_by].min()  # Normalize timestamps to start from 0
 
     # Group by timestamp and calculate the mean of timestamp_difference
-    mean_timestamp_diff = df.groupby('timestamp')['timestamp_difference'].mean()
+    mean_timestamp_diff = df.groupby(field_to_group_by)['timestamp_difference'].mean()
 
     # Plotting
     plt.figure(figsize=(15, 7))
@@ -1162,7 +1162,7 @@ def plotData():
     plt.xticks(rotation=45)
     
     
-    #plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
     #plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
     
     
@@ -1178,7 +1178,7 @@ def plotData():
     mean_timestamp_diff_df.to_csv('mean_timestamp_difference_seconds.csv', index=False)
 
 
-def plotDataFromStatistics(time_threshold):
+def plotDataFromStatistics(time_threshold, field_to_group_by):
     # Read the CSV file
     df = pd.read_csv(OUTPUT_CSV_WITH_STATISTICS)
 
@@ -1223,7 +1223,7 @@ def plotDataFromStatistics(time_threshold):
 
 
     # Convert timestamp to seconds
-    df['timestamp'] = df['timestamp'] - df['timestamp'].min()  # Normalize timestamps to start from 0
+    df[field_to_group_by] = df[field_to_group_by] - df[field_to_group_by].min()  # Normalize timestamps to start from 0
 
     # Separate data for each shard
     shard_0_data = df[df['sender_shard'] == 0]
@@ -1235,9 +1235,9 @@ def plotDataFromStatistics(time_threshold):
     shard_2_data = df[(df['sender_shard'] == 2) & (df['sender_shard'] != df['receiver_shard'])]"""
 
     # Group by timestamp and calculate the mean of timestamp_difference for each shard
-    mean_timestamp_diff_shard_0 = shard_0_data.groupby('timestamp')['timestamp_difference'].mean()
-    mean_timestamp_diff_shard_1 = shard_1_data.groupby('timestamp')['timestamp_difference'].mean()
-    mean_timestamp_diff_shard_2 = shard_2_data.groupby('timestamp')['timestamp_difference'].mean()
+    mean_timestamp_diff_shard_0 = shard_0_data.groupby(field_to_group_by)['timestamp_difference'].mean()
+    mean_timestamp_diff_shard_1 = shard_1_data.groupby(field_to_group_by)['timestamp_difference'].mean()
+    mean_timestamp_diff_shard_2 = shard_2_data.groupby(field_to_group_by)['timestamp_difference'].mean()
 
     # Plotting
     plt.figure(figsize=(15, 6)) #19,3
@@ -1259,7 +1259,7 @@ def plotDataFromStatistics(time_threshold):
     plt.legend()
     
     
-    #plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
     #plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
 
     plt.tight_layout()
@@ -2150,11 +2150,12 @@ def myLastSenderWithBarrier(input_directory, delay_in_seconds, num_txs_to_send, 
 
 #addStatisticsToCSV()
 
-plotDataFromStatistics(time_threshold=250)
+#plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp') #? PREVIOUS: field_to_group_by='timestamp'
 
-#plotData()
+
+plotData(field_to_group_by='end_timestamp') #? PREVIOUS: field_to_group_by='timestamp'
+
 
 #printStatistics()
-
 
 #generateAccountsInfoJsonFile()
