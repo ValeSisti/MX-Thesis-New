@@ -18,7 +18,7 @@ import threading
 import queue
 import argparse
 import shutil
-import re
+
 
 # Get the directory of the script
 script_directory = os.path.dirname(os.path.realpath(__file__))
@@ -40,8 +40,6 @@ GENERATED_TXS_STATISTICS_CSV = "generated_txs_statistics.csv"
 GENERATED_TXS_CSV = os.path.join(script_directory, "generated_txs.csv")
 ACCOUNTS_INFO_JSON_PATH = os.path.join(script_directory, "accounts_info.json")
 NORMALIZED_OUTPUT_CSV_WITH_STATISTICS = "normalized_output_with_statistics.csv"
-
-INPUT_FOLDER_PATH = "/home/valentina/multiversx-sdk/testwallets/v1.0.0/mx-sdk-testwallets-1.0.0/users"
 
 
 
@@ -249,10 +247,12 @@ def pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(
 
     # Calculate the number of hot account senders
     num_hot_account_senders = int(num_txs_per_batch * hot_sender_probability)
-    print(f"--- Generating {num_hot_account_senders} by hot senders and {num_txs_per_batch - num_hot_account_senders} by light senders in current batch ---")
+    #TODO: uncomment
+    #print(f"--- Generating {num_hot_account_senders} by hot senders and {num_txs_per_batch - num_hot_account_senders} by light senders in current batch ---")
 
     # Generate sender-receiver pairs for hot account senders
     for _ in range(num_hot_account_senders):
+        #print(f"CURRENT HOT ACCOUNTS: { hot_accounts}")
         sender = random.choice(hot_accounts)
         receiver = pick_receiver_based_on_cross_shard_probability(all_accounts, sender, with_cross_shard_probability)
         sender_shard = accounts_info[sender]["shard"]
@@ -307,7 +307,7 @@ def pick_receiver_based_on_cross_shard_probability(all_accounts, sender_addr, wi
 
 
 
-def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocations(num_txs_per_batch, num_total_txs, num_txs_threshold_for_account_allocation, output_dir, with_cross_shard_probability, hot_sender_probability):
+def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocations(num_txs_per_batch, num_total_txs, num_txs_threshold_for_account_allocation, output_dir, with_cross_shard_probability):
     print("Num of accounts: " + str(len(accounts_info)))
     print("0.02x of account is: " + str(len(accounts_info) * 0.02))
     seed_value = 42
@@ -321,7 +321,7 @@ def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocations(num_txs_p
     createGeneratedTxsStatisticsCSV()
 
     for batch in range(num_batches):
-        generator = pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(accounts_info, seed_value+batch, num_txs_per_batch, with_cross_shard_probability)
+        generator = pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(accounts_info, seed_value, num_txs_per_batch, with_cross_shard_probability)
         batch_sender_receiver_pairs = list(generator)
 
         # Prepare a list to store all the commands to run
@@ -348,7 +348,7 @@ def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocations(num_txs_p
         
         if num_txs_from_last_account_allocation >= num_txs_threshold_for_account_allocation:
             print(f"num_txs_from_last_account_allocation ({num_txs_from_last_account_allocation}) >= num_txs_threshold_for_account_allocation ({num_txs_threshold_for_account_allocation}): computing account allocation")
-            compute_next_account_allocation(num_txs_threshold_for_account_allocation, output_dir, hot_sender_probability)
+            compute_next_account_allocation(num_txs_threshold_for_account_allocation, output_dir)
             num_txs_from_last_account_allocation = 0
 
 
@@ -429,6 +429,88 @@ def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_
             num_txs_from_last_account_allocation = 0
 
 
+def compute_V_t(S, A_hot, n_t, q_t_1, m_t, x_t):
+    """
+    Compute the variance V_t for given parameters.
+
+    Args:
+    S (set): Set of shards.
+    A_hot (set): Set of hot accounts.
+    n_t (dict): Dictionary with predicted upcoming transactions {j: n_j^t}.
+    q_t_1 (dict): Dictionary with queuing transactions from last epoch {j: q_j^{t-1}}.
+    m_t (dict): Dictionary with predicted transactions for each shard {i: m_i^t}.
+    x_t (dict): Dictionary with shard mapping for each account {j: {i: x_{i,j}^t}}.
+
+    Returns:
+    float: Computed variance V_t.
+    """
+    
+    # Step 1: Compute l_j^t for each hot account j
+    l_t = {j: n_t[j] + q_t_1[j] for j in A_hot}
+
+    # Step 2: Compute the average load per shard l_bar_t
+    total_m_t = sum(m_t[i] for i in S)
+    total_l_t = sum(l_t[j] for j in A_hot)
+    l_bar_t = (total_m_t + total_l_t) / len(S)
+    
+    # Step 3: Compute the variance V_t
+    numerator = 0
+    for i in S:
+        sum_i = sum(l_t[j] * x_t[j][i] for j in A_hot) + m_t[i]
+        numerator += (sum_i - l_bar_t) ** 2
+        
+    V_t = numerator / len(S)
+    
+    return V_t
+
+
+def account_allocation_algorithm(S, A_hot, n_t, q_t_1, l_t, x_t, m_t):
+    # Step 1: Initialize variables
+    x_t_new = x_t.copy()
+    V_t = compute_V_t(S, A_hot, n_t, q_t_1, m_t, x_t_new)
+    V_t_tilde = V_t
+
+    # Step 2: Sort shards by load and find most heavy and light-loaded shards
+    S_heavy = sorted(S, key=lambda i: sum(l_t[j] * x_t_new[j].get(i, 0) + m_t[i] for j in A_hot), reverse=True)
+    i_heavy = S_heavy[0]
+    i_light = S_heavy[-1]
+
+    # Step 3: Sort accounts in heavy-loaded shard by load
+    A_heavy = sorted(A_hot, key=lambda j: l_t[j], reverse=True)
+
+    # Step 4: Allocation loop
+    while sum(l_t[j] * x_t_new[j].get(i_heavy, 0) + m_t[i_heavy] for j in A_hot) > sum(m_t.values()) / len(S):
+        for j in A_heavy:
+            # Step 5: Move accounts from heavy to light shard
+            x_t_new[j][i_light] = 1
+            x_t_new[j][i_heavy] = 0
+            V_t_tilde = compute_V_t(S, A_hot, n_t, q_t_1, m_t, x_t_new)
+            if V_t_tilde < V_t:
+                # Step 6: Update if variance decreases
+                V_t = V_t_tilde
+                S_heavy = sorted(S, key=lambda i: sum(l_t[j] * x_t_new[j].get(i, 0) + m_t[i] for j in A_hot), reverse=True)
+                i_heavy = S_heavy[0]
+                i_light = S_heavy[-1]
+                A_heavy = sorted(A_hot, key=lambda j: l_t[j], reverse=True)
+                break
+        else:
+            # Step 7: Remove heavy shard if no improvement
+            S.remove(i_heavy)
+            S_heavy = sorted(S, key=lambda i: sum(l_t[j] * x_t_new[j].get(i, 0) + m_t[i] for j in A_hot), reverse=True)
+            if S_heavy:
+                i_heavy = S_heavy[0]
+                i_light = S_heavy[-1]
+                A_heavy = sorted(A_hot, key=lambda j: l_t[j], reverse=True)
+            else:
+                break
+
+    # Ensure every hot account is assigned to at least one shard
+    for j in A_hot:
+        if not any(x_t_new[j].values()):
+            # Assign the account to the light-loaded shard
+            x_t_new[j][i_light] = 1
+
+    return x_t_new
 
 
 
@@ -474,40 +556,6 @@ def generate_account_allocation_json_file(account_migrations_list, initial_varia
     for account_migration in account_migrations_list:
         accounts_info[account_migration["accountAddressString"]]["shard"] = account_migration["destinationShard"]
 
-
-def compute_V_t(S, A_hot, n_t, q_t_1, m_t, x_t):
-    """
-    Compute the variance V_t for given parameters.
-
-    Args:
-    S (set): Set of shards.
-    A_hot (set): Set of hot accounts.
-    n_t (dict): Dictionary with predicted upcoming transactions {j: n_j^t}.
-    q_t_1 (dict): Dictionary with queuing transactions from last epoch {j: q_j^{t-1}}.
-    m_t (dict): Dictionary with predicted transactions for each shard {i: m_i^t}.
-    x_t (dict): Dictionary with shard mapping for each account {j: {i: x_{i,j}^t}}.
-
-    Returns:
-    float: Computed variance V_t.
-    """
-    
-    # Step 1: Compute l_j^t for each hot account j
-    l_t = {j: n_t[j] + q_t_1[j] for j in A_hot}
-
-    # Step 2: Compute the average load per shard l_bar_t
-    total_m_t = sum(m_t[i] for i in S)
-    total_l_t = sum(l_t[j] for j in A_hot)
-    l_bar_t = (total_m_t + total_l_t) / len(S)
-    
-    # Step 3: Compute the variance V_t
-    numerator = 0
-    for i in S:
-        sum_i = sum(l_t[j] * x_t[j][i] for j in A_hot) + m_t[i]
-        numerator += (sum_i - l_bar_t) ** 2
-        
-    V_t = numerator / len(S)
-    
-    return V_t
 
 
 def move_accounts_to_improve_variance(hot_accounts_loads, n_t, m_t, q_t_1, total_txs_by_shard, x_t):
@@ -613,67 +661,50 @@ def computeShardLoadsVariance(shard_loads):
     return variance
 
 
-def calculate_transactions_for_shard(num_transactions, hot_account_percentage, hot_account_config, shard_index):
-    total_hot_accounts = sum(hot_account_config.values())
-    hot_tx_percentage_per_shard = 0
-    hot_tx_per_shard = 0
-    non_hot_tx_per_shard = 0
-    total_tx_per_shard = 0
-    hot_tx_per_account = 0
-    hot_tx_percentage_per_account = 0
+def getGeneratedTxsStatisticsFromCSVOLD(starting_index, num_txs_to_read):
+    # Calculate the number of rows to skip
+    skiprows = range(1, starting_index)  # Skip the header row
+    print(f"--------------- SKIPPING ROWS FROM 1 TO {starting_index} --------------")
+
+    # Read only the specified range of rows from the CSV file into a pandas DataFrame
+    df = pd.read_csv(GENERATED_TXS_STATISTICS_CSV, skiprows=skiprows, nrows=num_txs_to_read)
+
+    # Define the shard values
+    shard_values = [0, 1, 2]
+
+    # Initialize a dictionary to store the loads (tx count) for each shard
+    shard_loads = {shard: 0 for shard in shard_values}
+
+    # Loop through shard values
+    for shard in shard_values:
+        # Filter rows based on the sender shard value
+        sender_shard_rows = df[df['sender_shard'] == shard]
+        # Count the unique sender addresses for the current shard
+        shard_load = len(sender_shard_rows)
+        # Update the count in the dictionary
+        shard_loads[shard] = shard_load
+
+    # Print the load for each shard
+    for shard, load in shard_loads.items():
+        print(f"Number of txs (load) from shard {shard}: {load}")
     
-    if total_hot_accounts > 0:
-        hot_tx_percentage_per_shard = (hot_account_config[shard_index] / total_hot_accounts) * hot_account_percentage
+    # Initialize a dictionary to store the number of transactions generated by each account in the subset
+    hot_accounts_load = {account: 0 for account in hot_accounts}
 
-    hot_tx_per_shard = (hot_tx_percentage_per_shard / 100) * num_transactions
-    non_hot_tx_per_shard = (1 / len(hot_account_config)) * (num_transactions * ((100 - hot_account_percentage) / 100))
-    total_tx_per_shard = hot_tx_per_shard + non_hot_tx_per_shard
-
-    hot_accounts_count = hot_account_config[shard_index]
-    if hot_accounts_count > 0:
-        hot_tx_per_account = hot_tx_per_shard / hot_accounts_count
-        hot_tx_percentage_per_account = (hot_tx_per_account / total_tx_per_shard) * 100
-
-    hot_tx_percentage = 0
-    non_hot_tx_percentage = 0
-    if total_tx_per_shard > 0:
-        hot_tx_percentage = (hot_tx_per_shard / total_tx_per_shard) * 100
-        non_hot_tx_percentage = (non_hot_tx_per_shard / total_tx_per_shard) * 100
-
-    return {
-        "total_tx_for_shard": total_tx_per_shard,
-        "hot_tx_percentage_for_shard": hot_tx_percentage,
-        "non_hot_tx_percentage_for_shard": non_hot_tx_percentage,
-        "num_hot_tx_per_shard": hot_tx_per_shard,
-        "num_non_hot_tx_per_shard": non_hot_tx_per_shard,
-        "num_tx_per_hot_account": hot_tx_per_account,
-        "hot_tx_percentage_per_account": hot_tx_percentage_per_account
-    }
-
-
-def computeQueuingTxsAtIterationWithPercentage(i, b, q_0, txs_generated_per_iteration_for_curr_shard, hot_accounts_percentage, num_hot_accounts, single_hot_account_percentage, aggregated_light_account_percentage): # i = iteration, b = block capacity
-    print(f"Iteration {i} corresponds to i x 120 = {i * 120} total txs in the system (all shards)")     
-    #txs_generated_per_iteration_for_curr_shard = 120
+    # Loop through the subset of accounts
+    for account in hot_accounts:
+        # Filter rows based on the sender address matching the account
+        account_rows = df[df['sender'] == account]
+        # Count the number of transactions generated by the current account
+        transactions_count = len(account_rows)
+        # Update the count in the dictionary
+        hot_accounts_load[account] = {"load": transactions_count, "shard": accounts_info[account]["shard"]}
     
-    if i == 1:
-        total_txs_1 = txs_generated_per_iteration_for_curr_shard + q_0
-        q_1 = total_txs_1 - b if (total_txs_1 - b) > 0 else 0
-        print(f"q_1 = {q_1}")
-        return q_1 if q_1 >= 0 else 0
-    
-    
-    #return txs_generated_per_iteration + computeQueuingTxsAtIteration(i-1, b) - b
-    prev_q = computeQueuingTxsAtIterationWithPercentage(i-1, b, q_0, txs_generated_per_iteration_for_curr_shard, hot_accounts_percentage, num_hot_accounts, single_hot_account_percentage, aggregated_light_account_percentage)
-    q_i = txs_generated_per_iteration_for_curr_shard + prev_q - b
-    final_q_i = q_i if q_i >= 0 else 0
-    #num_queuing_for_single_hot_account = math.ceil(( final_q_i * hot_accounts_percentage ) / num_hot_accounts) if num_hot_accounts != 0 else 0
-    #num_queuing_for_aggregated_ligh_accounts = math.ceil(final_q_i * (1.0 - hot_accounts_percentage)) if num_hot_accounts != 0 else final_q_i
-    num_queuing_for_single_hot_account = math.ceil(( final_q_i * single_hot_account_percentage / 100))
-    num_queuing_for_aggregated_ligh_accounts = math.ceil(final_q_i * aggregated_light_account_percentage / 100 )
-    print(f"q_{i} = {final_q_i}, with {num_queuing_for_single_hot_account} for each hot account ({num_hot_accounts} x {single_hot_account_percentage}% = {num_hot_accounts * num_queuing_for_single_hot_account}) and {num_queuing_for_aggregated_ligh_accounts} for aggregated light accounts")
-    
-    return final_q_i
+    # Print the number of transactions generated by each account in the subset
+    for account, count in hot_accounts_load.items():
+        print(f"Number of transactions generated by {account}: {count}")
 
+    return shard_loads, hot_accounts_load
 
 
 
@@ -758,7 +789,69 @@ def getGeneratedTxsStatisticsFromCSV(starting_index, num_txs_to_read, hot_accoun
     print(f"l_t: {l_t}")
     return n_t, m_t, q_t_1, total_txs_by_shard, x_t, l_t
 
+
+def computeQueuingTxsAtIterationWithPercentage(i, b, q_0, txs_generated_per_iteration_for_curr_shard, hot_accounts_percentage, num_hot_accounts, single_hot_account_percentage, aggregated_light_account_percentage): # i = iteration, b = block capacity
+    print(f"Iteration {i} corresponds to i x 120 = {i * 120} total txs in the system (all shards)")     
+    #txs_generated_per_iteration_for_curr_shard = 120
     
+    if i == 1:
+        total_txs_1 = txs_generated_per_iteration_for_curr_shard + q_0
+        q_1 = total_txs_1 - b if (total_txs_1 - b) > 0 else 0
+        print(f"q_1 = {q_1}")
+        return q_1 if q_1 >= 0 else 0
+    
+    
+    #return txs_generated_per_iteration + computeQueuingTxsAtIteration(i-1, b) - b
+    prev_q = computeQueuingTxsAtIterationWithPercentage(i-1, b, q_0, txs_generated_per_iteration_for_curr_shard, hot_accounts_percentage, num_hot_accounts, single_hot_account_percentage, aggregated_light_account_percentage)
+    q_i = txs_generated_per_iteration_for_curr_shard + prev_q - b
+    final_q_i = q_i if q_i >= 0 else 0
+    #num_queuing_for_single_hot_account = math.ceil(( final_q_i * hot_accounts_percentage ) / num_hot_accounts) if num_hot_accounts != 0 else 0
+    #num_queuing_for_aggregated_ligh_accounts = math.ceil(final_q_i * (1.0 - hot_accounts_percentage)) if num_hot_accounts != 0 else final_q_i
+    num_queuing_for_single_hot_account = math.ceil(( final_q_i * single_hot_account_percentage / 100))
+    num_queuing_for_aggregated_ligh_accounts = math.ceil(final_q_i * aggregated_light_account_percentage / 100 )
+    print(f"q_{i} = {final_q_i}, with {num_queuing_for_single_hot_account} for each hot account ({num_hot_accounts} x {single_hot_account_percentage}% = {num_hot_accounts * num_queuing_for_single_hot_account}) and {num_queuing_for_aggregated_ligh_accounts} for aggregated light accounts")
+    
+    return final_q_i
+
+def calculate_transactions_for_shard(num_transactions, hot_account_percentage, hot_account_config, shard_index):
+    total_hot_accounts = sum(hot_account_config.values())
+    hot_tx_percentage_per_shard = 0
+    hot_tx_per_shard = 0
+    non_hot_tx_per_shard = 0
+    total_tx_per_shard = 0
+    hot_tx_per_account = 0
+    hot_tx_percentage_per_account = 0
+    
+    if total_hot_accounts > 0:
+        hot_tx_percentage_per_shard = (hot_account_config[shard_index] / total_hot_accounts) * hot_account_percentage
+
+    hot_tx_per_shard = (hot_tx_percentage_per_shard / 100) * num_transactions
+    non_hot_tx_per_shard = (1 / len(hot_account_config)) * (num_transactions * ((100 - hot_account_percentage) / 100))
+    total_tx_per_shard = hot_tx_per_shard + non_hot_tx_per_shard
+
+    hot_accounts_count = hot_account_config[shard_index]
+    if hot_accounts_count > 0:
+        hot_tx_per_account = hot_tx_per_shard / hot_accounts_count
+        hot_tx_percentage_per_account = (hot_tx_per_account / total_tx_per_shard) * 100
+
+    hot_tx_percentage = 0
+    non_hot_tx_percentage = 0
+    if total_tx_per_shard > 0:
+        hot_tx_percentage = (hot_tx_per_shard / total_tx_per_shard) * 100
+        non_hot_tx_percentage = (non_hot_tx_per_shard / total_tx_per_shard) * 100
+
+    return {
+        "total_tx_for_shard": total_tx_per_shard,
+        "hot_tx_percentage_for_shard": hot_tx_percentage,
+        "non_hot_tx_percentage_for_shard": non_hot_tx_percentage,
+        "num_hot_tx_per_shard": hot_tx_per_shard,
+        "num_non_hot_tx_per_shard": non_hot_tx_per_shard,
+        "num_tx_per_hot_account": hot_tx_per_account,
+        "hot_tx_percentage_per_account": hot_tx_percentage_per_account
+    }
+
+
+
 
 def createOutputCSV():
     # Open the file in write mode
@@ -1502,14 +1595,14 @@ def get_all_commands_to_run(file_names, num_txs_to_send, input_directory):
 
 
 
-def get_all_commands_to_run_from_CSV(df_generated_txs, num_txs_to_send, tx_ids_for_account_allocation, experiment_folder):
+def get_all_commands_to_run_from_CSV(df_generated_txs, num_txs_to_send):
     df_generated_txs_to_process = df_generated_txs[:num_txs_to_send]
     commands_to_run = []
     
     gas_limit = 70000
 
     for index, tx_row in df_generated_txs_to_process.iterrows():
-        tx_id = tx_row["tx_id"]   
+           
         timestamp = datetime.now()
         #print(timestamp)
         
@@ -1543,28 +1636,6 @@ def get_all_commands_to_run_from_CSV(df_generated_txs, num_txs_to_send, tx_ids_f
 
         commands_to_run.append({"command": command_to_run, "tx_id": tx_row["tx_id"], "accountAllocationPayload": json.dumps(account_allocation_payload)})
     
-        if tx_id in tx_ids_for_account_allocation:
-            # Construct the filename
-            padded_tx_id = str(tx_id).zfill(7)
-            file_name = f"transaction_{padded_tx_id}_account_allocation.json"
-            infile = os.path.join(experiment_folder, file_name)
-            
-            # Read the JSON file
-            with open(infile, 'r') as file:
-                data = json.load(file)
-            
-            # Extract the value associated with "accountAllocationPayload"
-            account_allocation_payload = data["accountAllocationPayload"]
-            
-            # ACCOUNT_ALLOCATION command
-            account_allocation_command = "ACCOUNT_ALLOCATION"
-            # Append the ACCOUNT_ALLOCATION command first
-            commands_to_run.append({
-                "command": account_allocation_command,
-                "tx_id": tx_id,
-                "accountAllocationPayload": json.dumps(account_allocation_payload)
-            })                   
-
     return commands_to_run
 
 
@@ -1650,7 +1721,7 @@ def get_shard_from_api_call(account_address):
         return None
 
 
-def generateAccountsInfoJsonFileOLD():
+def generateAccountsInfoJsonFile():
     # Update shard information for each account
     for account_address in accounts_info:
         shard = get_shard_from_api_call(account_address)
@@ -1659,62 +1730,6 @@ def generateAccountsInfoJsonFileOLD():
     # Write the dictionary to a JSON file
     with open(ACCOUNTS_INFO_JSON_PATH, "w") as json_file:
         json.dump(accounts_info, json_file, indent=4)
-
-
-def generateAccountsInfoJsonFile():
-    global accounts_info
-
-    num_accounts_per_shard = {0:0, 1:0, 2:0}
-
-    # Read account addresses from JSON files in the input folder
-    for filename in os.listdir(INPUT_FOLDER_PATH):
-        if filename.endswith('.json'):
-            file_path = os.path.join(INPUT_FOLDER_PATH, filename)
-            with open(file_path, 'r') as json_file:
-                account_data = json.load(json_file)
-                account_address = account_data.get('bech32')
-                if account_address:
-                    shard = get_shard_from_api_call(account_address)
-                    # Extract username from filename without extension
-                    username = os.path.splitext(filename)[0]
-                    # Set nonce as 5 for Alice, 1 for others
-                    nonce = 5 if username == "alice" else 1
-                    # Set migrationNonce as 0 for all
-                    migration_nonce = 0
-                    accounts_info[account_address] = {
-                        'username': username,
-                        'shard': shard,
-                        'nonce': nonce,
-                        'migrationNonce': migration_nonce
-                    }
-                    num_accounts_per_shard[shard] += 1
-
-    # Write the updated dictionary to a JSON file
-    with open(ACCOUNTS_INFO_JSON_PATH, 'w') as output_json_file:
-        json.dump(accounts_info, output_json_file, indent=4)
-    print("DONE GENERATING ACCOUNTS INFO JSON FILE")
-    print(f"num_accounts_per_shard = {num_accounts_per_shard}")
-    #print(f"accounts_info = {accounts_info}")
-
-
-
-def updateHotAccounts(shard_of_hot_accounts, num_hot_accounts):
-    global hot_accounts
-
-    hot_accounts = []
-    count = 0
-
-    # Loop through each account in the dictionary
-    for account_address, account_data in accounts_info.items():
-        # Check if the shard ID matches and haven't reached the desired number
-        if account_data["shard"] == shard_of_hot_accounts and count < num_hot_accounts:
-            hot_accounts.append(account_address)
-            count += 1
-
-    print(f"{num_hot_accounts} HOT ACCOUNTS SELECTED: {hot_accounts}")
-
-
-
 
 
 
@@ -1874,7 +1889,6 @@ def myLastSenderWithBarrierFromCSV(delay_in_seconds, num_txs_to_send, num_txs_pe
         if command_data["command"] == "ACCOUNT_ALLOCATION":
             url = "http://localhost:10206/node/send-account-allocation"
             command_to_run = f'curl -X POST {url} -H "Content-Type: application/json" --data-raw \'{command_data["accountAllocationPayload"]}\''
-            print(f"command_data['command'] = {command_data['command']}")
         else:
             command_to_run = command_data["command"]        
 
@@ -1883,7 +1897,7 @@ def myLastSenderWithBarrierFromCSV(delay_in_seconds, num_txs_to_send, num_txs_pe
                 result = subprocess.run(command_to_run, shell=True, capture_output=True, text=True)
                 real_timestamp = datetime.now()
                 output_data = json.loads(result.stdout)
-                #print(output_data)
+                print(output_data)
                 txHash = output_data.get('emittedTransactionHash')
                 # Acquire the lock before updating the outputs dictionary
                 with lock:
@@ -1911,11 +1925,10 @@ def myLastSenderWithBarrierFromCSV(delay_in_seconds, num_txs_to_send, num_txs_pe
     createOutputCSVWithRealExecutionTimestamp(experiment_folder)
 
     #num_txs = len(sorted_json_files) if num_txs_to_send == 0 else num_txs_to_send
-    tx_ids_for_account_allocation = get_tx_ids_for_account_allocation(experiment_folder, with_AMTs)
-    print(f"tx_ids_for_account_allocation = {tx_ids_for_account_allocation}")
-    commands_to_run = get_all_commands_to_run_from_CSV(df_generated_txs, num_txs_to_send, tx_ids_for_account_allocation, experiment_folder)
+
+    commands_to_run = get_all_commands_to_run_from_CSV(df_generated_txs, num_txs_to_send)
     num_total_commands = len(commands_to_run)
-    num_batches = math.floor(num_total_commands / num_txs_per_batch)
+    num_batches = math.ceil(num_total_commands / num_txs_per_batch)
     print(f"Num txs to send: {num_txs_to_send}")
     print(f"Num batches: {num_batches}")
 
@@ -1952,30 +1965,6 @@ def myLastSenderWithBarrierFromCSV(delay_in_seconds, num_txs_to_send, num_txs_pe
     print("Execution time:", execution_time, "seconds")
 
 
-
-def get_tx_ids_for_account_allocation(experiment_folder, with_AMTs):
-    if not with_AMTs:
-        return []
-    
-    # Compile the regex pattern to match the desired filename and capture the ID part
-    pattern = re.compile(r'transaction_(\d{7})_account_allocation\.json')
-    
-    # Initialize an empty list to store the IDs
-    ids = []
-    
-    # Iterate over all files in the specified folder
-    for filename in os.listdir(experiment_folder):
-        # Use regex to find matches
-        match = pattern.match(filename)
-        if match:
-            # Extract the ID part, remove leading zeros, and convert to integer
-            id_str = match.group(1).lstrip('0')
-            id_int = int(id_str)
-            ids.append(id_int)
-    
-    return ids
-
-
 def saveStartAndEndTimestampToJSON(experiment_folder, start_timestamp, end_timestamp):
   
     # Define the path for the JSON file
@@ -2002,13 +1991,13 @@ def saveStartAndEndTimestampToJSON(experiment_folder, start_timestamp, end_times
                                                                    with_cross_shard_probability=False)"""
 
 
-"""generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_txs_per_batch=50, 
+generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_txs_per_batch=50, 
                                                                         num_total_txs=20000, 
-                                                                        num_txs_threshold_for_account_allocation=6000, 
+                                                                        num_txs_threshold_for_account_allocation=1200, # in 1 epoch 1200 txs are generated 
                                                                         output_dir=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, 
                                                                         with_cross_shard_probability=False,
                                                                         hot_sender_probability=0.9,
-                                                                        hot_accounts_change_threshold=10000)"""
+                                                                        hot_accounts_change_threshold=3600)
 
 # --------- sendAllGeneratedTransactions(batch_size=100, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH)
 #sendAllGeneratedTransactionsAllAtOnce(batch_size=20, input_directory=TRANSACTIONS_DIRECTORY_WITH_CORRECT_LOAD_BY_BATCH_AND_ACCOUNTS_ALLOCATION, delay_in_seconds=5, num_txs_to_send=2000)
@@ -2041,491 +2030,3 @@ addStatisticsToCSV()"""
 
 #generateAccountsInfoJsonFile()
 
-
-
-def snapshotElasticsearchData(experiment_folder):
-    # Initialize Elasticsearch client
-    es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'scheme': 'http'}])
-
-    # Specify the index and query to retrieve data
-    index = 'transactions'
-    query = {
-        "query": {
-            "match_all": {}  # Retrieve all documents
-        }
-    }
-
-    # Initialize scroll
-    scroll = '5m'  # Scroll window time (e.g., '5m' for 5 minutes)
-    scroll_id = None
-
-    # Open file for writing
-    output_file = experiment_folder + '/elasticsearch_data.json'
-    with open(output_file, 'w') as f:
-        # Scroll through the documents
-        while True:
-            # Execute search request
-            if scroll_id:
-                response = es.scroll(scroll_id=scroll_id, scroll=scroll)
-            else:
-                response = es.search(index=index, body=query, scroll=scroll)
-
-            # Break if no more documents
-            if not response['hits']['hits']:
-                break
-
-            # Extract and write documents to file
-            for hit in response['hits']['hits']:
-                f.write(f"{hit['_source']}\n")
-
-            # Update scroll_id for next iteration
-            scroll_id = response['_scroll_id']
-
-    # Clear scroll
-    es.clear_scroll(scroll_id=scroll_id)
-
-
-
-def copyLocalnetLogsToExperimentFolder(experiment_folder):
-    # Specify the path to the localnet directory
-    localnet_path = '/home/valentina/Thesis/Localnets/localnet'
-
-    destination_folder = experiment_folder + "/localnet_logs"
-
-    # Check if the folder exists
-    if not os.path.exists(destination_folder):
-        # Create the folder if it doesn't exist
-        os.makedirs(destination_folder)
-
-    # Iterate through each validator folder
-    for validator_folder in os.listdir(localnet_path):
-        validator_path = os.path.join(localnet_path, validator_folder)
-        
-        # Check if the validator folder exists and is a directory
-        if os.path.isdir(validator_path):
-            # Construct the path to the log files directory
-            logs_path = os.path.join(validator_path, 'logs')
-            
-            # Check if the logs directory exists
-            if os.path.exists(logs_path):
-                # Iterate through each file in the logs directory
-                for log_file in os.listdir(logs_path):
-                    # Check if the file is a .log file
-                    if log_file.endswith('.log'):
-                        # Construct the path to the log file
-                        log_file_path = os.path.join(logs_path, log_file)
-                        
-                        # Extract the validator name from the parent directory name
-                        validator_name = validator_folder
-                        
-                        # Construct the new filename (validatorXX.log)
-                        new_filename = f"{validator_name}.log"
-                        
-                        # Construct the destination path
-                        destination_path = os.path.join(destination_folder, new_filename)
-                        
-                        # Copy the log file to the destination folder with the new filename
-                        shutil.copy(log_file_path, destination_path)
-
-
-
-def run_block_capacity_experiment(block_capacity, 
-                                  test_num, 
-                                  num_txs_per_batch, 
-                                  num_total_txs, 
-                                  num_txs_threshold_for_account_allocation, 
-                                  with_cross_shard_probability,
-                                  hot_sender_probability,
-                                  hot_accounts_change_threshold
-                                ):
-    
-    # Get the directory of the script
-    script_directory = os.path.dirname(os.path.realpath(__file__))
-    experiment_folder = os.path.join(script_directory, "Experiments_Setup/Block_Capacity_Test/" + str(block_capacity) + "/" + str(test_num))
-    
-    
-    # Check if the directory exists
-    if os.path.exists(experiment_folder):
-        # Directory already exists
-        user_input = input(f"The directory {experiment_folder} already exists. Do you want to overwrite its content? (y/n): ")
-        if user_input.lower() != 'y':
-            # If the user doesn't want to overwrite, exit
-            print("Directory creation cancelled.")
-            exit()
-        else:
-            # If the user wants to overwrite, remove the existing directory
-            shutil.rmtree(experiment_folder)
-
-    # Create the directory
-    os.makedirs(experiment_folder)
-    print("Directory created successfully.")
-    
-    
-    # Start the experiment
-    generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_txs_per_batch=num_txs_per_batch, 
-                                                                        num_total_txs=num_total_txs, 
-                                                                        num_txs_threshold_for_account_allocation=num_txs_threshold_for_account_allocation, 
-                                                                        output_dir=experiment_folder, 
-                                                                        with_cross_shard_probability=with_cross_shard_probability,
-                                                                        hot_sender_probability=hot_sender_probability,
-                                                                        hot_accounts_change_threshold=hot_accounts_change_threshold)
-
-    myLastSenderWithBarrierFromCSV(
-                        delay_in_seconds=5,
-                        num_txs_to_send=num_total_txs,
-                        num_txs_per_batch=num_txs_per_batch,
-                        with_AMTs=False,
-                        experiment_folder=experiment_folder)
-
-    time.sleep(120)
-
-    addStatisticsToCSV(experiment_folder)
-
-    copyLocalnetLogsToExperimentFolder(experiment_folder)
-
-    #snapshotElasticsearchData(experiment_folder)
-
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
-
-
-    plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
-    plotData(field_to_group_by='timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
-
-
-
-def run_load_distribution_experiment(block_capacity, 
-                                  test_num, 
-                                  num_txs_per_batch, 
-                                  num_total_txs, 
-                                  num_txs_threshold_for_account_allocation, 
-                                  with_cross_shard_probability,
-                                  hot_sender_probability,
-                                  hot_accounts_change_threshold,
-                                  with_AMTs
-                                ):
-    
-    # Get the directory of the script
-    script_directory = os.path.dirname(os.path.realpath(__file__))
-    load_distribution_hot = str(int(hot_sender_probability * 100))
-    load_distribution_light = str(int((1-hot_sender_probability) * 100))
-    experiment_folder = os.path.join(script_directory, f"Experiments_Setup/Load_Distribution_Test/{load_distribution_hot}_{load_distribution_light}/{str(test_num)}")
-    
-    
-    # Check if the directory exists
-    if os.path.exists(experiment_folder):
-        # Directory already exists
-        user_input = input(f"The directory {experiment_folder} already exists. Do you want to overwrite its content? (y/n): ")
-        if user_input.lower() != 'y':
-            # If the user doesn't want to overwrite, exit
-            print("Directory creation cancelled.")
-            exit()
-        else:
-            # If the user wants to overwrite, remove the existing directory
-            shutil.rmtree(experiment_folder)
-
-    # Create the directory
-    os.makedirs(experiment_folder)
-    print("Directory created successfully.")
-    
-    
-    # Start the experiment
-    generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_txs_per_batch=num_txs_per_batch, 
-                                                                        num_total_txs=num_total_txs,
-                                                                        num_txs_threshold_for_account_allocation=num_txs_threshold_for_account_allocation,
-                                                                        output_dir=experiment_folder,
-                                                                        with_cross_shard_probability=with_cross_shard_probability,
-                                                                        hot_sender_probability=hot_sender_probability,
-                                                                        hot_accounts_change_threshold=hot_accounts_change_threshold)
-
-    myLastSenderWithBarrierFromCSV(
-                        delay_in_seconds=5,
-                        num_txs_to_send=num_total_txs,
-                        num_txs_per_batch=num_txs_per_batch,
-                        with_AMTs=with_AMTs,
-                        experiment_folder=experiment_folder)
-
-    time.sleep(240)
-
-    addStatisticsToCSV(experiment_folder)
-
-    copyLocalnetLogsToExperimentFolder(experiment_folder)
-
-    #snapshotElasticsearchData(experiment_folder)
-
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder)
-
-
-    plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder) 
-    plotData(field_to_group_by='timestamp', experiment_folder=experiment_folder) 
-
-
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
-
-
-
-def main():
-    # Creazione del parser degli argomenti
-    parser = argparse.ArgumentParser(description="Esempio di utilizzo delle funzioni con argomenti")
-    
-    # Aggiunta degli argomenti per la selezione della funzione
-    parser.add_argument("function_name", choices=["block_capacity_experiment", "load_distribution_experiment", "function3"], help="Nome della funzione da eseguire")
-
-    # Aggiunta degli argomenti specifici per la funzione 3
-    parser.add_argument("--block_capacity", type=int, help="current block capacity")
-    parser.add_argument("--test_num", type=int, help="number of the test repetition")
-    parser.add_argument("--num_txs_per_batch", type=int, help="number of transactions to send/generate at a time (in batches)")
-    parser.add_argument("--num_total_txs", type=int, help="number of total transactions to send/generate")
-    parser.add_argument("--num_txs_threshold_for_account_allocation", type=int, help="after how many txs trigger the account allocation")
-    parser.add_argument("--with_cross_shard_probability", type=str2bool, help="whether to generate txs based on some cross-shard probability")
-    parser.add_argument("--hot_sender_probability", type=float, help="probability that the sender is a hot account")
-    parser.add_argument("--hot_accounts_change_threshold", type=int, help="num of txs after which change the set of hot accounts")
-    parser.add_argument("--num_user_accounts", type=int, help="num of user accounts in the system")
-    parser.add_argument("--initial_shard_for_hot_accounts", type=int, help="id of initial shard for hot accounts")
-    parser.add_argument("--with_AMTs", type=str2bool, help="whether to generate account migrations or not")
-    
-    # Parsing degli argomenti della riga di comando
-    args = parser.parse_args()
-    print(args)
-
-    # Update accounts_info and hot_accounts
-    generateAccountsInfoJsonFile()
-    num_hot_accounts = math.ceil(len(accounts_info) * 0.02)
-    updateHotAccounts(shard_of_hot_accounts=args.initial_shard_for_hot_accounts, num_hot_accounts=num_hot_accounts)
-
-    
-    # Esecuzione della funzione corrispondente
-    if args.function_name == "block_capacity_experiment":
-        run_block_capacity_experiment(block_capacity=args.block_capacity,
-                                        test_num=args.test_num,
-                                        num_txs_per_batch=args.num_txs_per_batch,
-                                        num_total_txs=args.num_total_txs,
-                                        num_txs_threshold_for_account_allocation=args.num_txs_threshold_for_account_allocation,
-                                        with_cross_shard_probability=args.with_cross_shard_probability,
-                                        hot_sender_probability=args.hot_sender_probability,
-                                        hot_accounts_change_threshold=args.hot_accounts_change_threshold,
-                                      )
-    elif args.function_name == "load_distribution_experiment":
-        run_load_distribution_experiment(block_capacity=args.block_capacity,
-                                        test_num=args.test_num,
-                                        num_txs_per_batch=args.num_txs_per_batch,
-                                        num_total_txs=args.num_total_txs,
-                                        num_txs_threshold_for_account_allocation=args.num_txs_threshold_for_account_allocation,
-                                        with_cross_shard_probability=args.with_cross_shard_probability,
-                                        hot_sender_probability=args.hot_sender_probability,
-                                        hot_accounts_change_threshold=args.hot_accounts_change_threshold,
-                                        with_AMTs=args.with_AMTs
-                                      )
-    """elif args.function_name == "function3":
-        function3(args.arg1, args.arg2)"""
-
-
-
-def redraw_plots(experiment_folder):
-
-    addStatisticsToCSV(experiment_folder)
-
-    #snapshotElasticsearchData(experiment_folder)
-
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder)
-
-
-    plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
-    plotData(field_to_group_by='timestamp', experiment_folder=experiment_folder)
-
-
-def draw_aggregated_plot(experiment_folder):
-    #plotAggregatedDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
-    #plotAggregatedDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder)
-
-    aggregatedData = aggregateDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder)
-    plotAggregatedData(aggregated_data=aggregatedData, field_to_group_by='timestamp', experiment_folder=experiment_folder)
-
-
-
-
-def aggregateCSVByMean(experiment_folder):
-    # Initialize lists to store DataFrames for each CSV file
-    dfs = []
-
-    # Iterate through each folder
-    for folder in os.listdir(experiment_folder):
-        folder_path = os.path.join(experiment_folder, folder)
-        if os.path.isdir(folder_path):
-            # Check for CSV files named 'OUTPUT_CSV_WITH_STATISTICS.csv'
-            csv_file_path = os.path.join(folder_path, NORMALIZED_OUTPUT_CSV_WITH_STATISTICS)
-            if os.path.isfile(csv_file_path):
-                # Read the CSV file into a DataFrame and append to the list
-                df = pd.read_csv(csv_file_path)
-                dfs.append(df)
-
-    # Check if any CSV files were found
-    if not dfs:
-        print("No CSV files found.")
-        return
-
-    # Initialize lists to store mean values
-    mean_timestamps = []
-    mean_end_timestamps = []
-
-    # Iterate over the rows of the CSV files simultaneously
-    for i in range(len(dfs[0])):  # Assuming all CSV files have the same number of rows
-        # Initialize variables to store sum of timestamps and end_timestamps
-        sum_timestamp = 0
-        sum_end_timestamp = 0
-        count = 0
-
-        # Iterate over each DataFrame and compute sum of timestamps and end_timestamps
-        for df in dfs:
-            row = df.iloc[i]
-            sum_timestamp += row['normalized_timestamp']
-            sum_end_timestamp += row['normalized_end_timestamp']
-            count += 1
-
-        # Compute mean values for timestamps and end_timestamps
-        mean_timestamp = round(sum_timestamp / count)
-        mean_end_timestamp = round(sum_end_timestamp / count)
-
-        # Append mean values to lists
-        mean_timestamps.append(mean_timestamp)
-        mean_end_timestamps.append(mean_end_timestamp)
-
-    # Create a DataFrame with mean values
-    new_df = pd.DataFrame({'normalized_timestamp': mean_timestamps, 'normalized_end_timestamp': mean_end_timestamps})
-
-    # Select all columns except 'normalized_timestamp' and 'normalized_end_timestamp' from one of the original DataFrames
-    original_columns_df = dfs[0].drop(columns=['normalized_timestamp', 'normalized_end_timestamp'])
-
-    # Concatenate the original columns with the new DataFrame containing mean values
-    combined_df = pd.concat([original_columns_df, new_df], axis=1)
-
-    # Calculate 'timestamp_difference' column
-    combined_df['timestamp_difference'] = combined_df['normalized_end_timestamp'] - combined_df['normalized_timestamp']
-
-
-    # Write the new DataFrame to a new CSV file
-    combined_df.to_csv(f"{experiment_folder}/combined.csv", index=False)
-
-
-
-def normalize_csv_files(experiment_folder):
-    # Iterate through each folder in the experiment_folder
-    for root, dirs, files in os.walk(experiment_folder):
-        for file in files:
-            # Check if the file is the desired CSV file
-            if file == OUTPUT_CSV_WITH_STATISTICS:
-                # Construct the full path to the CSV file
-                csv_file_path = os.path.join(root, file)
-                
-                # Read the CSV file into a pandas DataFrame
-                df = pd.read_csv(csv_file_path)
-                
-                # Find the minimum timestamp and end_timestamp
-                min_timestamp = df[['timestamp', 'end_timestamp']].min().min()
-                
-                # Normalize the timestamps
-                df['normalized_timestamp'] = round(df['timestamp'] - min_timestamp)
-                df['normalized_end_timestamp'] = round(df['end_timestamp'] - min_timestamp)
-                
-                # Recompute the values of timestamp_difference
-                df['timestamp_difference'] = round(df['normalized_end_timestamp'] - df['normalized_timestamp'])
-                
-                # Construct the path for the normalized CSV file
-                normalized_csv_file_path = os.path.join(root, NORMALIZED_OUTPUT_CSV_WITH_STATISTICS)
-                
-                # Save the DataFrame to a normalized CSV file
-                df.to_csv(normalized_csv_file_path, index=False)
-                print(f"Normalized CSV file saved: {normalized_csv_file_path}")
-
-
-
-def addGroupToCSVFile(group_size, csv_file):
-    # Read the CSV file into a DataFrame
-    df = pd.read_csv(csv_file)
-
-    # Create a column to identify groups
-    df['group'] = df.index // group_size
-
-    # Group the DataFrame by the 'group' column and calculate the mean
-    #grouped_df = df.groupby('group').mean().reset_index(drop=True)
-
-    # Optionally, remove the 'group' column if it's not needed
-    # grouped_df = grouped_df.drop(columns=['group'])
-
-    # Get the directory path of the original file
-    dir_path = os.path.dirname(csv_file)
-
-    # Construct the path for the new file
-    new_file_path = os.path.join(dir_path, 'grouped_means.csv')
-
-    # Save the new DataFrame to a new CSV file
-    df.to_csv(new_file_path, index=False)
-
-
-
-def get_AMT_timestamp(experiment_folder):
-    results = []
-    
-    # Define the path to the localnet_logs folder
-    logs_folder = os.path.join(experiment_folder, "localnet_logs")
-    
-    # Define the regex pattern to match the desired log line and extract the timestamp
-    pattern = re.compile(r"DEBUG\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\].*ACCOUNT ALLOCATION IS NOT EMPTY: PERFORMING ACCOUNT MIGRATIONS")
-    
-    # Iterate over all files in the localnet_logs folder
-    for root, dirs, files in os.walk(logs_folder):
-        for file in files:
-            if file.endswith(".log") and "observer" not in file and file != "proxy.log":  # Exclude observer files and proxy.log
-                file_path = os.path.join(root, file)
-                
-                # Open and read the log file
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    for line in f:
-                        match = pattern.match(line)
-                        if match:
-                            # Extract the timestamp from the matched line
-                            timestamp_str = match.group(1)
-                            # Convert the timestamp to epoch format
-                            timestamp_dt = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S.%f')
-                            epoch_time = int(timestamp_dt.timestamp())
-                            # Append the results as a dictionary
-                            results.append({
-                                "filename": file,
-                                "timestamp_str": timestamp_str,
-                                "epoch_time": epoch_time
-                            })
-    
-    print(results)
-    return results
-
-
-
-# Esegui la funzione principale se lo script è eseguito direttamente
-if __name__ == "__main__":
-    main()
-    #generateAccountsInfoJsonFile()
-    #get_AMT_timestamp(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/10")
-    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/50_50/15")
-    #get_AMT_timestamp("/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/11")
-
-
-#redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/11")
-#draw_aggregated_plot(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Block_Capacity_Test/100")
-#aggregateCSVByMean(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Block_Capacity_Test/100")
-#normalize_csv_files(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Block_Capacity_Test/100")
-#plotAggregatedDataFromStatistics(time_threshold=250, field_to_group_by='group', experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Block_Capacity_Test/100")
-#addGroupToCSVFile(group_size=50, csv_file="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Block_Capacity_Test/100/combined.csv")
-
-
-#generateAccountsInfoJsonFile()

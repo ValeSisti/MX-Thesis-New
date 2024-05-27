@@ -145,7 +145,7 @@ const MinShardHeadersFromSameShardInOneMetaBlock = 10
 const MaxNumOfTxsToSelect = 30000 //! MODIFIED -> previous (original): 30000
 
 //! -------------------- NEW CODE --------------------	
-const MaxNumOfTxsToSelectToHandleLoadBalance = 50
+const MaxNumOfTxsToSelectToHandleLoadBalance = 100
 
 const EpochToStartHandlingLoadBalance = uint32(2)
 //! ---------------- END OF NEW CODE ----------------

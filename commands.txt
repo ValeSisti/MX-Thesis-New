@@ -96,6 +96,13 @@ kill -9 25226
 
 
 
+------------------------------------
+export PYTHONPATH="/home/valentina/Thesis/MX-Thesis-New/mx-sdk-py-cli-v9.5.1"
+------------------------------------
+
+
+
+
 
 
 
