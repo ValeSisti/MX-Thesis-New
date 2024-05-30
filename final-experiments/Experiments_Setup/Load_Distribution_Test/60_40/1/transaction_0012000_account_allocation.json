@@ -1,0 +1,22 @@
+{
+    "accountAllocationPayload": {
+        "id": 0,
+        "accountAllocation": [
+            {
+                "accountAddressString": "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 0
+            },
+            {
+                "accountAddressString": "erd1kyaqzaprcdnv4luvanah0gfxzzsnpaygsy6pytrexll2urtd05ts9vegu7",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 2
+            }
+        ]
+    },
+    "initialVariance": 18793738.88888889,
+    "newVariance": 776224.2222222221,
+    "varianceImprovement": -18017514.666666668
+}

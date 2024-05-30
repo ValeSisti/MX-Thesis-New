@@ -1,0 +1,12 @@
+{
+    "block_capacity": 100,
+    "test_num": 21,
+    "num_txs_per_batch": 50,
+    "num_total_txs": 20000,
+    "num_txs_threshold_for_account_allocation": 12000,
+    "with_cross_shard_probability": false,
+    "hot_sender_probability": 0.6,
+    "hot_accounts_change_threshold": 1000000000000000,
+    "with_AMTs": false,
+    "num_accounts": 200
+}

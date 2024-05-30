@@ -1,0 +1,34 @@
+{
+    "accountAllocationPayload": {
+        "id": 0,
+        "accountAllocation": [
+            {
+                "accountAddressString": "erd1kyaqzaprcdnv4luvanah0gfxzzsnpaygsy6pytrexll2urtd05ts9vegu7",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 0
+            },
+            {
+                "accountAddressString": "erd13x29rvmp4qlgn4emgztd8jgvyzdj0p6vn37tqxas3v9mfhq4dy7shalqrx",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 2
+            },
+            {
+                "accountAddressString": "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 0
+            },
+            {
+                "accountAddressString": "erd1kdl46yctawygtwg2k462307dmz2v55c605737dp3zkxh04sct7asqylhyv",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 2
+            }
+        ]
+    },
+    "initialVariance": 1860048.2222222222,
+    "newVariance": 17104.888888888887,
+    "varianceImprovement": -1842943.3333333333
+}
