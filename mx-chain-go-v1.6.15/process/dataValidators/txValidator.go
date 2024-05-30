@@ -190,7 +190,7 @@ func (txv *txValidator) checkBalance(interceptedTx process.InterceptedTransactio
 	
 	accountBalance := account.GetBalance()
 	//! -------------------- NEW CODE --------------------
-	log.Debug("*** Account Balance inside checkBalance ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))
+	//log.Debug("*** Account Balance inside checkBalance ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))
 	senderIsMigrating := accountBalance.Cmp(big.NewInt(0)) == 0 && account.GetNonce() == uint64(0)
 	if senderIsMigrating{
 		log.Debug("*** Balance can't be checked for migrating account, as its state is not yet update. Returning nil ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))	

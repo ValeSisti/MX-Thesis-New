@@ -309,7 +309,7 @@ func (msc *multiShardCoordinator) WasPreviouslyMineAddrBytes(pubKeyBytes []byte)
 		// receiver account is not event present inside accountsMapping, therefore it has never been migrated
 		// which also means that is not possible that a tx inside a miniblock with as receiver account the account with this address,
 		// that I'm processing dst me (because theoretically it is mine) is problematic
-		log.Debug("***WasPreviouslyMineAddrBytes: account is not present inside AccountsMapping, returning false!***", "account", accountAddress)
+		//log.Debug("***WasPreviouslyMineAddrBytes: account is not present inside AccountsMapping, returning false!***", "account", accountAddress)
 		return false
 	}
 	
@@ -318,7 +318,7 @@ func (msc *multiShardCoordinator) WasPreviouslyMineAddrBytes(pubKeyBytes []byte)
 	updatedInEpoch := msc.accountsMapping.accountsShardInfo[accountAddress].updatedInEpoch
 	currentEpoch := msc.accountsMapping.currentEpoch
 
-	log.Debug("***WasPreviouslyMineAddrBytes***",
+	/*log.Debug("***WasPreviouslyMineAddrBytes***",
 		"account", accountAddress,
 		"oldShardId", oldShardId,
 		"currentShardId", currentShardId,
@@ -328,7 +328,7 @@ func (msc *multiShardCoordinator) WasPreviouslyMineAddrBytes(pubKeyBytes []byte)
 		"oldShardId == selfShardId", oldShardId == selfShardId,
 		"currentShardId != selfShardId", currentShardId != selfShardId,
 		"updatedInEpoch == currentEpoch", updatedInEpoch == currentEpoch,
-	)
+	)*/
 	
 	if (oldShardId == selfShardId && currentShardId != selfShardId && updatedInEpoch == currentEpoch){
 		return true

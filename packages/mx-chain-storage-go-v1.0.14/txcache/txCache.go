@@ -84,7 +84,7 @@ func NewTxCache(config ConfigSourceMe, txGasHandler TxGasHandler) (*TxCache, err
 // Eviction happens if maximum capacity is reached
 func (cache *TxCache) AddTx(tx *WrappedTransaction) (ok bool, added bool) {
 	//! -------------------- NEW CODE --------------------
-	log.Debug("*** AddByHash called ***", "txHash", hex.EncodeToString(tx.TxHash))
+	//log.Debug("*** AddByHash called ***", "txHash", hex.EncodeToString(tx.TxHash))
 	//! ---------------- END OF NEW CODE -----------------		
 
 	if tx == nil || check.IfNil(tx.Tx) {
@@ -125,7 +125,7 @@ func (cache *TxCache) AddTx(tx *WrappedTransaction) (ok bool, added bool) {
 	addedInByHash := cache.txByHash.addTx(tx)
 	addedInBySender, evicted := cache.txListBySender.addTx(tx)
 	//! -------------------- NEW CODE --------------------
-	log.Debug("***addTx inside AddTx***", "addedInByHash", addedInByHash, "addedInBySender", addedInBySender)
+	//log.Debug("***addTx inside AddTx***", "addedInByHash", addedInByHash, "addedInBySender", addedInBySender)
 	//! ---------------- END OF NEW CODE -----------------	
 	cache.mutTxOperation.Unlock()
 	if addedInByHash != addedInBySender {

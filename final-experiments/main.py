@@ -1055,7 +1055,7 @@ def plotAggregatedData(field_to_group_by, experiment_folder):
 
 
 
-def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder):
+def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder, cross_shard_only, redrawn):
     # Read the CSV file
     df = pd.read_csv(f"{experiment_folder}/{OUTPUT_CSV_WITH_STATISTICS}")
 
@@ -1086,6 +1086,10 @@ def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder)
             + f"ReceiverShard: {row['receiver_shard']}  "
         )
 
+
+    # Apply cross-shard filter if required
+    if cross_shard_only:
+        df = df[df['sender_shard'] != df['receiver_shard']]
 
     migration_starts_at = 1713187141 #1712606295 #1712322484 #1712169658
     x_migration_start = migration_starts_at - df['timestamp'].min()
@@ -1141,8 +1145,10 @@ def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder)
 
     plt.tight_layout()
 
-    # Save the plot
-    plt.savefig(f"{experiment_folder}/plot_by_shard_{field_to_group_by}.png")
+    # Save the plot with the appropriate filename
+    filename_suffix = "_redrawn" if redrawn else ""
+    plt.savefig(f"{experiment_folder}/plot_by_shard_{field_to_group_by}{filename_suffix}.png")
+
 
     # Show the plot
     #plt.show()
@@ -2185,8 +2191,8 @@ def run_block_capacity_experiment(block_capacity,
 
     #snapshotElasticsearchData(experiment_folder)
 
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
 
 
     plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
@@ -2227,6 +2233,26 @@ def run_load_distribution_experiment(block_capacity,
     # Create the directory
     os.makedirs(experiment_folder)
     print("Directory created successfully.")
+
+
+    # Save parameters to a JSON file
+    params = {
+        'block_capacity': block_capacity,
+        'test_num': test_num,
+        'num_txs_per_batch': num_txs_per_batch,
+        'num_total_txs': num_total_txs,
+        'num_txs_threshold_for_account_allocation': num_txs_threshold_for_account_allocation,
+        'with_cross_shard_probability': with_cross_shard_probability,
+        'hot_sender_probability': hot_sender_probability,
+        'hot_accounts_change_threshold': hot_accounts_change_threshold,
+        'with_AMTs': with_AMTs
+    }
+
+    params_file = os.path.join(experiment_folder, 'experiment_params.json')
+    with open(params_file, 'w') as f:
+        json.dump(params, f, indent=4)
+    print("Parameters saved to experiment_params.json")
+
     
     
     # Start the experiment
@@ -2253,8 +2279,8 @@ def run_load_distribution_experiment(block_capacity,
 
     #snapshotElasticsearchData(experiment_folder)
 
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
 
 
     plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder) 
@@ -2331,18 +2357,20 @@ def main():
 
 
 
-def redraw_plots(experiment_folder):
+def redraw_plots(experiment_folder, should_add_statistics_from_elastic, cross_shard_only, redrawn):
 
-    addStatisticsToCSV(experiment_folder)
+    if should_add_statistics_from_elastic:
+        addStatisticsToCSV(experiment_folder)
 
     #snapshotElasticsearchData(experiment_folder)
 
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=cross_shard_only, redrawn=redrawn)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=cross_shard_only, redrawn=redrawn)
 
 
     plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
     plotData(field_to_group_by='timestamp', experiment_folder=experiment_folder)
+
 
 
 def draw_aggregated_plot(experiment_folder):
@@ -2516,8 +2544,8 @@ if __name__ == "__main__":
     main()
     #generateAccountsInfoJsonFile()
     #get_AMT_timestamp(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/10")
-    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/50_50/15")
-    #get_AMT_timestamp("/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/11")
+    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/23", should_add_statistics_from_elastic=True, cross_shard_only=False, redrawn=False)
+    #get_AMT_timestamp("/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/22")
 
 
 #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/11")

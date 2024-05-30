@@ -100,7 +100,7 @@ func (bdi *baseDataInterceptor) processInterceptedData(data process.InterceptedD
 	}
 
 	//! -------------------- NEW CODE --------------------
-	log.Debug("***intercepted data is processed***")
+	//log.Debug("***intercepted data is processed***")
 	//! ---------------- END OF NEW CODE -----------------		
 	log.Trace("intercepted data is processed",
 		"hash", data.Hash(),
@@ -114,7 +114,7 @@ func (bdi *baseDataInterceptor) processInterceptedData(data process.InterceptedD
 
 func (bdi *baseDataInterceptor) processDebugInterceptedData(interceptedData process.InterceptedData, err error) {
 	//! -------------------- NEW CODE --------------------
-	log.Debug("***processDebugInterceptedData called***")
+	//log.Debug("***processDebugInterceptedData called***")
 	//! ---------------- END OF NEW CODE -----------------		
 	identifiers := interceptedData.Identifiers()
 
@@ -125,7 +125,7 @@ func (bdi *baseDataInterceptor) processDebugInterceptedData(interceptedData proc
 
 func (bdi *baseDataInterceptor) receivedDebugInterceptedData(interceptedData process.InterceptedData) {
 	//! -------------------- NEW CODE --------------------
-	log.Debug("***receivedDebugInterceptedData called***")
+	//log.Debug("***receivedDebugInterceptedData called***")
 	//! ---------------- END OF NEW CODE -----------------		
 	identifiers := interceptedData.Identifiers()
 

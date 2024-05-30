@@ -36,9 +36,9 @@ func (txProc *baseTxProcessor) getAccounts(
 ) (state.UserAccountHandler, state.UserAccountHandler, error) {
 
 	//! -------------------- NEW CODE --------------------
-	adrSrcString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrSrc)	
-	adrDstString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrDst)	
-	log.Debug("***getAccounts() called***", "adrSrc", adrSrcString, "adrDst", adrDstString)
+	//adrSrcString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrSrc)	
+	//adrDstString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrDst)	
+	//log.Debug("***getAccounts() called***", "adrSrc", adrSrcString, "adrDst", adrDstString)
 	//! ---------------- END OF NEW CODE -----------------		
 
 	var acntSrc, acntDst state.UserAccountHandler
@@ -70,7 +70,7 @@ func (txProc *baseTxProcessor) getAccounts(
 
 	if srcInShard {
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***adrSrc is in my shard inside getAccounts()***", "adrSrc", adrSrcString)
+		//log.Debug("***adrSrc is in my shard inside getAccounts()***", "adrSrc", adrSrcString)
 		//! ---------------- END OF NEW CODE -----------------		
 		
 		acntSrcWrp, err := txProc.accounts.LoadAccount(adrSrc)
@@ -88,7 +88,7 @@ func (txProc *baseTxProcessor) getAccounts(
 
 	if dstInShard {
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***adrDst is in my shard inside getAccounts()***", "adrDst", adrDstString)
+		//log.Debug("***adrDst is in my shard inside getAccounts()***", "adrDst", adrDstString)
 		//! ---------------- END OF NEW CODE -----------------
 	
 		acntDstWrp, err := txProc.accounts.LoadAccount(adrDst)
@@ -123,7 +123,7 @@ func (txProc *baseTxProcessor) getReceiverAccount(
 
 	//! -------------------- NEW CODE --------------------
 	adrDstString, _ := txProc.shardCoordinator.AddressPubKeyConverter().Encode(adrDst)
-	log.Debug("***getReceiverAccount() called***", "adrDst", adrDstString)
+	//log.Debug("***getReceiverAccount() called***", "adrDst", adrDstString)
 	//! ---------------- END OF NEW CODE -----------------		
 
 	var acntSrc, acntDst state.UserAccountHandler
@@ -175,7 +175,7 @@ func (txProc *baseTxProcessor) getReceiverAccount(
 	//! ---------------- END OF NEW CODE -----------------	
 
 	if dstInShard {
-		log.Debug("***adrDst is in my shard inside getReceiverAccount(), everything good!***", "adrDst", adrDstString)		
+		//log.Debug("***adrDst is in my shard inside getReceiverAccount(), everything good!***", "adrDst", adrDstString)		
 
 		acntDstWrp, err := txProc.accounts.LoadAccount(adrDst)
 		if err != nil {

@@ -212,17 +212,17 @@ close_all_terminals
 # Define arguments
 function_name="load_distribution_experiment" # load_distribution_experiment    block_capacity_experiment
 block_capacity=100
-test_num=18
+test_num=30
 num_txs_per_batch=50
 num_total_txs=20000 #20000
-num_txs_threshold_for_account_allocation=3400 #6000
+num_txs_threshold_for_account_allocation=12000 #6000
 with_cross_shard_probability=true #true
-hot_sender_probability=0.7
+hot_sender_probability=0.6
 hot_accounts_change_threshold=1000000000000000 #9600
 initial_shard_for_hot_accounts=1
 with_AMTs=false
 
-num_user_accounts=256
+num_user_accounts=200
 num_to_copy=$((num_user_accounts - 12))
 
 

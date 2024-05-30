@@ -203,13 +203,13 @@ func (txPool *shardedTxPool) AddData(key []byte, value interface{}, sizeInBytes 
 	}
 
 	//! -------------------- NEW CODE --------------------
-	log.Debug("*** ADDING TX TO THE CACHE ***", 
+	/*log.Debug("*** ADDING TX TO THE CACHE ***", 
 		"senderShardID", sourceShardID,
 		"destinationShardID", destinationShardID,
 		"hash", hex.EncodeToString(key),
 		"cacheID", cacheID,
 		"txSize", wrapper.Size,
-	)
+	)*/
 	//! ---------------- END OF NEW CODE -----------------		
 
 	txPool.addTx(wrapper, cacheID)
