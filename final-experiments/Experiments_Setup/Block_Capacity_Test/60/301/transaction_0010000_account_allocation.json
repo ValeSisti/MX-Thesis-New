@@ -1,0 +1,16 @@
+{
+    "accountAllocationPayload": {
+        "id": 0,
+        "accountAllocation": [
+            {
+                "accountAddressString": "erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th",
+                "migrationNonce": 0,
+                "sourceShard": 1,
+                "destinationShard": 0
+            }
+        ]
+    },
+    "initialVariance": 7795088.888888888,
+    "newVariance": 3952442.8888888885,
+    "varianceImprovement": -3842645.9999999995
+}
