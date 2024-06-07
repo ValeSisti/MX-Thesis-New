@@ -1055,7 +1055,7 @@ def plotAggregatedData(field_to_group_by, experiment_folder):
 
 
 
-def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder, cross_shard_only, redrawn):
+def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder, cross_shard_only, redrawn, y_max, AMTs_info):
     # Read the CSV file
     df = pd.read_csv(f"{experiment_folder}/{OUTPUT_CSV_WITH_STATISTICS}")
 
@@ -1091,10 +1091,11 @@ def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder,
     if cross_shard_only:
         df = df[df['sender_shard'] != df['receiver_shard']]
 
-    migration_starts_at = 1713187141 #1712606295 #1712322484 #1712169658
-    x_migration_start = migration_starts_at - df['timestamp'].min()
-    #print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
-    #print(x_migration_start)
+    if len(AMTs_info) > 0:
+        migration_starts_at = AMTs_info[0]['epoch_time'] #1712606295 #1712322484 #1712169658
+        x_migration_start = migration_starts_at - df['timestamp'].min()
+        #print(str(migration_starts_at) + " - " + str(df["timestamp"].min()))
+        #print(x_migration_start)
 
     # Add vertical line at specified timestamp
     vertical_timestamp = 1713000131
@@ -1102,9 +1103,11 @@ def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder,
     #print(str(vertical_timestamp) + " - " + str(df["timestamp"].min()))
     #print(x_vertical_ts)
 
-
+        
+    field_to_group_by_min = df[field_to_group_by].min()
     # Convert timestamp to seconds
     df[field_to_group_by] = df[field_to_group_by] - df[field_to_group_by].min()  # Normalize timestamps to start from 0
+    
 
     # Separate data for each shard
     shard_0_data = df[df['sender_shard'] == 0]
@@ -1138,10 +1141,38 @@ def plotDataFromStatistics(time_threshold, field_to_group_by, experiment_folder,
     plt.grid(True)
     plt.xticks(rotation=45)
     plt.legend()
+
+    # Set y-axis limit if y_max is not None
+    if y_max is not None:
+        plt.ylim(top=y_max)
     
     
-    #plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
+    if len(AMTs_info) > 0:
+        plt.axvline(x=x_migration_start, color='r', linestyle='--', label='Vertical Line at Timestamp')
     #plt.axvline(x=x_vertical_ts, color='r', linestyle='--', label='Vertical Line at Timestamp 2')
+
+
+    # Path to the JSON file
+    timestamps_json_path = os.path.join(experiment_folder, "timestamps.json")
+    # Add vertical line for end_timestamp from JSON
+    if os.path.exists(timestamps_json_path):
+        with open(timestamps_json_path, 'r') as file:
+            timestamps_data = json.load(file)
+            end_timestamp = float(timestamps_data.get('end_timestamp'))
+            #x_end_timestamp = end_timestamp - df['timestamp'].min() if field_to_group_by == 'end_timestamp' else end_timestamp - df['end_timestamp'].min()
+            x_end_timestamp = end_timestamp - field_to_group_by_min
+            plt.axvline(x=x_end_timestamp, color='b', linestyle='--', label='End Timestamp')
+
+    
+    # Calculate the mean of all timestamp differences
+    overall_mean_timestamp_difference = df['timestamp_difference'].mean()
+    # Add a vertical line at the end_timestamp
+    #plt.axvline(x=x_end_timestamp, color='g', linestyle='--', label='End Timestamp')
+    # Add a horizontal line for the mean timestamp difference
+    plt.axhline(y=overall_mean_timestamp_difference, color='b', linestyle='--', label=f'Mean: {overall_mean_timestamp_difference:.2f} sec')
+    # Add a text label to show the mean value
+    plt.text(df[field_to_group_by].max(), overall_mean_timestamp_difference, f'{overall_mean_timestamp_difference:.2f} sec', color='b', va='bottom', ha='right')
+
 
     plt.tight_layout()
 
@@ -1695,9 +1726,13 @@ def generateAccountsInfoJsonFile():
                     }
                     num_accounts_per_shard[shard] += 1
 
-    # Write the updated dictionary to a JSON file
+
+    # Sort the dictionary by keys before writing to the JSON file
+    sorted_accounts_info = {k: accounts_info[k] for k in sorted(accounts_info)}
+
+    # Write the updated and sorted dictionary to a JSON file
     with open(ACCOUNTS_INFO_JSON_PATH, 'w') as output_json_file:
-        json.dump(accounts_info, output_json_file, indent=4)
+        json.dump(sorted_accounts_info, output_json_file, indent=4)
     print("DONE GENERATING ACCOUNTS INFO JSON FILE")
     print(f"num_accounts_per_shard = {num_accounts_per_shard}")
     #print(f"accounts_info = {accounts_info}")
@@ -2165,6 +2200,25 @@ def run_block_capacity_experiment(block_capacity,
     # Create the directory
     os.makedirs(experiment_folder)
     print("Directory created successfully.")
+
+        # Save parameters to a JSON file
+    params = {
+        'block_capacity': block_capacity,
+        'test_num': test_num,
+        'num_txs_per_batch': num_txs_per_batch,
+        'num_total_txs': num_total_txs,
+        'num_txs_threshold_for_account_allocation': num_txs_threshold_for_account_allocation,
+        'with_cross_shard_probability': with_cross_shard_probability,
+        'hot_sender_probability': hot_sender_probability,
+        'hot_accounts_change_threshold': hot_accounts_change_threshold,
+        "num_user_accounts": len(accounts_info),
+        "num_hot_accounts": len(hot_accounts)
+    }
+
+    params_file = os.path.join(experiment_folder, 'experiment_params.json')
+    with open(params_file, 'w') as f:
+        json.dump(params, f, indent=4)
+    print("Parameters saved to experiment_params.json")
     
     
     # Start the experiment
@@ -2183,7 +2237,11 @@ def run_block_capacity_experiment(block_capacity,
                         with_AMTs=False,
                         experiment_folder=experiment_folder)
 
-    time.sleep(120)
+    minutes_to_wait = 5
+    print(f"Waiting for {minutes_to_wait} to pass...")
+    for i in range(0, minutes_to_wait):
+        time.sleep(60)
+        print(f"{i} minutes have passed")
 
     addStatisticsToCSV(experiment_folder)
 
@@ -2191,8 +2249,8 @@ def run_block_capacity_experiment(block_capacity,
 
     #snapshotElasticsearchData(experiment_folder)
 
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False, y_max=None, AMTs_info=[])
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False, y_max=None, AMTs_info=[])
 
 
     plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder) #? PREVIOUS: field_to_group_by='timestamp'
@@ -2245,7 +2303,9 @@ def run_load_distribution_experiment(block_capacity,
         'with_cross_shard_probability': with_cross_shard_probability,
         'hot_sender_probability': hot_sender_probability,
         'hot_accounts_change_threshold': hot_accounts_change_threshold,
-        'with_AMTs': with_AMTs
+        'with_AMTs': with_AMTs,
+        "num_user_accounts": len(accounts_info),
+        "num_hot_accounts": len(hot_accounts)
     }
 
     params_file = os.path.join(experiment_folder, 'experiment_params.json')
@@ -2271,16 +2331,23 @@ def run_load_distribution_experiment(block_capacity,
                         with_AMTs=with_AMTs,
                         experiment_folder=experiment_folder)
 
-    time.sleep(240)
+    minutes_to_wait = 5
+    print(f"Waiting for {minutes_to_wait} to pass...")
+    for i in range(0, minutes_to_wait):
+        time.sleep(60)
+        print(f"{i} minutes have passed")
 
     addStatisticsToCSV(experiment_folder)
 
     copyLocalnetLogsToExperimentFolder(experiment_folder)
 
     #snapshotElasticsearchData(experiment_folder)
+    AMTs_info = []
+    if with_AMTs:
+        AMTs_info = get_AMT_timestamp(experiment_folder)
 
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False, y_max=None, AMTs_info=AMTs_info)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=False, redrawn=False, y_max=None, AMTs_info=AMTs_info)
 
 
     plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder) 
@@ -2357,15 +2424,15 @@ def main():
 
 
 
-def redraw_plots(experiment_folder, should_add_statistics_from_elastic, cross_shard_only, redrawn):
+def redraw_plots(experiment_folder, should_add_statistics_from_elastic, cross_shard_only, redrawn, y_max, AMTs_info):
 
     if should_add_statistics_from_elastic:
         addStatisticsToCSV(experiment_folder)
 
     #snapshotElasticsearchData(experiment_folder)
 
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=cross_shard_only, redrawn=redrawn)
-    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=cross_shard_only, redrawn=redrawn)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='end_timestamp', experiment_folder=experiment_folder, cross_shard_only=cross_shard_only, redrawn=redrawn, y_max=y_max, AMTs_info=AMTs_info)
+    plotDataFromStatistics(time_threshold=250, field_to_group_by='timestamp', experiment_folder=experiment_folder, cross_shard_only=cross_shard_only, redrawn=redrawn, y_max=y_max, AMTs_info=AMTs_info)
 
 
     plotData(field_to_group_by='end_timestamp', experiment_folder=experiment_folder)
@@ -2544,8 +2611,15 @@ if __name__ == "__main__":
     main()
     #generateAccountsInfoJsonFile()
     #get_AMT_timestamp(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/10")
-    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/23", should_add_statistics_from_elastic=True, cross_shard_only=False, redrawn=False)
-    #get_AMT_timestamp("/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/22")
+    #! CAMBIA EXPERIMENT FOLDER SENNO PERDI TUTTO
+    #? Se non ha funto:
+    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/50_50/12", should_add_statistics_from_elastic=True, cross_shard_only=False, redrawn=False, y_max=None, AMTs_info=[])
+    #? Per ridisegnarlo dando il "massimo" dell'asse y
+    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Block_Capacity_Test/80/301", should_add_statistics_from_elastic=False, cross_shard_only=False, redrawn=True, y_max=550, AMTs_info=[])
+    #? Per ridisegnarlo aggiungendo le AMT
+    #AMTs_found = get_AMT_timestamp("/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/43")
+    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/42", should_add_statistics_from_elastic=False, cross_shard_only=False, redrawn=True, y_max=None, AMTs_info=AMTs_found)
+
 
 
 #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/11")

@@ -121,7 +121,7 @@ func (txip *TxInterceptorProcessor) Save(dataToProcess process.InterceptedData, 
 		senderAddrOldShardId := txip.shardCoordinator.GetOldShardFromAddressBytes(interceptedTx.Transaction().GetSndAddr())
 		oldCacherIdentifier := process.ShardCacherIdentifier(senderAddrOldShardId, interceptedTx.ReceiverShardId())
 
-		log.Debug("*** Sender account has been 'recently' migrated: adding the interceptedTx also in the old cache!! --- THIS AVOIDS PROBLEM ON IPAD PAGE 185 but for sender addresses ---")
+		//log.Debug("*** Sender account has been 'recently' migrated: adding the interceptedTx also in the old cache!! --- THIS AVOIDS PROBLEM ON IPAD PAGE 185 but for sender addresses ---")
 		txip.shardedPool.AddData(
 			dataToProcess.Hash(),
 			interceptedTx.Transaction(),

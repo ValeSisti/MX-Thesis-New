@@ -74,7 +74,7 @@ func NewTxValidator(
 // CheckTxValidity will filter transactions that needs to be added in pools
 func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransactionHandler) error {
 	//! -------------------- NEW CODE --------------------
-	log.Debug("***CheckTxValidity called***")	
+	//log.Debug("***CheckTxValidity called***")	
 
 
 	normalTransactionHandler, ok := interceptedTx.Transaction().(data.NormalTransactionHandler)
@@ -86,7 +86,7 @@ func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransac
 	interceptedData, ok := interceptedTx.(process.InterceptedData)
 	if ok {
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***interceptedData, ok := interceptedTx.(process.InterceptedData) cast is ok***")	
+		//log.Debug("***interceptedData, ok := interceptedTx.(process.InterceptedData) cast is ok***")	
 		//! ---------------- END OF NEW CODE -----------------				
 		if txv.whiteListHandler.IsWhiteListed(interceptedData) && !(isAccountAdjustmentTransaction){ //! MODIFIED CODE -> risolve l'errore tale per cui quando una AAT ri-arriva ad un validator, 
 																									//! questo isWhiteListed ritorna true e quindi la AAT viene riaggiunta alla txPool, causandone il re-inserimento in un nuovo blocco, visto che skippa il controllo sotto (checkIfAATAlreadyInsertedInABlock)
@@ -102,7 +102,7 @@ func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransac
 	//! ---------------- END OF NEW CODE -----------------	
 	if txv.isSenderInDifferentShard(interceptedTx) && !wasPreviouslyMine{ //! MODIFIED
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***sender is in different shard for interceptedTx. Returning nil***", "hash", hex.EncodeToString(interceptedData.Hash()))	
+		//log.Debug("***sender is in different shard for interceptedTx. Returning nil***", "hash", hex.EncodeToString(interceptedData.Hash()))	
 		//! ---------------- END OF NEW CODE -----------------				
 		return nil
 	}
@@ -110,7 +110,7 @@ func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransac
 	accountHandler, err := txv.getSenderAccount(interceptedTx)
 	if err != nil && !wasPreviouslyMine{ //! MODIFIED CODE
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***could not get sender account inside CheckTxValidity***", "err", err.Error())	
+		//log.Debug("***could not get sender account inside CheckTxValidity***", "err", err.Error())	
 		//! ---------------- END OF NEW CODE -----------------			
 		return err
 	}
@@ -123,12 +123,12 @@ func (txv *txValidator) CheckTxValidity(interceptedTx process.InterceptedTransac
 		//TODO: ADD AAT LOGIC
 	}else if (isAccountMigrationTransaction) {
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***isAccountMigrationTransaction = true inside CheckTxValidity. Calling txv.checkAccountForAMT***")	
+		//log.Debug("***isAccountMigrationTransaction = true inside CheckTxValidity. Calling txv.checkAccountForAMT***")	
 		//! ---------------- END OF NEW CODE -----------------	
 		return txv.checkAccountForAMT(interceptedTx, accountHandler)
 	}else{
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***isAccountMigrationTransaction = false inside CheckTxValidity. Calling txv.checkAccount***")	
+		//log.Debug("***isAccountMigrationTransaction = false inside CheckTxValidity. Calling txv.checkAccount***")	
 		//! ---------------- END OF NEW CODE -----------------
 		return txv.checkAccount(interceptedTx, accountHandler)
 	}
@@ -193,7 +193,7 @@ func (txv *txValidator) checkBalance(interceptedTx process.InterceptedTransactio
 	//log.Debug("*** Account Balance inside checkBalance ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))
 	senderIsMigrating := accountBalance.Cmp(big.NewInt(0)) == 0 && account.GetNonce() == uint64(0)
 	if senderIsMigrating{
-		log.Debug("*** Balance can't be checked for migrating account, as its state is not yet update. Returning nil ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))	
+		//log.Debug("*** Balance can't be checked for migrating account, as its state is not yet update. Returning nil ***", "accountBalance", accountBalance, "address", txv.pubKeyConverter.SilentEncode(interceptedTx.SenderAddress(), log))	
 		return nil
 	}
 	//! ---------------- END OF NEW CODE -----------------

@@ -111,7 +111,7 @@ func NewMultiDataInterceptor(arg ArgMultiDataInterceptor) (*MultiDataInterceptor
 // (for the topic this validator was registered to)
 func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, fromConnectedPeer core.PeerID, _ p2p.MessageHandler) error {
 	//! ------------------- NEW CODE ---------------------
-	log.Debug("***Calling MultiDataInterceptor.ProcessReceivedMessage***", "topic", message.Topic(), "key", string(message.Key()))
+	//log.Debug("***Calling MultiDataInterceptor.ProcessReceivedMessage***", "topic", message.Topic(), "key", string(message.Key()))
 	//! ---------------- END OF NEW CODE -----------------		
 	err := mdi.preProcessMesage(message, fromConnectedPeer)
 	if err != nil {
@@ -224,7 +224,7 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 		
 		//if (txPresentInShardedTxPool){
 			//! -------------------- NEW CODE --------------------
-			log.Debug("*** ----- Setting shouldProcess = true ----- ***")
+			//log.Debug("*** ----- Setting shouldProcess = true ----- ***")
 			//! ---------------- END OF NEW CODE -----------------				
 			shouldProcess = true
 		//}
@@ -255,7 +255,7 @@ func (mdi *MultiDataInterceptor) ProcessReceivedMessage(message p2p.MessageP2P, 
 		*/			
 		for _, interceptedData := range listInterceptedData {
 			//! -------------------- NEW CODE --------------------
-			log.Debug("***processInterceptedData called inside MultiDataInterceptor.ProcessReceivedMessage***", "interceptedData", interceptedData.Hash())
+			//log.Debug("***processInterceptedData called inside MultiDataInterceptor.ProcessReceivedMessage***", "interceptedData", interceptedData.Hash())
 			//! ---------------- END OF NEW CODE -----------------			
 			mdi.processInterceptedData(interceptedData, message)
 		}
@@ -280,7 +280,7 @@ func (mdi *MultiDataInterceptor) interceptedData(dataBuff []byte, originator cor
 	}
 
 	//! ------------------- NEW CODE ---------------------
-	log.Debug("***Calling receivedDebugInterceptedData() inside interceptedData***")
+	//log.Debug("***Calling receivedDebugInterceptedData() inside interceptedData***")
 	//! ---------------- END OF NEW CODE -----------------
 	mdi.receivedDebugInterceptedData(interceptedData)
 

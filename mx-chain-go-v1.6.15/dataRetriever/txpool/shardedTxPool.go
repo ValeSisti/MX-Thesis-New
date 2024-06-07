@@ -3,7 +3,7 @@ package txpool
 import (
 	"strconv"
 	"sync"
-	"encoding/hex"
+	//"encoding/hex"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/counting"
@@ -222,7 +222,7 @@ func (txPool *shardedTxPool) addTx(tx *txcache.WrappedTransaction, cacheID strin
 	_, added := cache.AddTx(tx)
 	if added {
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***ADDED TXS INTO THE CACHE***",
+		/*log.Debug("***ADDED TXS INTO THE CACHE***",
 		"cacheID", cacheID,
 		"txHash", hex.EncodeToString(tx.TxHash),
 		)
@@ -231,7 +231,7 @@ func (txPool *shardedTxPool) addTx(tx *txcache.WrappedTransaction, cacheID strin
 		"retrievedHash", hex.EncodeToString(retrievedTxFromPool.TxHash),
 		"txHash", hex.EncodeToString(tx.TxHash),
 		"ok", ok,
-		)
+		)*/
 		//! ---------------- END OF NEW CODE -----------------		
 		txPool.onAdded(tx.TxHash, tx)
 	}

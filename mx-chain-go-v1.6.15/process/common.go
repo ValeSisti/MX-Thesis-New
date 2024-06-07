@@ -442,7 +442,7 @@ func getTransactionHandlerFromPool(
 
 	if method == SearchMethodSearchFirst {
 		//! -------------------- NEW CODE --------------------
-		log.Debug("*** method == SearchMethodSearchFirst inside getTransactionHandlerFromPool ***")
+		//log.Debug("*** method == SearchMethodSearchFirst inside getTransactionHandlerFromPool ***")
 		//! ---------------- END OF NEW CODE -----------------			
 		val, ok = shardedDataCacherNotifier.SearchFirstData(txHash)
 
@@ -451,7 +451,7 @@ func getTransactionHandlerFromPool(
 
 	strCache := ShardCacherIdentifier(senderShardID, destShardID)
 	//! -------------------- NEW CODE --------------------
-	log.Debug("*** strCache inside getTransactionHandlerFromPool ***", "strCache", strCache)
+	//log.Debug("*** strCache inside getTransactionHandlerFromPool ***", "strCache", strCache)
 	//! ---------------- END OF NEW CODE -----------------		
 	txStore := shardedDataCacherNotifier.ShardDataStore(strCache)
 	if txStore == nil {

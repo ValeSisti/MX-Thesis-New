@@ -154,7 +154,7 @@ func (cache *TxCache) AddTx(tx *WrappedTransaction) (ok bool, added bool) {
 func (cache *TxCache) GetByTxHash(txHash []byte) (*WrappedTransaction, bool) {
 	//! -------------------- NEW CODE --------------------
 
-	log.Debug("*** GetTxByHash called ***", "txHash", hex.EncodeToString(txHash))
+	//log.Debug("*** GetTxByHash called ***", "txHash", hex.EncodeToString(txHash))
 
 	if(cache.accountMigrationTxs.Has(string(txHash))){
 		txAsInterface, _ := cache.accountMigrationTxs.Get(string(txHash))
@@ -326,7 +326,7 @@ func (cache *TxCache) doAfterSelection() {
 // RemoveTxByHash removes tx by hash
 func (cache *TxCache) RemoveTxByHash(txHash []byte) bool {
 	//! -------------------- NEW CODE --------------------
-	log.Debug("*** RemoveTxByHash called ***", "txHash", hex.EncodeToString(txHash))
+	//log.Debug("*** RemoveTxByHash called ***", "txHash", hex.EncodeToString(txHash))
 	//! ---------------- END OF NEW CODE -----------------	
 	cache.mutTxOperation.Lock()
 	defer cache.mutTxOperation.Unlock()

@@ -176,7 +176,7 @@ func createRelayedV2(relayedTx *transaction.Transaction, args [][]byte) (*transa
 // CheckValidity checks if the received transaction is valid (not nil fields, valid sig and so on)
 func (inTx *InterceptedTransaction) CheckValidity() error {
 	//! -------------------- NEW CODE --------------------
-	log.Debug("***inTx.CheckValidity called***", "txHash", hex.EncodeToString(inTx.Hash()), "string(txHash)", string(inTx.Hash()))
+	//log.Debug("***inTx.CheckValidity called***", "txHash", hex.EncodeToString(inTx.Hash()), "string(txHash)", string(inTx.Hash()))
 	//! ---------------- END OF NEW CODE -----------------		
 	err := inTx.integrity(inTx.tx)
 	if err != nil {
@@ -196,7 +196,7 @@ func (inTx *InterceptedTransaction) CheckValidity() error {
 			return err
 		}else{
 			//! -------------------- NEW CODE --------------------
-			log.Debug("***verifySig SUCCESSFUL***")
+			//log.Debug("***verifySig SUCCESSFUL***")
 			//! ---------------- END OF NEW CODE -----------------		
 		}
 
@@ -215,7 +215,7 @@ func (inTx *InterceptedTransaction) CheckValidity() error {
 			return err
 		}
 		//! -------------------- NEW CODE --------------------
-		log.Debug("***inTx.whiteListerVerifiedTxs.Add([][]byte{inTx.Hash()}) called***")
+		//log.Debug("***inTx.whiteListerVerifiedTxs.Add([][]byte{inTx.Hash()}) called***")
 		//! ---------------- END OF NEW CODE -----------------			
 
 		inTx.whiteListerVerifiedTxs.Add([][]byte{inTx.Hash()})
@@ -356,7 +356,7 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 		inTx.sndShard = inTx.tx.SenderShard
 		inTx.rcvShard = inTx.tx.ReceiverShard
 
-		log.Debug("***Intercepted transaction: isAccountAdjustmentTransaction***", "txHash", inTx.hash)
+		//log.Debug("***Intercepted transaction: isAccountAdjustmentTransaction***", "txHash", inTx.hash)
 
 	}else if(isAccountMigrationTransaction){			
 				
@@ -385,13 +385,13 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 		inTx.sndShard = inTx.tx.SenderShard
 		inTx.rcvShard = inTx.tx.ReceiverShard
 
-		log.Debug("***Intercepted transaction: isAccountMigrationTransaction***")
+		//log.Debug("***Intercepted transaction: isAccountMigrationTransaction***")
 
 	}else{
 	//! ---------------- END OF NEW CODE -----------------
 		inTx.hash = inTx.hasher.Compute(string(txBuff))
 
-		log.Debug("***Intercepted transaction: is a normal move balance transaction***")
+		//log.Debug("***Intercepted transaction: is a normal move balance transaction***")
 
 
 		inTx.sndShard = inTx.coordinator.ComputeId(inTx.tx.SndAddr)
@@ -403,7 +403,7 @@ func (inTx *InterceptedTransaction) processFields(txBuff []byte) error {
 	//! -------------------- NEW CODE --------------------
 	} 
 
-	log.Debug("*** inTx info ***", "sndShard", inTx.sndShard, "rcvShard",inTx.sndShard, "isForCurrentShard", (inTx.rcvShard == inTx.coordinator.SelfId() || inTx.sndShard == inTx.coordinator.SelfId()))
+	//log.Debug("*** inTx info ***", "sndShard", inTx.sndShard, "rcvShard",inTx.sndShard, "isForCurrentShard", (inTx.rcvShard == inTx.coordinator.SelfId() || inTx.sndShard == inTx.coordinator.SelfId()))
 	//! ---------------- END OF NEW CODE ----------------
 
 	isForCurrentShardRecv := inTx.rcvShard == inTx.coordinator.SelfId()
@@ -526,8 +526,8 @@ func (inTx *InterceptedTransaction) verifySig(tx *transaction.Transaction) error
 
 	}
 
-	log.Debug("***txMessageForSigVerification (txSigningData) IS", "txMessageForSigVerification", hex.EncodeToString(txMessageForSigVerification))
-	log.Debug("***tx.Signature IS", "tx.Signature", hex.EncodeToString(tx.Signature))
+	//log.Debug("***txMessageForSigVerification (txSigningData) IS", "txMessageForSigVerification", hex.EncodeToString(txMessageForSigVerification))
+	//log.Debug("***tx.Signature IS", "tx.Signature", hex.EncodeToString(tx.Signature))
 	//! ---------------- END OF NEW CODE -----------------	
 
 	return inTx.singleSigner.Verify(senderPubKey, txMessageForSigVerification, tx.Signature)
