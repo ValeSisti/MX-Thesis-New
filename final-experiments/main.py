@@ -48,6 +48,7 @@ INPUT_FOLDER_PATH = "/home/valentina/multiversx-sdk/testwallets/v1.0.0/mx-sdk-te
 hot_accounts = ["erd1qyu5wthldzr8wx5c9ucg8kjagg0jfs53s8nr3zpz3hypefsdd8ssycr6th", "erd1kyaqzaprcdnv4luvanah0gfxzzsnpaygsy6pytrexll2urtd05ts9vegu7", "erd18tudnj2z8vjh0339yu3vrkgzz2jpz8mjq0uhgnmklnap6z33qqeszq2yn4" ] #alice, dan, eve
 hot_sender_probability = 0.9 #TODO modificare a 0.5
 cross_shard_probability = 0.5
+AATs_probability = 0.8
 
 global_txs_id = 0
 
@@ -234,7 +235,7 @@ def create_new_tx_command(nonce, gas_limit, receiver_address, sender_name, tx_id
 
 
 
-def pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(all_accounts, seed, num_txs_per_batch, with_cross_shard_probability, hot_sender_probability):
+def pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(all_accounts, seed, num_txs_per_batch, with_cross_shard_probability, hot_sender_probability, with_AATs, with_AATs_probability):
     # Extract keys from the hash map
     all_accounts_keys = list(all_accounts.keys())
     light_accounts = list(all_accounts.keys())
@@ -254,7 +255,7 @@ def pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(
     # Generate sender-receiver pairs for hot account senders
     for _ in range(num_hot_account_senders):
         sender = random.choice(hot_accounts)
-        receiver = pick_receiver_based_on_cross_shard_probability(all_accounts, sender, with_cross_shard_probability)
+        receiver = pick_receiver_based_on_cross_shard_probability(all_accounts, sender, with_cross_shard_probability, with_AATs, with_AATs_probability)
         sender_shard = accounts_info[sender]["shard"]
         receiver_shard = accounts_info[receiver]["shard"]
         is_cross_shard = sender_shard == receiver_shard
@@ -263,7 +264,7 @@ def pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(
     # Generate sender-receiver pairs for light account senders
     for _ in range(num_txs_per_batch - num_hot_account_senders):
         sender = random.choice(light_accounts)
-        receiver = pick_receiver_based_on_cross_shard_probability(all_accounts, sender, with_cross_shard_probability)
+        receiver = pick_receiver_based_on_cross_shard_probability(all_accounts, sender, with_cross_shard_probability, with_AATs, with_AATs_probability)
         sender_shard = accounts_info[sender]["shard"]
         receiver_shard = accounts_info[receiver]["shard"]
         is_cross_shard = sender_shard == receiver_shard
@@ -290,21 +291,47 @@ def writeGeneratedTxsStatisticsCSV(batch_sender_receiver_pairs):
 
 
 
-def pick_receiver_based_on_cross_shard_probability(all_accounts, sender_addr, with_cross_shard_probability):
+def pick_receiver_based_on_cross_shard_probability(all_accounts, sender_addr, with_cross_shard_probability, with_AATs, with_AATs_probability):
     
+    def filter_accounts(account_keys, exclude_hot_accounts):
+        if exclude_hot_accounts:
+            return [key for key in account_keys if key not in hot_accounts]
+        return account_keys
+
     if not with_cross_shard_probability:
-        all_account_keys = [key for key, _ in all_accounts.items()]
-        return random.choice(all_account_keys)
+        if with_AATs_probability:
+            if random.random() < AATs_probability:
+                hot_account_keys = [key for key in hot_accounts if key != sender_addr]
+                return random.choice(hot_account_keys)
+            else:
+                all_account_keys = [key for key, _ in all_accounts.items() if key not in hot_accounts and key != sender_addr]
+                return random.choice(all_account_keys)
+        else:
+            all_account_keys = [key for key, _ in all_accounts.items()]
+            all_account_keys = filter_accounts(all_account_keys, not with_AATs)
+            return random.choice(all_account_keys)
     
     sender_shard = all_accounts[sender_addr]["shard"]
+    
     same_shard_account_keys = [key for key, acc in all_accounts.items() if key != sender_addr and acc["shard"] == sender_shard]
     different_shard_account_keys = [key for key, acc in all_accounts.items() if key != sender_addr and acc["shard"] != sender_shard]
     
-    if random.random() < cross_shard_probability:
-        return random.choice(different_shard_account_keys)
-    else:
-        return random.choice(same_shard_account_keys)
+    if with_AATs_probability:
+        hot_same_shard_accounts = [key for key in hot_accounts if all_accounts[key]["shard"] == sender_shard and key != sender_addr]
+        hot_different_shard_accounts = [key for key in hot_accounts if all_accounts[key]["shard"] != sender_shard and key != sender_addr]
 
+        if random.random() < AATs_probability:
+            return random.choice(hot_different_shard_accounts) if hot_different_shard_accounts else random.choice(hot_same_shard_accounts)
+        else:
+            return random.choice(hot_same_shard_accounts) if hot_same_shard_accounts else random.choice(hot_different_shard_accounts)
+
+    same_shard_account_keys = filter_accounts(same_shard_account_keys, not with_AATs)
+    different_shard_account_keys = filter_accounts(different_shard_account_keys, not with_AATs)
+    
+    if random.random() < cross_shard_probability:
+        return random.choice(different_shard_account_keys) if different_shard_account_keys else random.choice(same_shard_account_keys)
+    else:
+        return random.choice(same_shard_account_keys) if same_shard_account_keys else random.choice(different_shard_account_keys)
 
 
 def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocations(num_txs_per_batch, num_total_txs, num_txs_threshold_for_account_allocation, output_dir, with_cross_shard_probability, hot_sender_probability):
@@ -384,7 +411,7 @@ def update_hot_accounts(shard_id, num_accounts):
 
 
 
-def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_txs_per_batch, num_total_txs, num_txs_threshold_for_account_allocation, output_dir, with_cross_shard_probability, hot_sender_probability, hot_accounts_change_threshold):
+def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_txs_per_batch, num_total_txs, num_txs_threshold_for_account_allocation, output_dir, with_cross_shard_probability, hot_sender_probability, hot_accounts_change_threshold, with_AATs, with_AATs_probability):
     print("Num of accounts: " + str(len(accounts_info)))
     print("0.02x of account is: " + str(len(accounts_info) * 0.02))
     seed_value = 42
@@ -399,7 +426,7 @@ def generateTransactionsWithCorrectLoadInBatchesWithAccountAllocationsOnCSV(num_
     createGeneratedTxsStatisticsCSV(output_dir)
 
     for batch in range(num_batches):
-        generator = pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(accounts_info, seed_value+batch, num_txs_per_batch, with_cross_shard_probability, hot_sender_probability)
+        generator = pick_sender_and_receiver_with_correct_load_by_batch_and_account_allocations(accounts_info, seed_value+batch, num_txs_per_batch, with_cross_shard_probability, hot_sender_probability, with_AATs, with_AATs_probability)
         batch_sender_receiver_pairs = list(generator)
 
         # Prepare a list to store all the commands to run
@@ -1698,7 +1725,7 @@ def generateAccountsInfoJsonFileOLD():
         json.dump(accounts_info, json_file, indent=4)
 
 
-def generateAccountsInfoJsonFile():
+def generateAccountsInfoJsonFile(experiment_folder):
     global accounts_info
 
     num_accounts_per_shard = {0:0, 1:0, 2:0}
@@ -1733,6 +1760,20 @@ def generateAccountsInfoJsonFile():
     # Write the updated and sorted dictionary to a JSON file
     with open(ACCOUNTS_INFO_JSON_PATH, 'w') as output_json_file:
         json.dump(sorted_accounts_info, output_json_file, indent=4)
+
+
+    # Prepare statistics data
+    statistics = {
+        "total_accounts": len(accounts_info),
+        "num_accounts_per_shard": num_accounts_per_shard
+    }
+
+    stats_json_path = os.path.join(experiment_folder, f"statistics_{len(accounts_info)}.json")
+
+    # Write the statistics to a JSON file
+    with open(stats_json_path, 'w') as stats_json_file:
+        json.dump(statistics, stats_json_file, indent=4)
+
     print("DONE GENERATING ACCOUNTS INFO JSON FILE")
     print(f"num_accounts_per_shard = {num_accounts_per_shard}")
     #print(f"accounts_info = {accounts_info}")
@@ -2245,7 +2286,8 @@ def run_block_capacity_experiment(block_capacity,
 
     addStatisticsToCSV(experiment_folder)
 
-    copyLocalnetLogsToExperimentFolder(experiment_folder)
+    #copyLocalnetLogsToExperimentFolder(experiment_folder)
+    #filter_logs(experiment_folder)
 
     #snapshotElasticsearchData(experiment_folder)
 
@@ -2266,7 +2308,9 @@ def run_load_distribution_experiment(block_capacity,
                                   with_cross_shard_probability,
                                   hot_sender_probability,
                                   hot_accounts_change_threshold,
-                                  with_AMTs
+                                  with_AMTs,
+                                  with_AATs,
+                                  with_AATs_probability
                                 ):
     
     # Get the directory of the script
@@ -2304,6 +2348,9 @@ def run_load_distribution_experiment(block_capacity,
         'hot_sender_probability': hot_sender_probability,
         'hot_accounts_change_threshold': hot_accounts_change_threshold,
         'with_AMTs': with_AMTs,
+        'with_AATs': with_AATs,
+        'with_AATs_probability': with_AATs_probability,
+        'AATs_probability': AATs_probability,
         "num_user_accounts": len(accounts_info),
         "num_hot_accounts": len(hot_accounts)
     }
@@ -2322,7 +2369,10 @@ def run_load_distribution_experiment(block_capacity,
                                                                         output_dir=experiment_folder,
                                                                         with_cross_shard_probability=with_cross_shard_probability,
                                                                         hot_sender_probability=hot_sender_probability,
-                                                                        hot_accounts_change_threshold=hot_accounts_change_threshold)
+                                                                        hot_accounts_change_threshold=hot_accounts_change_threshold,
+                                                                        with_AATs=with_AATs,
+                                                                        with_AATs_probability=with_AATs_probability
+                                                                        )
 
     myLastSenderWithBarrierFromCSV(
                         delay_in_seconds=5,
@@ -2339,7 +2389,10 @@ def run_load_distribution_experiment(block_capacity,
 
     addStatisticsToCSV(experiment_folder)
 
+    getAATsStatistics(experiment_folder)
+
     copyLocalnetLogsToExperimentFolder(experiment_folder)
+    filter_logs(experiment_folder)
 
     #snapshotElasticsearchData(experiment_folder)
     AMTs_info = []
@@ -2385,14 +2438,26 @@ def main():
     parser.add_argument("--hot_accounts_change_threshold", type=int, help="num of txs after which change the set of hot accounts")
     parser.add_argument("--num_user_accounts", type=int, help="num of user accounts in the system")
     parser.add_argument("--initial_shard_for_hot_accounts", type=int, help="id of initial shard for hot accounts")
-    parser.add_argument("--with_AMTs", type=str2bool, help="whether to generate account migrations or not")
+    parser.add_argument("--with_AMTs", type=str2bool, help="whether to generate account migrations txs or not")
+    parser.add_argument("--with_AATs", type=str2bool, help="whether to generate account adjustment txs or not")
+    parser.add_argument("--with_AATs_probability", type=str2bool, help="probability with which generate account adjustment txs")
     
     # Parsing degli argomenti della riga di comando
     args = parser.parse_args()
     print(args)
 
+     
+    # Get the directory of the script
+    script_directory = os.path.dirname(os.path.realpath(__file__))
+    if args.function_name == "block_capacity_experiment":
+        experiment_folder = os.path.join(script_directory, "Experiments_Setup/")
+    elif args.function_name == "load_distribution_experiment":
+        experiment_folder = os.path.join(script_directory, f"Experiments_Setup/")
+
+
+    
     # Update accounts_info and hot_accounts
-    generateAccountsInfoJsonFile()
+    generateAccountsInfoJsonFile(experiment_folder)
     num_hot_accounts = math.ceil(len(accounts_info) * 0.02)
     updateHotAccounts(shard_of_hot_accounts=args.initial_shard_for_hot_accounts, num_hot_accounts=num_hot_accounts)
 
@@ -2417,7 +2482,9 @@ def main():
                                         with_cross_shard_probability=args.with_cross_shard_probability,
                                         hot_sender_probability=args.hot_sender_probability,
                                         hot_accounts_change_threshold=args.hot_accounts_change_threshold,
-                                        with_AMTs=args.with_AMTs
+                                        with_AMTs=args.with_AMTs,
+                                        with_AATs=args.with_AATs,
+                                        with_AATs_probability=args.with_AATs_probability
                                       )
     """elif args.function_name == "function3":
         function3(args.arg1, args.arg2)"""
@@ -2428,6 +2495,7 @@ def redraw_plots(experiment_folder, should_add_statistics_from_elastic, cross_sh
 
     if should_add_statistics_from_elastic:
         addStatisticsToCSV(experiment_folder)
+        getAATsStatistics(experiment_folder)
 
     #snapshotElasticsearchData(experiment_folder)
 
@@ -2573,7 +2641,7 @@ def get_AMT_timestamp(experiment_folder):
     results = []
     
     # Define the path to the localnet_logs folder
-    logs_folder = os.path.join(experiment_folder, "localnet_logs")
+    logs_folder = os.path.join(experiment_folder, "filtered_logs")
     
     # Define the regex pattern to match the desired log line and extract the timestamp
     pattern = re.compile(r"DEBUG\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\].*ACCOUNT ALLOCATION IS NOT EMPTY: PERFORMING ACCOUNT MIGRATIONS")
@@ -2605,21 +2673,133 @@ def get_AMT_timestamp(experiment_folder):
     return results
 
 
+def getAATsStatistics(experiment_folder):
+    # Load the CSV file into a DataFrame
+    file_path = os.path.join(experiment_folder, "output_with_statistics.csv")
+    df = pd.read_csv(file_path)
+    
+    # Print column names to debug the KeyError issue
+    print("Columns in DataFrame:", df.columns)
+    
+    # Calculate total transactions
+    total_txs = int(len(df))
+    
+    # Verify if 'is_affected_by_AAT' column exists
+    if 'is_affected_by_AAT' not in df.columns:
+        raise KeyError("'is_affected_by_AAT' column is missing in the CSV file")
+    
+    # Verify if 'has_corresponding_AAT' column exists
+    if 'has_corresponding_AAT' not in df.columns:
+        raise KeyError("'has_corresponding_AAT' column is missing in the CSV file")
+    
+    # Calculate number of transactions affected by AATs
+    affected_by_AAT = int(df['is_affected_by_AAT'].sum())
+    
+    # Calculate number of transactions with corresponding AATs
+    corresponding_AAT = int(df['has_corresponding_AAT'].sum())
+    
+    # Filter transactions affected by AATs
+    affected_txs = df[df['is_affected_by_AAT'] == 1]
+    
+    # Calculate number of unique mini_block_hashes among affected transactions
+    unique_mini_block_hashes = affected_txs['mini_block_hash'].nunique()
+    
+    # Gather detailed statistics for each unique mini_block_hash
+    mini_block_stats = {}
+    for mini_block, group in affected_txs.groupby('mini_block_hash'):
+        mini_block_stats[mini_block] = {
+            'num_txs': len(group),
+            'txs': []
+        }
+        for _, row in group.iterrows():
+            mini_block_stats[mini_block]['txs'].append({
+                'tx_hash': row['txHashes'],
+                'has_corresponding_AAT': bool(row['has_corresponding_AAT']),
+                'sender': row['sender'],
+                'receiver': row['receiver'],
+                'sender_shard': int(row['sender_shard']),
+                'receiver_shard': int(row['receiver_shard'])
+            })
+    
+    # Calculate the number of transactions by sender and receiver shard
+    shard_stats = df.groupby(['sender_shard', 'receiver_shard']).agg(
+        total_txs=('file_name', 'count'),
+        affected_by_AAT=('is_affected_by_AAT', 'sum'),
+        corresponding_AAT=('has_corresponding_AAT', 'sum')
+    ).reset_index()
+    
+    # Convert shard_stats DataFrame to a list of dictionaries with native Python types
+    shard_stats_list = shard_stats.applymap(int).to_dict(orient='records')
+    
+    # Create a dictionary to hold all statistics
+    stats = {
+        'total_txs': total_txs,
+        'affected_by_AAT': affected_by_AAT,
+        'corresponding_AAT': corresponding_AAT,
+        'unique_mini_block_hashes': unique_mini_block_hashes,
+        'mini_block_stats': mini_block_stats,
+        'shard_stats': shard_stats_list
+    }
+    
+    # Define the path for the output JSON file
+    json_file_path = os.path.join(experiment_folder, "stats.json")
+    
+    # Save the stats dictionary to a JSON file
+    with open(json_file_path, 'w') as json_file:
+        json.dump(stats, json_file, indent=4)
+
+
+# Define the patterns
+patterns = [
+    re.compile(rb'DEBUG\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[node\]\s+PRINTING TXHASH\s+txHash = [a-f0-9]{64} string\(txHash\) = [a-f0-9]{64}'),
+    re.compile(rb'DEBUG\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[node\]\s+GENERATING THE ACCOUNT MIGRATION TRANSACTION FOR ALICE!'),
+    re.compile(rb'DEBUG\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[node\]\s+\*\*\* ACCOUNT ALLOCATION IS NOT EMPTY: PERFORMING ACCOUNT MIGRATIONS \*\*\* numMigrations = \d+'),
+    re.compile(rb'DEBUG\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[node\]\s+\*\*\* AccountsMapping is now: \*\*\*\s+accountsMapping = .*'),
+    re.compile(rb'DEBUG\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[dblookupext\]\s+\*\*\* ----- ACCOUNT MIGRATION TRANSACTION FROM ME NOTARIZED ON DESTINATION ----- \*\*\*\* txHash = [a-f0-9]{64} migratedAccount = [a-f0-9]{64} migrationNonce = \d+'),
+    re.compile(rb'DEBUG\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[dblookupext\]\s+\*\*\*---------ACCOUNT ADJUSTMENT TRANSACTION notarized dest-side inside historyRepository------------\*\*\* txHash = [a-f0-9]{64}'),
+    re.compile(rb'DEBUG\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] \[\.\.block/preprocess\]\s+\*\*\*-------------Found problematic tx when processing miniblock dst me. TxHash added to problematicTxHashesFromMb---------------\*\*\* txHash = [a-f0-9]{64}')
+]
+
+def filter_logs(experiment_folder):
+    log_folder = os.path.join(experiment_folder, 'localnet_logs')
+    output_folder = os.path.join(experiment_folder, 'filtered_logs')
+
+    # Create the output folder if it does not exist
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # Iterate over each log file in the log folder
+    for log_filename in os.listdir(log_folder):
+        if log_filename.endswith('.log'):
+            input_file_path = os.path.join(log_folder, log_filename)
+            output_file_path = os.path.join(output_folder, log_filename)
+            
+            with open(input_file_path, 'rb') as input_file, open(output_file_path, 'wb') as output_file:
+                for line in input_file:
+                    if any(pattern.match(line) for pattern in patterns):
+                        output_file.write(line)
+    
+    # Delete the localnet_logs folder after processing
+    shutil.rmtree(log_folder)
+
+
 
 # Esegui la funzione principale se lo script è eseguito direttamente
 if __name__ == "__main__":
     main()
-    #generateAccountsInfoJsonFile()
-    #get_AMT_timestamp(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/10")
+    #experiment_folder = "/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/OLD_Load_Distribution_Test/60_40/20"
+    #generateAccountsInfoJsonFile("/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/")
+    #get_AMT_timestamp(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/70_30/32")
+    #getAATsStatistics(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/50_50/202")
+    #filter_logs(experiment_folder=experiment_folder)
     #! CAMBIA EXPERIMENT FOLDER SENNO PERDI TUTTO
     #? Se non ha funto:
-    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/50_50/12", should_add_statistics_from_elastic=True, cross_shard_only=False, redrawn=False, y_max=None, AMTs_info=[])
+    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/50_50/202", should_add_statistics_from_elastic=True, cross_shard_only=False, redrawn=False, y_max=None, AMTs_info=[])
     #? Per ridisegnarlo dando il "massimo" dell'asse y
     #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Block_Capacity_Test/80/301", should_add_statistics_from_elastic=False, cross_shard_only=False, redrawn=True, y_max=550, AMTs_info=[])
     #? Per ridisegnarlo aggiungendo le AMT
-    #AMTs_found = get_AMT_timestamp("/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/43")
-    #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/42", should_add_statistics_from_elastic=False, cross_shard_only=False, redrawn=True, y_max=None, AMTs_info=AMTs_found)
-
+    #AMTs_found = get_AMT_timestamp(experiment_folder=experiment_folder)
+    #redraw_plots(experiment_folder=experiment_folder, should_add_statistics_from_elastic=False, cross_shard_only=False, redrawn=True, y_max=None, AMTs_info=AMTs_found)
 
 
 #redraw_plots(experiment_folder="/home/valentina/Thesis/MX-Thesis-New/final-experiments/Experiments_Setup/Load_Distribution_Test/90_9/11")

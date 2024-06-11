@@ -212,15 +212,17 @@ close_all_terminals
 # Define arguments
 function_name="load_distribution_experiment" # load_distribution_experiment    block_capacity_experiment    num_accounts_experiment
 block_capacity=100
-test_num=11
+test_num=203
 num_txs_per_batch=50
-num_total_txs=30000 #20000
-num_txs_threshold_for_account_allocation=17500 #6000
+num_total_txs=15000 #20000
+num_txs_threshold_for_account_allocation=2400 #6000
 with_cross_shard_probability=false #true
 hot_sender_probability=0.5
 hot_accounts_change_threshold=1000000000000000 #9600
 initial_shard_for_hot_accounts=1
 with_AMTs=true
+with_AATs=true
+with_AATs_probability=true
 
 num_user_accounts=250
 num_to_copy=$((num_user_accounts - 12))
@@ -270,7 +272,9 @@ execute_command_in_new_terminal 120 "/bin/python3 /home/valentina/Thesis/MX-Thes
                         --hot_accounts_change_threshold $hot_accounts_change_threshold \
                         --num_user_accounts $num_user_accounts \
                         --initial_shard_for_hot_accounts $initial_shard_for_hot_accounts \
-                        --with_AMTs $with_AMTs"
+                        --with_AMTs $with_AMTs \
+                        --with_AATs $with_AATs \
+                        --with_AATs_probability $with_AATs_probability"
 
 #END_COMMENT # TODO: comment this line to uncomment lines above
 #! END OF BLOCK CAPACITY TEST

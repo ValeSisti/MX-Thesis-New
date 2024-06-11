@@ -1,0 +1,8 @@
+{
+    "total_accounts": 250,
+    "num_accounts_per_shard": {
+        "0": 53,
+        "1": 136,
+        "2": 61
+    }
+}
